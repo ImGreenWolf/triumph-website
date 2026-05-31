@@ -8,6 +8,7 @@ export const boardRoles = [
   'treasurer',
   'pr-director',
   'hr-director',
+  'tresoursier',
 ] as const
 
 export const allRoles = ['aspirer', 'active', ...boardRoles] as const
@@ -27,4 +28,12 @@ export const hasRole =
 export const hasBoardRole: AdminAccess = ({ req }) => {
   const user = req.user as { role?: AllRoles } | null
   return Boolean(user?.role && boardRoles.includes(user.role as BoardRole))
+}
+
+export const isSecretary = (user: { role?: string } | null | undefined) => {
+  return user?.role === 'secretary' || user?.role === 'president'
+}
+
+export const hasSecretaryRole: AdminAccess = ({ req }) => {
+  return isSecretary(req.user)
 }

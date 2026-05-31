@@ -253,32 +253,6 @@ export const TestimonialBlock: Block = {
     }
 }
 
-export const FAQBlock: Block = {
-    slug: 'faqBlock',
-    interfaceName: 'FAQBlock',
-    fields: [
-        introContent,
-        {
-            name: 'faqs',
-            type: 'array',
-            fields: [
-                { name: 'question', type: 'text', required: true },
-                { name: 'answer', type: 'textarea', required: true },
-            ],
-        },
-    ],
-    labels: {
-        plural: 'FAQ Blocks',
-        singular: 'FAQ Block',
-    },
-    admin: {
-        images: {
-            thumbnail: '/block-previews/faqBlock.webp',
-            icon: '/block-previews/icons/faqBlock.svg'
-        }
-    }
-}
-
 export const LogoCloudBlock: Block = {
     slug: 'logoCloudBlock',
     interfaceName: 'LogoCloudBlock',
@@ -318,7 +292,6 @@ export const homepageBlocks = [
     SplitMediaBlock,
     ProcessBlock,
     TestimonialBlock,
-    FAQBlock,
     LogoCloudBlock,
     SectionTitleBlock
 ]

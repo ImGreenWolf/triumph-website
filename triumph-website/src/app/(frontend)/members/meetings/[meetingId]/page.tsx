@@ -5,10 +5,15 @@ import { getPayload } from 'payload'
 import payloadConfig from '@payload-config'
 
 import {
+  AbsenceMotivation,
   Attendance,
   Meeting,
   User,
 } from '@/payload-types'
+import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
+
+import MotivateAbsenceDialog from './MotivateAbsenceDialog'
+import PageClient from './page.client'
 
 type Props = {
   params: Promise<{
@@ -76,6 +81,33 @@ export default async function MeetingPage(
   const member =
     authResult.user as User | null
 
+  const [memberAttendanceSummary, motivationDocs] = member
+    ? await Promise.all([
+        getMemberAttendanceSummary(payload, member),
+        payload.find({
+          collection: 'absence-motivations',
+          where: {
+            and: [
+              {
+                member: {
+                  equals: member.id,
+                },
+              },
+              {
+                meeting: {
+                  equals: meetingId,
+                },
+              },
+            ],
+          },
+          limit: 1,
+          overrideAccess: false,
+          user: member,
+        }),
+      ])
+    : [null, null]
+  const existingMotivation = motivationDocs?.docs[0] as AbsenceMotivation | undefined
+
   // Current member attendance
   const memberAttendance = member
     ? attendance.find((record) => {
@@ -103,6 +135,7 @@ export default async function MeetingPage(
 
   return (
     <div className="min-h-screen bg-background">
+      <PageClient />
       <div className="mx-auto max-w-5xl px-6 py-24">
         {/* Header */}
         <div className="mb-8">
@@ -190,6 +223,26 @@ export default async function MeetingPage(
             )}
           </div>
         </div>
+
+        {member && memberAttendanceSummary && (
+          <div className="mb-8">
+            <MotivateAbsenceDialog
+              absenceCount={memberAttendanceSummary.absentMeetings}
+              absencePercentage={memberAttendanceSummary.absencePercentage}
+              attendancePercentage={memberAttendanceSummary.attendancePercentage}
+              existingRequest={
+                existingMotivation
+                  ? {
+                      memberMessage: existingMotivation.memberMessage,
+                      secretaryMessage: existingMotivation.secretaryMessage,
+                      status: existingMotivation.status,
+                    }
+                  : null
+              }
+              meetingId={meetingId}
+            />
+          </div>
+        )}
 
         {/* Meeting Notes */}
         <div className="rounded-2xl bg-card p-8 shadow-sm">

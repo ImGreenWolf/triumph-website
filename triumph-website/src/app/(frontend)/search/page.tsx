@@ -23,7 +23,9 @@ export default async function Page({ searchParams: searchParamsPromise }: Args) 
     limit: 12,
     select: {
       title: true,
+      name: true,
       slug: true,
+      doc: true,
       categories: true,
       meta: true,
     },
@@ -45,6 +47,11 @@ export default async function Page({ searchParams: searchParamsPromise }: Args) 
               },
               {
                 'meta.title': {
+                  like: query,
+                },
+              },
+              {
+                name: {
                   like: query,
                 },
               },

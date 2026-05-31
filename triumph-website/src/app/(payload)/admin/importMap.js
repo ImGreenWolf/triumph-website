@@ -30,6 +30,7 @@ import { FolderField as FolderField_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@pa
 import { default as default_3b6ada8c06e88089f8171dd390cec0f5 } from '@/fields/location-selector'
 import { default as default_9211ed5d83bc075a4af2d632fffc50f6 } from '@/components/payload/MeetingCheckInField'
 import { default as default_00ddf2cc02ad67d8179dbcd1c6ff7a26 } from '@/components/payload/AttendanceBeforeList'
+import { default as default_3f651eb36aa5ec1af9c701d63e974a55 } from '@/components/payload/AbsenceMotivationActionsCell'
 import { ColorCell as ColorCell_d94cdae6e85cf07b44c2b6d0fbc6664c } from '@/fields/color-picker'
 import { default as default_d94cdae6e85cf07b44c2b6d0fbc6664c } from '@/fields/color-picker'
 import { default as default_280ad1110d64255743834609ee7a57ff } from '@/fields/StartTimeField'
@@ -84,6 +85,7 @@ export const importMap = {
   "@/fields/location-selector#default": default_3b6ada8c06e88089f8171dd390cec0f5,
   "@/components/payload/MeetingCheckInField#default": default_9211ed5d83bc075a4af2d632fffc50f6,
   "@/components/payload/AttendanceBeforeList#default": default_00ddf2cc02ad67d8179dbcd1c6ff7a26,
+  "@/components/payload/AbsenceMotivationActionsCell#default": default_3f651eb36aa5ec1af9c701d63e974a55,
   "@/fields/color-picker#ColorCell": ColorCell_d94cdae6e85cf07b44c2b6d0fbc6664c,
   "@/fields/color-picker#default": default_d94cdae6e85cf07b44c2b6d0fbc6664c,
   "@/fields/StartTimeField#default": default_280ad1110d64255743834609ee7a57ff,

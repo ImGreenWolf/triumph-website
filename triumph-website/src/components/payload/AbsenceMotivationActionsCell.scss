@@ -1,0 +1,131 @@
+.absence-motivation-actions {
+  display: flex;
+  gap: 0.45rem;
+
+  &__button,
+  &__close,
+  &__submit,
+  &__status {
+    align-items: center;
+    border-radius: 0.35rem;
+    display: inline-flex;
+    height: 2rem;
+    justify-content: center;
+    width: 2rem;
+
+    svg {
+      height: 1rem;
+      width: 1rem;
+    }
+  }
+
+  &__button,
+  &__close,
+  &__submit {
+    border: 1px solid var(--theme-elevation-250);
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.55;
+    }
+  }
+
+  &__button--accepted,
+  &__submit--accepted,
+  &__status--accepted {
+    background: var(--theme-success-100);
+    border-color: var(--theme-success-300);
+    color: var(--theme-success-700);
+  }
+
+  &__button--rejected,
+  &__submit--rejected,
+  &__status--rejected {
+    background: var(--theme-error-100);
+    border-color: var(--theme-error-300);
+    color: var(--theme-error-700);
+  }
+
+  &__button:hover,
+  &__submit:hover {
+    filter: brightness(0.94);
+  }
+
+  &__backdrop {
+    align-items: center;
+    background: rgba(0, 0, 0, 0.52);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    padding: 1rem;
+    position: fixed;
+    z-index: 1000;
+  }
+
+  &__modal {
+    background: var(--theme-elevation-0);
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: 0.5rem;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.22);
+    max-width: 32rem;
+    padding: 1.25rem;
+    width: 100%;
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    textarea {
+      background: var(--theme-input-bg);
+      border: 1px solid var(--theme-elevation-250);
+      border-radius: 0.35rem;
+      color: var(--theme-text);
+      min-height: 7rem;
+      padding: 0.75rem;
+      resize: vertical;
+      width: 100%;
+    }
+  }
+
+  &__modalHeader {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+
+    h2 {
+      margin: 0;
+    }
+
+    p {
+      color: var(--theme-elevation-600);
+      margin: 0.4rem 0 0;
+    }
+  }
+
+  &__close {
+    background: var(--theme-elevation-50);
+    color: var(--theme-text);
+    flex-shrink: 0;
+  }
+
+  &__error {
+    color: var(--theme-error-600);
+    margin: 0.75rem 0 0;
+  }
+
+  &__modalFooter {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
+  }
+}

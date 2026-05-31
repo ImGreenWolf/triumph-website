@@ -59,10 +59,10 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
                   {mandate.members?.map((member, memberIndex) => {
                     return (
                       member.name ? <Card
-                        key={memberIndex}
+                        key={member.id || memberIndex}
                         member={member}
                         small={isFourCols}
-                      /> : <div></div>
+                      /> : <div key={member.id || memberIndex}></div>
                     )
                   })}
                 </div>

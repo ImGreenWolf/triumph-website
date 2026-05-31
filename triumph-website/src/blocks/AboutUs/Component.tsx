@@ -82,7 +82,7 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                       About Us
                     </span>
                   </div>
-                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-tight">
+                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-secondary text-shadow-lg leading-tight">
                     {title}
                   </h2>
                 </div>

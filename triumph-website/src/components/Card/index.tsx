@@ -4,28 +4,41 @@ import useClickableCard from '@/utilities/useClickableCard'
 import Link from 'next/link'
 import React, { Fragment } from 'react'
 
-import type { Post } from '@/payload-types'
+import type { Event, Post, Search as SearchResult } from '@/payload-types'
 
 import { Media } from '@/components/Media'
 
-export type CardPostData = Pick<Post, 'slug' | 'categories' | 'meta' | 'title'>
+export type CardRelationTo = 'posts' | 'events'
+
+export type CardPostData = Pick<Post, 'slug' | 'categories' | 'meta'> & {
+  doc?: SearchResult['doc']
+  name?: Event['name'] | null
+  title?: Post['title'] | null
+}
 
 export const Card: React.FC<{
   alignItems?: 'center'
   className?: string
   doc?: CardPostData
-  relationTo?: 'posts'
+  relationTo?: CardRelationTo
   showCategories?: boolean
   title?: string
 }> = (props) => {
   const { card, link } = useClickableCard({})
-  const { className, doc, relationTo, showCategories, title: titleFromProps } = props
+  const {
+    className,
+    doc,
+    relationTo: relationToFromProps,
+    showCategories,
+    title: titleFromProps,
+  } = props
 
-  const { slug, categories, meta, title } = doc || {}
+  const { slug, categories, meta, name, title } = doc || {}
   const { description, image: metaImage } = meta || {}
 
   const hasCategories = categories && Array.isArray(categories) && categories.length > 0
-  const titleToUse = titleFromProps || title
+  const titleToUse = titleFromProps || title || name
+  const relationTo = relationToFromProps || doc?.doc?.relationTo || 'posts'
   const sanitizedDescription = description?.replace(/\s/g, ' ') // replace non-breaking space with white space
   const href = `/${relationTo}/${slug}`
 

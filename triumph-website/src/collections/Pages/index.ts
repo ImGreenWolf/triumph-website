@@ -32,6 +32,8 @@ import { AboutUs } from '@/blocks/AboutUs/config'
 import { DownloadFilesBlock } from '@/blocks/DownloadBlock/config'
 import { TimelineBlock } from '@/blocks/TimelineHistory/Component'
 import { EventTimeline } from '@/blocks/TimelineHistory/config'
+import { ContactBlock } from '@/blocks/ContactBlock/config'
+import { FAQBlock } from '@/blocks/FAQBlock/config'
 
 export const Pages: CollectionConfig<'pages'> = {
   slug: 'pages',
@@ -106,11 +108,13 @@ export const Pages: CollectionConfig<'pages'> = {
                 MasonryBlock,
                 EventsBlock,
                 ...homepageBlocks,
+                FAQBlock,
                 LogoLoopBlock,
                 FullWidthBlock,
                 AboutUs,
                 DownloadFilesBlock,
-                EventTimeline
+                EventTimeline,
+                ContactBlock,
               ],
               required: true,
               admin: {

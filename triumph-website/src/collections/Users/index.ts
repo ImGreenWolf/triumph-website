@@ -43,12 +43,24 @@ export const Users: CollectionConfig = {
           value: 'president',
         },
         {
+          label: 'Vice Presedinte',
+          value: 'president',
+        },
+        {
           label: 'PR Director',
           value: 'pr-director',
         },
         {
+          label: 'HR Director',
+          value: 'hr-director',
+        },
+        {
           label: 'Secretar',
           value: 'secretary',
+        },
+        {
+          label: 'Trezorier',
+          value: 'tresoursier',
         },
       ]
     },
@@ -82,6 +94,16 @@ export const Users: CollectionConfig = {
           virtual: true,
           admin: {
             defaultColumns: ['meeting', 'status'],
+          },
+        },
+        {
+          name: 'absenceMotivations',
+          type: 'join',
+          collection: 'absence-motivations',
+          on: 'member',
+          virtual: true,
+          admin: {
+            defaultColumns: ['meeting', 'status', 'reviewedAt'],
           },
         },
       ],

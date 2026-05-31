@@ -49,6 +49,17 @@ export const Meetings: CollectionConfig = {
             position: 'sidebar'
         }
     },
+    {
+      name: 'absenceMotivations',
+      type: 'join',
+      virtual: true,
+      collection: 'absence-motivations',
+      on: 'meeting',
+      admin: {
+        defaultColumns: ['member', 'status', 'reviewedAt'],
+        position: 'sidebar',
+      },
+    },
 
 
     {

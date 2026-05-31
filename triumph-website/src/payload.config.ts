@@ -21,6 +21,7 @@ import { TeamBlock } from './blocks/TeamBlock/config'
 import { MembersDashboard } from './collections/Members/global'
 import { Meetings } from './collections/Meetings'
 import { Attendance } from './collections/Attendance'
+import { AbsenceMotivations } from './collections/AbsenceMotivations'
 import { Payments } from './collections/Members/payments'
 
 
@@ -84,7 +85,7 @@ export default buildConfig({
   db: mongooseAdapter({
     url: process.env.DATABASE_URL || '',
   }),
-  collections: [Pages, Posts, Media, Categories, Users, Meetings, Attendance, Events, EventRegistrations, Sponsors, Causes, Payments],
+  collections: [Pages, Posts, Media, Categories, Users, Meetings, Attendance, AbsenceMotivations, Events, EventRegistrations, Sponsors, Causes, Payments],
   cors: [getServerSideURL()].filter(Boolean),
   globals: [Header, Footer, MembersDashboard],
   plugins,

@@ -13,6 +13,8 @@ import { beforeSyncWithSearch } from '@/search/beforeSync'
 import { Page, Post } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
 
+const searchableCollections = ['posts', 'events'] as const
+
 const generateTitle: GenerateTitle<Post | Page> = ({ doc }) => {
   return doc?.title ? `${doc.title} | Interact Bucureşti Triumph` : 'Interact Bucureşti Triumph'
 }
@@ -93,7 +95,8 @@ export const plugins: Plugin[] = [
     }
   }),
   searchPlugin({
-    collections: ['posts', 'events'],
+    // Add more collection slugs here to include them in the generated search index.
+    collections: [...searchableCollections],
     beforeSync: beforeSyncWithSearch,
     searchOverrides: {
       fields: ({ defaultFields }) => {

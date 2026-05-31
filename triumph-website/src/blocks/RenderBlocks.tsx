@@ -12,7 +12,6 @@ import { MasonryBlock } from './Masonry/Component'
 import { EventsBlock } from './EventsBlock/Component'
 
 import {
-  FAQBlock,
   FeatureGridBlock,
   LogoCloudBlock,
   ProcessBlock,
@@ -27,6 +26,8 @@ import { FullWidthBlock } from './FullWidthBlock/Component'
 import { AboutUsBlock } from './AboutUs/Component'
 import {DownloadFilesBlock} from './DownloadBlock/Component'
 import { TimelineBlock } from './TimelineHistory/Component'
+import { ContactBlock } from './ContactBlock/Component'
+import { FAQBlock } from './FAQBlock/Component'
 
 const blockComponents: Partial<
   Record<Page['layout'][number]['blockType'], React.ComponentType<any>>
@@ -52,7 +53,8 @@ const blockComponents: Partial<
   fullWidthBlock: FullWidthBlock,
   aboutUs: AboutUsBlock,
   downloadFiles: DownloadFilesBlock,
-  eventTimeline: TimelineBlock
+  eventTimeline: TimelineBlock,
+  contactBlock: ContactBlock,
 }
 
 export const RenderBlocks: React.FC<{

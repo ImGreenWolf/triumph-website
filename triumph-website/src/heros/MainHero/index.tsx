@@ -11,15 +11,17 @@ import { CMSLink } from '@/components/Link'
 import Grainient from '@/components/ui/grainient'
 
 export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) => {
-  const { setHeaderTheme } = useHeaderTheme()
+  const { setHeaderTheme, headerTheme } = useHeaderTheme()
 
   useEffect(() => {
     setHeaderTheme('dark')
   })
 
+  
+
   return (
     <div
-      className="relative items-center justify-center text-white h-200 not-md:overflow-hidden"
+      className="relative items-center justify-center text-foreground h-200 not-md:overflow-hidden"
       
       data-theme="dark"
       
@@ -27,8 +29,8 @@ export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) =>
       <div className='absolute inset-0'>
       
       <Grainient
-        color1="#1d2847"
-        color2="#36405c"
+        color1={headerTheme ===  'dark' ? '#e9e9e9' :"#1d2847"}
+        color2={headerTheme === 'dark' ? '#e9e9e9' :"#36405c"}
         color3="#00a2e0"
         timeSpeed={0.25}
         colorBalance={0}
@@ -55,7 +57,7 @@ export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) =>
       <img src="/string_lights.png" className='absolute w-full right-0 left-0 top-[-500]' alt=""></img>
         
       <div
-      className="relative grid md:grid-cols-2 items-center justify-center text-white container h-200" 
+      className="relative grid md:grid-cols-2 items-center justify-center container h-200" 
       >
         <div className='max-w-150 w-full m-4 p-2 flex gap-6 flex-col'>
           <div className='flex items-end gap-6  z-1 '>
@@ -63,7 +65,7 @@ export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) =>
             <h1 className='text-xl md:text-4xl leading-8 md:leading-8 text-shadow-lg'>Interact Bucureşti <div className='text-5xl md:text-8xl font-bold text-accent'>Triumph</div></h1>
           </div>
           
-          {richText && <RichText data={richText} enableProse={false} className='p-0! z-1 text-shadow-lg'></RichText> }
+          {richText && <RichText data={richText} enableProse={false}  className='p-0! z-1 text-foreground text-shadow-lg'></RichText> }
 
           {Array.isArray(links) && links.length > 0 && (
               <ul className="flex md:justify-left gap-4 z-1">

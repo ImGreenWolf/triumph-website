@@ -87,13 +87,13 @@
 }
 
 :root {
-  --background: #1d2847;
-  --foreground: oklch(14.5% 0 0deg);
-  --card: oklch(96.5% 0.005 265deg);
-  --card-foreground: oklch(14.5% 0 0deg);
+  --background: oklch(97.614% 0.00011 271.152);
+  --foreground: #141e34;
+  --card: #0f172c;
+  --card-foreground: oklch(90.365% 0.0001 271.152);
   --popover: oklch(100% 0 0deg);
   --popover-foreground: oklch(14.5% 0 0deg);
-  --primary: oklch(20.5% 0 0deg);
+  --primary: oklch(100% 0.00011 271.152);
   --primary-foreground: oklch(98.5% 0 0deg);
   --secondary: oklch(97% 0 0deg);
   --secondary-foreground: oklch(20.5% 0 0deg);
@@ -244,7 +244,7 @@ html {
 }
 
 body {
-  background-image:  url('/bggrid.svg') !important;
+  /* background-image:  url('/bggrid.svg') !important; */
 }
 
 html[data-theme='dark'],
@@ -261,4 +261,8 @@ html[data-theme='light'] {
 
 @theme {
   --ease-in-circ: cubic-bezier(0.85, 0.09, 0.15, 0.91)
+}
+
+@utility text-outline {
+  -webkit-text-stroke: 0.015em var(--primary);
 }

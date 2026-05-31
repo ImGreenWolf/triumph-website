@@ -74,6 +74,7 @@ export interface Config {
     users: User;
     meetings: Meeting;
     attendance: Attendance;
+    'absence-motivations': AbsenceMotivation;
     events: Event;
     'event-registrations': EventRegistration;
     sponsors: Sponsor;
@@ -94,9 +95,11 @@ export interface Config {
     users: {
       payments: 'payments';
       attendance: 'attendance';
+      absenceMotivations: 'absence-motivations';
     };
     meetings: {
       attendance: 'attendance';
+      absenceMotivations: 'absence-motivations';
     };
     events: {
       registrations: 'event-registrations';
@@ -113,6 +116,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     meetings: MeetingsSelect<false> | MeetingsSelect<true>;
     attendance: AttendanceSelect<false> | AttendanceSelect<true>;
+    'absence-motivations': AbsenceMotivationsSelect<false> | AbsenceMotivationsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
     'event-registrations': EventRegistrationsSelect<false> | EventRegistrationsSelect<true>;
     sponsors: SponsorsSelect<false> | SponsorsSelect<true>;
@@ -243,14 +247,15 @@ export interface Page {
     | SplitMediaBlock
     | ProcessBlock
     | TestimonialBlock
-    | FAQBlock
     | LogoCloudBlock
     | SectionTitleBlock
+    | FAQBlock
     | LogoLoopBlock
     | FullWidthBlock
     | AboutUsBlock
     | DownloadFilesBlock
     | EventTimelineBlock
+    | ContactBlock
   )[];
   meta?: {
     title?: string | null;
@@ -470,7 +475,7 @@ export interface Category {
 export interface User {
   id: string;
   name?: string | null;
-  role: 'aspirer' | 'active' | 'president' | 'pr-director' | 'secretary';
+  role: 'aspirer' | 'active' | 'president' | 'pr-director' | 'hr-director' | 'secretary' | 'tresoursier';
   joinedAt: string;
   payments?: {
     docs?: (string | Payment)[];
@@ -479,6 +484,11 @@ export interface User {
   };
   attendance?: {
     docs?: (string | Attendance)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  absenceMotivations?: {
+    docs?: (string | AbsenceMotivation)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -551,6 +561,11 @@ export interface Meeting {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  absenceMotivations?: {
+    docs?: (string | AbsenceMotivation)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   notes?: {
     root: {
       type: string;
@@ -566,6 +581,25 @@ export interface Meeting {
     };
     [k: string]: unknown;
   } | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "absence-motivations".
+ */
+export interface AbsenceMotivation {
+  id: string;
+  member: string | User;
+  meeting: string | Meeting;
+  memberMessage?: string | null;
+  status: 'pending' | 'accepted' | 'rejected';
+  /**
+   * Required when rejecting the request. It is shown on the member dashboard.
+   */
+  secretaryMessage?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewedAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1316,37 +1350,6 @@ export interface TestimonialBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "FAQBlock".
- */
-export interface FAQBlock {
-  introContent?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  faqs?:
-    | {
-        question: string;
-        answer: string;
-        id?: string | null;
-      }[]
-    | null;
-  id?: string | null;
-  blockName?: string | null;
-  blockType: 'faqBlock';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "LogoCloudBlock".
  */
 export interface LogoCloudBlock {
@@ -1393,6 +1396,45 @@ export interface SectionTitleBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'sectionTitle';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FAQBlock".
+ */
+export interface FAQBlock {
+  eyebrow?: string | null;
+  introContent?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  supportingText?: string | null;
+  supportingLinkLabel?: string | null;
+  /**
+   * Use a relative URL, https:// URL, mailto:, or tel: link.
+   */
+  supportingLinkHref?: string | null;
+  openFirstItem?: boolean | null;
+  faqs?:
+    | {
+        question: string;
+        answer: string;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'faqBlock';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1568,6 +1610,58 @@ export interface EventTimelineBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'eventTimeline';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ContactBlock".
+ */
+export interface ContactBlock {
+  eyebrow?: string | null;
+  introContent?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  contactDetails?:
+    | {
+        label: string;
+        value: string;
+        /**
+         * Use tel:, mailto:, https://, or a relative URL.
+         */
+        href?: string | null;
+        icon:
+          | 'mail'
+          | 'phone'
+          | 'mapPin'
+          | 'clock'
+          | 'messageCircle'
+          | 'send'
+          | 'globe'
+          | 'calendar'
+          | 'users'
+          | 'building';
+        description?: string | null;
+        newTab?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  supportingLabel?: string | null;
+  supportingTitle?: string | null;
+  supportingText?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'contactBlock';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1809,6 +1903,10 @@ export interface PayloadLockedDocument {
         value: string | Attendance;
       } | null)
     | ({
+        relationTo: 'absence-motivations';
+        value: string | AbsenceMotivation;
+      } | null)
+    | ({
         relationTo: 'events';
         value: string | Event;
       } | null)
@@ -1936,14 +2034,15 @@ export interface PagesSelect<T extends boolean = true> {
         splitMediaBlock?: T | SplitMediaBlockSelect<T>;
         processBlock?: T | ProcessBlockSelect<T>;
         testimonialBlock?: T | TestimonialBlockSelect<T>;
-        faqBlock?: T | FAQBlockSelect<T>;
         logoCloudBlock?: T | LogoCloudBlockSelect<T>;
         sectionTitle?: T | SectionTitleBlockSelect<T>;
+        faqBlock?: T | FAQBlockSelect<T>;
         logoLoopBlock?: T | LogoLoopBlockSelect<T>;
         fullWidthBlock?: T | FullWidthBlockSelect<T>;
         aboutUs?: T | AboutUsBlockSelect<T>;
         downloadFiles?: T | DownloadFilesBlockSelect<T>;
         eventTimeline?: T | EventTimelineBlockSelect<T>;
+        contactBlock?: T | ContactBlockSelect<T>;
       };
   meta?:
     | T
@@ -2201,22 +2300,6 @@ export interface TestimonialBlockSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "FAQBlock_select".
- */
-export interface FAQBlockSelect<T extends boolean = true> {
-  introContent?: T;
-  faqs?:
-    | T
-    | {
-        question?: T;
-        answer?: T;
-        id?: T;
-      };
-  id?: T;
-  blockName?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "LogoCloudBlock_select".
  */
 export interface LogoCloudBlockSelect<T extends boolean = true> {
@@ -2242,6 +2325,27 @@ export interface SectionTitleBlockSelect<T extends boolean = true> {
   alignment?: T;
   'Use id'?: T;
   sectionId?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FAQBlock_select".
+ */
+export interface FAQBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  introContent?: T;
+  supportingText?: T;
+  supportingLinkLabel?: T;
+  supportingLinkHref?: T;
+  openFirstItem?: T;
+  faqs?:
+    | T
+    | {
+        question?: T;
+        answer?: T;
+        id?: T;
+      };
   id?: T;
   blockName?: T;
 }
@@ -2326,6 +2430,30 @@ export interface EventTimelineBlockSelect<T extends boolean = true> {
   filterByCause?: T;
   minimumDonation?: T;
   minimumAttendance?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ContactBlock_select".
+ */
+export interface ContactBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  introContent?: T;
+  contactDetails?:
+    | T
+    | {
+        label?: T;
+        value?: T;
+        href?: T;
+        icon?: T;
+        description?: T;
+        newTab?: T;
+        id?: T;
+      };
+  supportingLabel?: T;
+  supportingTitle?: T;
+  supportingText?: T;
   id?: T;
   blockName?: T;
 }
@@ -2484,6 +2612,7 @@ export interface UsersSelect<T extends boolean = true> {
   joinedAt?: T;
   payments?: T;
   attendance?: T;
+  absenceMotivations?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -2510,6 +2639,7 @@ export interface MeetingsSelect<T extends boolean = true> {
   location?: T;
   description?: T;
   attendance?: T;
+  absenceMotivations?: T;
   notes?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -2525,6 +2655,21 @@ export interface AttendanceSelect<T extends boolean = true> {
   motivationReason?: T;
   motivatedBy?: T;
   notes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "absence-motivations_select".
+ */
+export interface AbsenceMotivationsSelect<T extends boolean = true> {
+  member?: T;
+  meeting?: T;
+  memberMessage?: T;
+  status?: T;
+  secretaryMessage?: T;
+  reviewedBy?: T;
+  reviewedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2977,6 +3122,13 @@ export interface Header {
  */
 export interface Footer {
   id: string;
+  description?: string | null;
+  wordmarkText?: string | null;
+  /**
+   * Displayed after the current year.
+   */
+  copyrightText?: string | null;
+  backToTopLabel?: string | null;
   navItems?:
     | {
         link: {
@@ -2994,6 +3146,42 @@ export interface Footer {
           url?: string | null;
           label: string;
         };
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Add footer social links and choose the icon shown on the frontend.
+   */
+  socialLinks?:
+    | {
+        label: string;
+        /**
+         * Use https://, mailto:, tel:, or a relative URL.
+         */
+        url: string;
+        icon:
+          | 'instagram'
+          | 'facebook'
+          | 'linkedin'
+          | 'youtube'
+          | 'twitter'
+          | 'music'
+          | 'mail'
+          | 'globe'
+          | 'messageCircle'
+          | 'send';
+        newTab?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  legalLinks?:
+    | {
+        label: string;
+        /**
+         * Use https://, mailto:, tel:, or a relative URL.
+         */
+        url: string;
+        newTab?: boolean | null;
         id?: string | null;
       }[]
     | null;
@@ -3076,6 +3264,10 @@ export interface HeaderSelect<T extends boolean = true> {
  * via the `definition` "footer_select".
  */
 export interface FooterSelect<T extends boolean = true> {
+  description?: T;
+  wordmarkText?: T;
+  copyrightText?: T;
+  backToTopLabel?: T;
   navItems?:
     | T
     | {
@@ -3088,6 +3280,23 @@ export interface FooterSelect<T extends boolean = true> {
               url?: T;
               label?: T;
             };
+        id?: T;
+      };
+  socialLinks?:
+    | T
+    | {
+        label?: T;
+        url?: T;
+        icon?: T;
+        newTab?: T;
+        id?: T;
+      };
+  legalLinks?:
+    | T
+    | {
+        label?: T;
+        url?: T;
+        newTab?: T;
         id?: T;
       };
   updatedAt?: T;

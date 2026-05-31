@@ -23,29 +23,40 @@ import { getPayload } from 'payload'
 
 import MarkOfExcellence from '@/components/ui/MarkOfExcellence'
 import {
+  AbsenceMotivation,
   Attendance as AttendanceType,
   Meeting,
   MembersDashboard,
   Payment,
   User,
 } from '@/payload-types'
+import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
 import { cn } from '@/utilities/ui'
 
 import PageClient from './page.client'
+import TimelineDots from './TimelineDots'
 
 const MONTHLY_DUE = 21
 const OVERDUE_DUE = 41
 const OVERDUE_GRACE_MONTHS = 4
 const DEFAULT_DUES_INFO_TEXT =
   'Luna curentă este marcată printr-un chip gol și nu este considerată restantă. Restanțele păstrează regula existentă: primele 4 luni sunt evaluate la 21 lei, apoi la 41 lei.'
-const boardMemberRoles = new Set<string>(['president', 'pr-director', 'secretary'])
+const boardMemberRoles = new Set<string>([
+  'president',
+  'pr-director',
+  'hr-director',
+  'secretary',
+  'tresoursier',
+])
 
 const roleLabels: Record<User['role'], string> = {
   aspirer: 'Membru Aspirant',
   active: 'Membru Activ',
   president: 'Președinte',
   'pr-director': 'PR Director',
+  'hr-director': 'HR Director',
   secretary: 'Secretar',
+  tresoursier: 'Trezorier',
 }
 
 export default async function DashboardPage() {
@@ -101,8 +112,6 @@ export default async function DashboardPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              
-
               {boardMemberRoles.has(member.role) && (
                 <Link
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15"
@@ -113,15 +122,13 @@ export default async function DashboardPage() {
                 </Link>
               )}
 
-              <form action="/api/users/logout" method="POST">
-                <button
-                  type="submit"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white px-4 text-sm font-semibold text-[#0f172c] transition hover:bg-white/90"
-                >
-                  <LogOut className="size-4" />
-                  Logout
-                </button>
-              </form>
+              <Link
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white px-4 text-sm font-semibold text-[#0f172c] transition hover:bg-white/90"
+                href="/members/logout"
+              >
+                <LogOut className="size-4" />
+                Logout
+              </Link>
             </div>
           </div>
         </div>
@@ -137,20 +144,17 @@ export default async function DashboardPage() {
 
         <MemberSummary member={member} />
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="grid gap-6">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Attendance member={member} />
-              <Dues duesInfoText={dashboard?.duesInfoText} member={member} />
-            </div>
-
-            <QuickLinks links={dashboard?.quickLinks} />
+        <div className="grid gap-6">
+          <div className="grid gap-6 lg:auto-rows-fr lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_420px]">
+            <Attendance member={member} />
+            <Dues duesInfoText={dashboard?.duesInfoText} member={member} />
+            <NextMeeting member={member} />
           </div>
 
-          <aside className="grid gap-6">
-            <NextMeeting />
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+            <QuickLinks links={dashboard?.quickLinks} />
             <SupportCard email={dashboard?.supportEmail} />
-          </aside>
+          </div>
         </div>
       </main>
     </div>
@@ -215,70 +219,17 @@ async function Attendance(props: { member: User }) {
     config: payloadConfig,
   })
 
-  const [meetingsDocs, attendanceDocs] = await Promise.all([
-    payload.find({
-      collection: 'meetings',
-      where: {
-        meetingDate: {
-          greater_than_equal: new Date(member.joinedAt).toISOString(),
-          less_than_equal: new Date().toISOString(),
-        },
-      },
-      limit: 1000,
-      pagination: false,
-      sort: '-meetingDate',
-    }),
-    payload.find({
-      collection: 'attendance',
-      where: {
-        member: {
-          equals: member.id,
-        },
-      },
-      depth: 1,
-      limit: 1000,
-      pagination: false,
-      sort: '-createdAt',
-    }),
-  ])
-
-  const meetings = meetingsDocs.docs as Meeting[]
-  const attendanceRecords = attendanceDocs.docs as AttendanceType[]
-  const attendanceByMeeting = new Map(
-    attendanceRecords.map((record) => [
-      typeof record.meeting === 'object' ? record.meeting.id : record.meeting,
-      record,
-    ]),
-  )
-  const attendance = meetings.map((meeting) => {
-    const existingRecord = attendanceByMeeting.get(meeting.id)
-
-    if (existingRecord) {
-      return {
-        meeting,
-        status: existingRecord.status,
-      }
-    }
-
-    return {
-      meeting,
-      status: 'absent' as const,
-    }
-  })
-
-  const totalMeetings = attendance.length
-  const presentMeetings = attendance.filter((meeting) => meeting.status === 'present').length
-  const lateMeetings = attendance.filter((meeting) => meeting.status === 'late').length
-  const motivatedMeetings = attendance.filter((meeting) => meeting.status === 'motivated').length
-  const absentMeetings = attendance.filter((meeting) => meeting.status === 'absent').length
-  const effectiveMeetings = totalMeetings - motivatedMeetings
-  const attendancePercentage =
-    effectiveMeetings <= 0
-      ? 100
-      : Math.round(((presentMeetings + lateMeetings) / effectiveMeetings) * 100)
+  const {
+    absentMeetings,
+    attendancePercentage,
+    lateMeetings,
+    motivatedMeetings,
+    presentMeetings,
+    records: attendance,
+  } = await getMemberAttendanceSummary(payload, member)
 
   return (
-    <DashboardPanel>
+    <DashboardPanel className="flex h-full flex-col">
       <PanelHeader
         description="Situația ta în ședințele înregistrate."
         icon={<CheckCircle2 className="size-5" />}
@@ -310,17 +261,27 @@ async function Attendance(props: { member: User }) {
         <MiniStat label="Nemotivate" value={absentMeetings} tone="danger" />
       </div>
 
-      <TimelineDots
-        emptyLabel="Nu există ședințe trecute încă."
-        items={attendance.map((record) => ({
-          date: formatDate(record.meeting.meetingDate, {
-            day: '2-digit',
-            month: '2-digit',
-          }),
-          label: attendanceLabel(record.status),
-          tone: attendanceTone(record.status),
-        }))}
-      />
+      <div className="mt-auto">
+        <TimelineDots
+          emptyLabel="Nu există ședințe trecute încă."
+          items={attendance.map((record) => ({
+            action: {
+              href: `/members/meetings/${record.meeting.id}`,
+              label: 'Vezi minuta',
+            },
+            date: formatDate(record.meeting.meetingDate, {
+              day: '2-digit',
+              month: '2-digit',
+            }),
+            detailDate: formatDate(record.meeting.meetingDate, {
+              dateStyle: 'medium',
+            }),
+            label: attendanceLabel(record.status),
+            tone: attendanceTone(record.status),
+          }))}
+          modalTitle="Istoric prezență"
+        />
+      </div>
     </DashboardPanel>
   )
 }
@@ -344,22 +305,35 @@ async function Dues(props: { duesInfoText?: string | null; member: User }) {
 
   const payments = paymentsDocs.docs as Payment[]
   const expectedMonths = getExpectedMonths(member.joinedAt)
-  const paidMonthsSet = new Set(
+  const paymentsByMonth = new Map(
     payments.map((payment) => {
       const month = new Date(payment.month)
 
-      return getMonthKey(month)
+      return [getMonthKey(month), payment]
     }),
   )
 
+  let overdueMonthsSeen = 0
   const dues = expectedMonths.map((month) => {
     const key = getMonthKey(month)
-    const payment = payments.find((candidate) => getMonthKey(new Date(candidate.month)) === key)
+    const payment = paymentsByMonth.get(key)
     const isCurrentMonth = key === getMonthKey(new Date())
+    let amountDue = 0
+
+    if (!payment) {
+      if (isCurrentMonth) {
+        amountDue = MONTHLY_DUE
+      } else {
+        overdueMonthsSeen += 1
+        amountDue = overdueMonthsSeen <= OVERDUE_GRACE_MONTHS ? MONTHLY_DUE : OVERDUE_DUE
+      }
+    }
 
     return {
+      amountDue,
       month,
-      paid: paidMonthsSet.has(key),
+      paid: Boolean(payment),
+      payment,
       isCurrentMonth,
       waived: payment?.type === 'waived',
     }
@@ -368,16 +342,11 @@ async function Dues(props: { duesInfoText?: string | null; member: User }) {
   const paidCount = dues.filter((due) => due.paid && !due.waived).length
   const waivedCount = dues.filter((due) => due.waived).length
   const coveredCount = paidCount + waivedCount
-  const currentMonthDue = dues.some((due) => due.isCurrentMonth && !due.paid) ? MONTHLY_DUE : 0
   const overdueCount = dues.filter((due) => !due.paid && !due.isCurrentMonth).length
-  const totalOwed =
-    currentMonthDue +
-    (overdueCount > OVERDUE_GRACE_MONTHS
-      ? OVERDUE_GRACE_MONTHS * MONTHLY_DUE + (overdueCount - OVERDUE_GRACE_MONTHS) * OVERDUE_DUE
-      : overdueCount * MONTHLY_DUE)
+  const totalOwed = dues.reduce((total, due) => total + due.amountDue, 0)
 
   return (
-    <DashboardPanel className="relative">
+    <DashboardPanel className="relative flex h-full flex-col">
       <PanelHeader
         description="Lunile achitate, scutite și restante."
         icon={<CreditCard className="size-5" />}
@@ -404,34 +373,69 @@ async function Dues(props: { duesInfoText?: string | null; member: User }) {
         <MiniStat label="Restante" value={overdueCount} tone="danger" />
       </div>
 
-      <TimelineDots
-        emptyLabel="Nu există luni calculate."
-        items={dues.map((due) => ({
-          date: due.month.toLocaleDateString('ro-RO', {
-            month: '2-digit',
-            year: '2-digit',
-          }),
-          label: due.waived
-            ? 'Scutit'
-            : due.paid
-              ? 'Achitat'
-              : due.isCurrentMonth
-                ? 'De plată'
-                : 'Restant',
-          empty: !due.paid && due.isCurrentMonth,
-          tone:
-            due.waived || (!due.paid && due.isCurrentMonth)
-              ? 'warning'
+      <div className="mt-auto">
+        <TimelineDots
+          emptyLabel="Nu există luni calculate."
+          items={dues.map((due) => ({
+            date: due.month.toLocaleDateString('ro-RO', {
+              month: '2-digit',
+              year: '2-digit',
+            }),
+            detailDate: due.month.toLocaleDateString('ro-RO', {
+              month: 'long',
+              year: 'numeric',
+            }),
+            details: due.waived
+              ? [
+                  'Scutit de plată',
+                  ...(due.payment
+                    ? [
+                        `Înregistrat: ${formatDate(due.payment.createdAt, {
+                          dateStyle: 'medium',
+                        })}`,
+                      ]
+                    : []),
+                ]
               : due.paid
-                ? 'success'
-                : 'danger',
-        }))}
-      />
+                ? [
+                    `Sumă achitată: ${due.payment?.amount ?? MONTHLY_DUE} lei`,
+                    ...(due.payment
+                      ? [
+                          `Înregistrat: ${formatDate(due.payment.createdAt, {
+                            dateStyle: 'medium',
+                          })}`,
+                        ]
+                      : []),
+                  ]
+                : [
+                    `Sumă de plată: ${due.amountDue} lei`,
+                    due.isCurrentMonth ? 'Luna curentă' : 'Plată restantă',
+                  ],
+            label: due.waived
+              ? 'Scutit'
+              : due.paid
+                ? 'Achitat'
+                : due.isCurrentMonth
+                  ? 'De plată'
+                  : 'Restant',
+            empty: !due.paid && due.isCurrentMonth,
+            tone:
+              due.waived || (!due.paid && due.isCurrentMonth)
+                ? 'warning'
+                : due.paid
+                  ? 'success'
+                  : 'danger',
+          }))}
+          modalTitle="Istoric cotizații"
+        />
+      </div>
     </DashboardPanel>
   )
 }
 
-async function NextMeeting() {
+async function NextMeeting(props: { member: User }) {
+  const { member } = props
+
   const payload = await getPayload({
     config: payloadConfig,
   })
@@ -452,7 +456,7 @@ async function NextMeeting() {
 
   if (!nextMeeting) {
     return (
-      <DashboardPanel>
+      <DashboardPanel className="flex h-full flex-col">
         <PanelHeader
           description="Clubul nu are încă o ședință viitoare publicată."
           icon={<CalendarDays className="size-5" />}
@@ -466,11 +470,32 @@ async function NextMeeting() {
     )
   }
 
+  const absenceMotivationsDocs = await payload.find({
+    collection: 'absence-motivations',
+    where: {
+      and: [
+        {
+          member: {
+            equals: member.id,
+          },
+        },
+        {
+          meeting: {
+            equals: nextMeeting.id,
+          },
+        },
+      ],
+    },
+    limit: 1,
+    overrideAccess: false,
+    user: member,
+  })
+  const absenceMotivation = absenceMotivationsDocs.docs[0] as AbsenceMotivation | undefined
   const meetingDate = new Date(nextMeeting.meetingDate)
   const daysRemaining = getDaysRemaining(now, meetingDate)
 
   return (
-    <DashboardPanel className="bg-card">
+    <DashboardPanel className="flex h-full flex-col bg-card">
       <PanelHeader
         description="Următorul reper din calendarul clubului."
         icon={<CalendarDays className="size-5" />}
@@ -495,14 +520,33 @@ async function NextMeeting() {
         )}
       </div>
 
-      <Link
-        href={`/members/meetings/${nextMeeting.id}`}
-        className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-      >
-        Vezi întâlnirea
-        <ArrowRight className="size-4" />
-      </Link>
+      <div className="mt-auto flex flex-col gap-3 pt-5 sm:flex-row sm:items-center">
+        <Link
+          href={`/members/meetings/${nextMeeting.id}`}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+        >
+          Vezi întâlnirea
+          <ArrowRight className="size-4" />
+        </Link>
+
+        {absenceMotivation && <MotivationStatusBox status={absenceMotivation.status} />}
+      </div>
     </DashboardPanel>
+  )
+}
+
+function MotivationStatusBox(props: { status: AbsenceMotivation['status'] }) {
+  return (
+    <div
+      className={cn(
+        'inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm font-semibold',
+        props.status === 'accepted' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
+        props.status === 'pending' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
+        props.status === 'rejected' && 'border-red-500/25 bg-red-500/10 text-red-500',
+      )}
+    >
+      {motivationLabel(props.status)}
+    </div>
   )
 }
 
@@ -611,14 +655,14 @@ function MetricCard(props: { label: string; value: string; detail: string; icon:
   const { label, value, detail, icon } = props
 
   return (
-    <DashboardPanel className="p-5">
-      <div className="mb-1 flex flex-col justify-between gap-4">
-        <PanelIcon className="size-10">{icon}</PanelIcon>
+    <DashboardPanel className="p-5 flex gap-4">
+      <PanelIcon className="size-10">{icon}</PanelIcon>
+      <div className="flex flex-col justify-between">
         <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
-      </div>
 
-      <p className="break-words text-xl font-semibold leading-tight">{value}</p>
-      <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
+        <p className="break-words text-xl font-semibold leading-tight">{value}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
+      </div>
     </DashboardPanel>
   )
 }
@@ -677,45 +721,6 @@ function InfoTooltip(props: { text: string }) {
 
       <div className="pointer-events-none absolute right-0 top-full z-20 mt-3 w-72 rounded-md border border-border bg-card p-3 text-xs leading-5 text-card-foreground opacity-0 shadow-xl transition group-hover:opacity-100 group-focus-within:opacity-100">
         {props.text}
-      </div>
-    </div>
-  )
-}
-
-function TimelineDots(props: {
-  emptyLabel: string
-  items: {
-    date?: string
-    label: string
-    empty?: boolean
-    tone: 'success' | 'warning' | 'danger' | 'neutral'
-  }[]
-}) {
-  const { emptyLabel, items } = props
-
-  if (!items.length) {
-    return <EmptyState label={emptyLabel} />
-  }
-
-  return (
-    <div className="mt-6 border-t border-border pt-5">
-      <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto pr-1">
-        {items.map((item, index) => (
-          <span
-            className={cn(
-              'relative inline-flex h-7 w-14 items-center justify-center rounded-full border px-2 text-[10px] font-semibold',
-              item.tone === 'success' && 'border-emerald-500/25 bg-emerald-500 text-white',
-              item.tone === 'warning' && 'border-[#f7a81b]/25 bg-[#f7a81b] text-[#241400]',
-              item.tone === 'danger' && 'border-red-500/25 bg-red-500 text-white',
-              item.tone === 'neutral' && 'border-border bg-muted text-muted-foreground',
-              item.empty && 'border-white/20 bg-white/10 text-white/80',
-            )}
-            key={`${item.label}-${item.date || index}-${index}`}
-            title={`${item.label}${item.date ? ` · ${item.date}` : ''}`}
-          >
-            <span className="truncate">{item.date || item.label}</span>
-          </span>
-        ))}
       </div>
     </div>
   )
@@ -782,4 +787,11 @@ function attendanceTone(status: AttendanceType['status']) {
   if (status === 'absent') return 'danger'
 
   return 'neutral'
+}
+
+function motivationLabel(status: AbsenceMotivation['status']) {
+  if (status === 'accepted') return 'Motivare acceptată'
+  if (status === 'rejected') return 'Motivare respinsă'
+
+  return 'Motivare în verificare'
 }

@@ -128,14 +128,14 @@ export  const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery 
 
           
             {events.map(event => {
-              return ( <div className='grid grid-cols-[auto_1fr] grid-rows-2 auto-cols-max'>
+              return ( <div key={event.id || event.slug} className='grid grid-cols-[auto_1fr] grid-rows-2 auto-cols-max'>
                 <Media resource={event.meta?.image} className='h-18 row-span-full col-1 aspect-5/4' imgClassName='h-18  w-auto object-cover'/>
                 <span className='text-xl font-bold leading-5'>{event.name}</span>
                 <a href={'/events/'+event.slug} className='flex gap-2 text-xs'>Mai multe <ArrowUpRightIcon size={16}/></a>
               </div>)
             })}
            </div>
-           <a className='px-8 py-4 rounded-xl bg-primary text-card font-bold flex items-center gap-4'>Toate Evenimentele <ArrowUpRightIcon/></a>
+           <a className='px-8 py-4 rounded-xl bg-primary text-card font-bold flex items-center gap-4' href='/events'>Toate Evenimentele <ArrowUpRightIcon/></a>
         </div>
       </div>
     </section>
@@ -230,24 +230,6 @@ export const TestimonialBlock: React.FC<any> = ({ introContent, testimonials }) 
             </figcaption>
           </figure>
         ))}
-      </div>
-    </section>
-  )
-}
-
-export const FAQBlock: React.FC<any> = ({ faqs, introContent }) => {
-  return (
-    <section className="container">
-      <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-        {introContent && <RichText data={introContent} enableGutter={false} />}
-        <div className="divide-y divide-border border-y border-border">
-          {(faqs || []).map((faq: any, index: number) => (
-            <div className="py-6" key={index}>
-              <h3 className="font-semibold">{faq.question}</h3>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{faq.answer}</p>
-            </div>
-          ))}
-        </div>
       </div>
     </section>
   )
