@@ -93,7 +93,7 @@ export default async function CheckInPage({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+    <div className="halftone-background flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-xl bg-card p-8 shadow">
         <h1 className="mb-4 text-3xl font-bold">
           Prezență înregistrată

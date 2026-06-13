@@ -64,7 +64,7 @@ export default function Login() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0f172c] px-4 pb-12 pt-28 text-white sm:px-6 lg:px-8">
+    <div className="halftone-background relative min-h-screen overflow-hidden bg-[#0f172c] px-4 pb-12 pt-28 text-white sm:px-6 lg:px-8">
       <PageClient />
 
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,162,224,0.28),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(247,168,27,0.22),transparent_32%)]" />

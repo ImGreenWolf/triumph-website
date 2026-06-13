@@ -90,7 +90,7 @@ export async function Footer() {
                       <a
                         aria-label={social.label}
                         className={cn(
-                          'group inline-flex size-10 items-center justify-center rounded-md border border-border bg-background/30 text-card-foreground transition-colors',
+                          'group inline-flex size-10 items-center justify-center rounded-md border border-sidebar-border bg-sidebar text-sidebar-foreground transition-colors',
                           'hover:border-accent hover:bg-accent hover:text-accent-foreground',
                         )}
                         href={social.url}
@@ -133,14 +133,14 @@ export async function Footer() {
             aria-hidden
             className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-card from-15% via-card/30 via-55% to-card/80"
           />
-          <p className="text-outline -mb-16 select-none text-center text-[5rem] font-bold uppercase leading-none tracking-normal text-card sm:text-[8rem] md:text-[12rem] lg:text-[17rem]">
+          <p className="text-outline -mb-[0.25em] select-none text-center text-[5rem] font-bold uppercase leading-none tracking-normal text-card sm:text-[8rem] md:text-[12rem] lg:text-[17rem]">
             {wordmarkText}
           </p>
         </div>
       )}
 
       <div className="container py-6">
-        <div className="flex flex-col gap-4 border-t border-primary/50 py-6 text-sm text-muted-foreground md:flex-row md:items-center">
+        <div className="flex flex-col gap-4 border-t border-border py-6 text-sm text-muted-foreground md:flex-row md:items-center">
           {copyrightText && (
             <span>
               © {new Date().getFullYear()} {copyrightText}

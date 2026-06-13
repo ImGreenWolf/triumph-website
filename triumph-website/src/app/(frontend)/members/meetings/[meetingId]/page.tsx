@@ -134,7 +134,7 @@ export default async function MeetingPage(
         : 'Neînregistrată'
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="halftone-background min-h-screen bg-background">
       <PageClient />
       <div className="mx-auto max-w-5xl px-6 py-24">
         {/* Header */}

@@ -1,46 +1,68 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Event } from '@/payload-types'
+import type { Event } from '@/payload-types'
+import { getContrastTextColor, isEventCompleted } from '@/utilities/eventDisplay'
 import type { EventSlotAvailability } from '@/utilities/eventRegistration'
-import { X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { CheckCircle2, Ticket, Users, X } from 'lucide-react'
+import { useEffect, useId, useMemo, useState } from 'react'
 
 type SignupFormProps = {
-  event: Event
+  accentColor: string
+  event: SignupEvent
   slotAvailability: EventSlotAvailability[]
 }
 
-export default function SignupForm({ event, slotAvailability }: SignupFormProps) {
+type SignupEvent = Pick<Event, 'capacity' | 'days' | 'id' | 'private'> & {
+  participantsCount: number
+}
+
+export default function SignupForm({ accentColor, event, slotAvailability }: SignupFormProps) {
+  const dialogTitleId = useId()
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedDay, setSelectedDay] = useState('')
   const [selectedSlot, setSelectedSlot] = useState('')
-  const [isFinished, setIsFinished] = useState(false)
-  const availableSlots = slotAvailability.filter((slot) => slot.isAvailable)
-  const dayOptions = availableSlots.reduce<Array<{ dayId: string; dayLabel: string }>>((allDays, slot) => {
-    if (allDays.some((day) => day.dayId === slot.dayId)) return allDays
+  const [submitted, setSubmitted] = useState(false)
+  const [participantsCount, setParticipantsCount] = useState(event.participantsCount)
+  const availableSlots = useMemo(
+    () => slotAvailability.filter((slot) => slot.isAvailable),
+    [slotAvailability],
+  )
+  const dayOptions = useMemo(
+    () =>
+      availableSlots.reduce<Array<{ dayId: string; dayLabel: string }>>((allDays, slot) => {
+        if (allDays.some((day) => day.dayId === slot.dayId)) return allDays
 
-    allDays.push({
-      dayId: slot.dayId,
-      dayLabel: slot.dayLabel,
-    })
+        allDays.push({
+          dayId: slot.dayId,
+          dayLabel: slot.dayLabel,
+        })
 
-    return allDays
-  }, [])
-  const slotsForSelectedDay = availableSlots.filter((slot) => slot.dayId === selectedDay)
+        return allDays
+      }, []),
+    [availableSlots],
+  )
+  const slotsForSelectedDay = useMemo(
+    () => availableSlots.filter((slot) => slot.dayId === selectedDay),
+    [availableSlots, selectedDay],
+  )
+  const eventHasEnded = isEventCompleted(event)
+  const eventIsPrivate = Boolean(event.private)
+
+  useEffect(() => {
+    setParticipantsCount(event.participantsCount)
+  }, [event.participantsCount])
 
   useEffect(() => {
     if (!isOpen) return
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false)
-      }
+    const handleKeyDown = (keyboardEvent: KeyboardEvent) => {
+      if (keyboardEvent.key === 'Escape') setIsOpen(false)
     }
-
     const previousOverflow = document.body.style.overflow
+
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', handleKeyDown)
 
@@ -53,203 +75,264 @@ export default function SignupForm({ event, slotAvailability }: SignupFormProps)
   useEffect(() => {
     if (!isOpen) return
 
-    const firstAvailableDay = dayOptions[0]?.dayId ?? ''
-
     setSelectedDay((currentDay) => {
       if (dayOptions.some((day) => day.dayId === currentDay)) return currentDay
-      return firstAvailableDay
+      return dayOptions[0]?.dayId ?? ''
     })
   }, [dayOptions, isOpen])
 
   useEffect(() => {
     if (!isOpen) return
 
-    const firstAvailableSlot = availableSlots.find((slot) => slot.dayId === selectedDay)?.slotId ?? ''
-
     setSelectedSlot((currentSlot) => {
-      if (availableSlots.some((slot) => slot.dayId === selectedDay && slot.slotId === currentSlot)) {
-        return currentSlot
-      }
-
-      return firstAvailableSlot
+      if (slotsForSelectedDay.some((slot) => slot.slotId === currentSlot)) return currentSlot
+      return slotsForSelectedDay[0]?.slotId ?? ''
     })
-    
-  }, [availableSlots, isOpen, selectedDay])
+  }, [isOpen, slotsForSelectedDay])
 
+  const openDialog = () => {
+    setError(null)
+    setSubmitted(false)
+    setIsOpen(true)
+  }
 
-  useEffect(() => setIsFinished(new Date(availableSlots[0].startTime!).getTime() < new Date().getTime()), [])
-    console.log(isFinished)
-    if(isFinished)
-        return (<Participants event={event}/>)
-    else
   return (
-    <div>
-        <Participants event={event}/>
-      <Button onClick={() => setIsOpen(true)} className="w-full" disabled={availableSlots.length === 0 || isFinished}>
-        {availableSlots.length === 0 ? 'Nu mai sunt locuri' : 'Inscrie-te'}
-      </Button>
-      {isOpen ? (
+    <section className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-xl shadow-black/15">
+      <div className="flex items-start gap-3">
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 text-primary"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl"
+          style={{ backgroundColor: accentColor, color: getContrastTextColor(accentColor) }}
+        >
+          <Ticket aria-hidden className="size-5" />
+        </div>
+        <div>
+          <p className="text-lg font-bold">Participă la eveniment</p>
+          <p className="mt-1 text-sm leading-5 text-card-foreground/60">
+            Alege ziua și intervalul potrivit direct din formular.
+          </p>
+        </div>
+      </div>
+
+      <Participants accentColor={accentColor} event={event} participantsCount={participantsCount} />
+
+      <Button
+        className="mt-4 w-full"
+        disabled={eventIsPrivate || availableSlots.length === 0 || eventHasEnded}
+        onClick={openDialog}
+        style={{ backgroundColor: accentColor, color: getContrastTextColor(accentColor) }}
+      >
+        {eventIsPrivate
+          ? 'Înscrierile sunt private'
+          : eventHasEnded
+            ? 'Eveniment încheiat'
+            : availableSlots.length === 0
+              ? 'Nu mai sunt locuri disponibile'
+              : 'Înscrie-te acum'}
+      </Button>
+
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="relative w-full max-w-md rounded-2xl bg-card p-6 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
+            aria-labelledby={dialogTitleId}
+            aria-modal="true"
+            className="relative max-h-full w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl"
+            onClick={(clickEvent) => clickEvent.stopPropagation()}
+            role="dialog"
           >
             <button
-              type="button"
-              aria-label="Inchide formularul"
-              className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              aria-label="Închide formularul"
+              className="absolute right-4 top-4 rounded-full p-2 text-card-foreground/60 transition hover:bg-background/10 hover:text-card-foreground"
               onClick={() => setIsOpen(false)}
+              type="button"
             >
-              <X className="h-4 w-4" />
+              <X aria-hidden className="size-4" />
             </button>
 
-            <div className="mb-6 pr-8">
-              <h3 className="text-xl font-semibold">Inscriere la eveniment</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Alege ziua si intervalul dorit, apoi lasa adresa ta de email.
-              </p>
-            </div>
-
-            <form
-              className="flex flex-col gap-4 text-primary"
-              onSubmit={async (e) => {
-                e.preventDefault()
-                setIsSubmitting(true)
-                setError(null)
-                const form = e.currentTarget
-
-                const formData = new FormData(form)
-
-                try {
-                  await register({
-                    day: formData.get('day') as string,
-                    email: formData.get('email') as string,
-                    eventId: event.id,
-                    slot: formData.get('slot') as string,
-                  })
-                  form.reset()
-                  setSelectedDay(dayOptions[0]?.dayId ?? '')
-                  setSelectedSlot(availableSlots.find((slot) => slot.dayId === dayOptions[0]?.dayId)?.slotId ?? '')
-                  setIsOpen(false)
-                  alert('Te-ai inscris cu succes.')
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : 'Inscrierea a esuat.')
-                } finally {
-                  setIsSubmitting(false)
-                }
-              }}
-            >
-              <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium">Zi</span>
-                <select
-                  name="day"
-                  value={selectedDay}
-                  onChange={(event) => setSelectedDay(event.target.value)}
-                  required
-                  className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {dayOptions.map((day) => (
-                    <option key={day.dayId} value={day.dayId}>
-                      {day.dayLabel}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium">Interval</span>
-                <select
-                  name="slot"
-                  value={selectedSlot}
-                  onChange={(event) => setSelectedSlot(event.target.value)}
-                  required
-                  disabled={slotsForSelectedDay.length === 0}
-                  className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {slotsForSelectedDay.map((slot) => (
-                    <option key={slot.slotId} value={slot.slotId}>
-                      {slot.slotLabel} ({slot.remaining} locuri ramase)
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium">Email</span>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="nume@exemplu.com"
-                  required
-                  className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+            {submitted ? (
+              <div className="py-5 text-center">
+                <CheckCircle2
+                  aria-hidden
+                  className="mx-auto size-12"
+                  style={{ color: accentColor }}
                 />
-              </label>
-
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-              <div className="flex gap-3">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || availableSlots.length === 0 || !selectedDay || !selectedSlot}
-                  className="flex-1"
-                >
-                  {isSubmitting ? 'Se trimite...' : 'Trimite'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSubmitting}
-                  onClick={() => setIsOpen(false)}
-                >
-                  Anuleaza
+                <h3 className="mt-5 text-2xl font-bold" id={dialogTitleId}>
+                  Înscriere confirmată
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-card-foreground/65">
+                  Te-ai înscris cu succes. Te așteptăm la eveniment.
+                </p>
+                <Button className="mt-6 w-full" onClick={() => setIsOpen(false)}>
+                  Închide
                 </Button>
               </div>
-            </form>
+            ) : (
+              <>
+                <div className="mb-6 pr-8">
+                  <h3 className="text-2xl font-bold" id={dialogTitleId}>
+                    Înscriere la eveniment
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-card-foreground/65">
+                    Selectează ziua și intervalul, apoi introdu adresa ta de email.
+                  </p>
+                </div>
+
+                <form
+                  className="flex flex-col gap-4"
+                  onSubmit={async (submitEvent) => {
+                    submitEvent.preventDefault()
+                    setIsSubmitting(true)
+                    setError(null)
+
+                    const form = submitEvent.currentTarget
+                    const formData = new FormData(form)
+
+                    try {
+                      await register({
+                        day: formData.get('day') as string,
+                        email: formData.get('email') as string,
+                        eventId: event.id,
+                        slot: formData.get('slot') as string,
+                      })
+                      form.reset()
+                      setParticipantsCount((currentCount) => currentCount + 1)
+                      setSubmitted(true)
+                    } catch (submitError) {
+                      setError(
+                        submitError instanceof Error ? submitError.message : 'Înscrierea a eșuat.',
+                      )
+                    } finally {
+                      setIsSubmitting(false)
+                    }
+                  }}
+                >
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold">Zi</span>
+                    <select
+                      className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                      name="day"
+                      onChange={(changeEvent) => setSelectedDay(changeEvent.target.value)}
+                      required
+                      value={selectedDay}
+                    >
+                      {dayOptions.map((day) => (
+                        <option key={day.dayId} value={day.dayId}>
+                          {day.dayLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold">Interval</span>
+                    <select
+                      className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={slotsForSelectedDay.length === 0}
+                      name="slot"
+                      onChange={(changeEvent) => setSelectedSlot(changeEvent.target.value)}
+                      required
+                      value={selectedSlot}
+                    >
+                      {slotsForSelectedDay.map((slot) => (
+                        <option key={slot.slotId} value={slot.slotId}>
+                          {slot.slotLabel} ({slot.remaining} locuri rămase)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold">Email</span>
+                    <input
+                      className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                      name="email"
+                      placeholder="nume@exemplu.com"
+                      required
+                      type="email"
+                    />
+                  </label>
+
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+
+                  <div className="mt-2 flex gap-3">
+                    <Button
+                      className="flex-1"
+                      disabled={isSubmitting || !selectedDay || !selectedSlot}
+                      type="submit"
+                    >
+                      {isSubmitting ? 'Se trimite...' : 'Confirmă înscrierea'}
+                    </Button>
+                    <Button
+                      disabled={isSubmitting}
+                      onClick={() => setIsOpen(false)}
+                      type="button"
+                      variant="outline"
+                    >
+                      Anulează
+                    </Button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
-      ) : null}
-    </div>
+      )}
+    </section>
   )
 }
 
 async function register(args: { email: string; eventId: string; day: string; slot: string }) {
   const response = await fetch('/api/event-registrations', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify({
       day: args.day,
       email: args.email,
       event: args.eventId,
       slot: args.slot,
     }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    method: 'POST',
   })
-
-  const json = await response.json()
+  const json = await response.json().catch(() => null)
 
   if (!response.ok) {
-    throw new Error(json.errors?.[0]?.message ?? 'Inscrierea a esuat.')
+    throw new Error(json?.errors?.[0]?.message ?? json?.message ?? 'Înscrierea a eșuat.')
   }
 }
 
-function Participants(props: {event: Event}) {
-    const {event} = props
+function Participants({
+  accentColor,
+  event,
+  participantsCount,
+}: {
+  accentColor: string
+  event: SignupEvent
+  participantsCount: number
+}) {
+  const capacity = event.capacity ?? 0
+  const percentage = capacity > 0 ? Math.min((participantsCount / capacity) * 100, 100) : 0
 
-    const participants =
-    typeof event.registrations === 'object' &&
-    event.registrations !== null &&
-    event.registrations.docs
-      ? event.registrations.docs.length
-      : 0
-
-  return <div className='bg-primary text-black rounded-md my-2 p-2 py-4'>
-    
-    <span>{participants} participanti</span>
-    
-    <div className='bg-accent h-2 rounded-full' style={{width: participants/event.capacity!*100 + "%"}}></div>
+  return (
+    <div className="mt-5 rounded-xl bg-background/10 p-4">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="flex items-center gap-2 text-card-foreground/65">
+          <Users aria-hidden className="size-4" />
+          Participanți
+        </span>
+        <span className="font-bold">
+          {participantsCount}
+          {capacity > 0 && ` / ${capacity}`}
+        </span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/20">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ backgroundColor: accentColor, width: `${percentage}%` }}
+        />
+      </div>
     </div>
+  )
 }

@@ -88,10 +88,10 @@ export default async function DashboardPage() {
   })) as MembersDashboard
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="halftone-background min-h-screen bg-background text-foreground">
       <PageClient />
 
-      <section className="relative overflow-hidden border-b border-white/10 bg-[#0f172c] px-4 pb-10 pt-28 text-white sm:px-6 lg:px-8">
+      <section className="halftone-background relative overflow-hidden border-b border-white/10 bg-[#0f172c] px-4 pb-10 pt-28 text-white sm:px-6 lg:px-8">
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#00a2e0]/70 to-transparent" />
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">

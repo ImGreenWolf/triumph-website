@@ -811,6 +811,10 @@ export interface Event {
     description?: string | null;
   };
   coordonators?: (string | User)[] | null;
+  /**
+   * Disable public signups for this event.
+   */
+  private?: boolean | null;
   capacity?: number | null;
   populatedCoordonators?:
     | {
@@ -2709,6 +2713,7 @@ export interface EventsSelect<T extends boolean = true> {
         description?: T;
       };
   coordonators?: T;
+  private?: T;
   capacity?: T;
   populatedCoordonators?:
     | T

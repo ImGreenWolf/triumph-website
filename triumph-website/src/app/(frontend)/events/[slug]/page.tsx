@@ -1,26 +1,35 @@
 import type { Metadata } from 'next'
+import type { CSSProperties, ReactNode } from 'react'
 
-import { RelatedPosts } from '@/blocks/RelatedPosts/Component'
-import { PayloadRedirects } from '@/components/PayloadRedirects'
-import configPromise from '@payload-config'
-import { getPayload } from 'payload'
-import { draftMode } from 'next/headers'
-import React, { cache } from 'react'
-import RichText from '@/components/RichText'
-
-import { generateMeta } from '@/utilities/generateMeta'
-import PageClient from './page.client'
-import { LivePreviewListener } from '@/components/LivePreviewListener'
-import { EventHero } from '@/heros/EventHero'
-
-
-import { Media } from '@/components/Media'
 import Masonry from '@/blocks/Masonry/MasonyComponent'
-import type { LocationValue } from '@/fields/location-selector'
-import { CalendarIcon, HandHelpingIcon, HeartIcon, MapPin, PinIcon, Star, StarHalfIcon, StarIcon, Stars, TimerIcon } from 'lucide-react'
-
+import { LivePreviewListener } from '@/components/LivePreviewListener'
+import { Media } from '@/components/Media'
+import { PayloadRedirects } from '@/components/PayloadRedirects'
+import RichText from '@/components/RichText'
+import { EventHero } from '@/heros/EventHero'
+import type { Event } from '@/payload-types'
+import { getContrastTextColor, getEventLocation, getGoogleMapsURL } from '@/utilities/eventDisplay'
+import {
+  formatCompactEventDayLabel,
+  formatEventDayLabel,
+  formatEventSlotLabel,
+  getEventSlotAvailability,
+} from '@/utilities/eventRegistration'
+import { generateMeta } from '@/utilities/generateMeta'
+import configPromise from '@payload-config'
+import {
+  CalendarDays,
+  ExternalLink,
+  HandHelping,
+  HeartHandshake,
+  MapPin,
+  type LucideIcon,
+} from 'lucide-react'
+import { draftMode } from 'next/headers'
+import { getPayload } from 'payload'
+import { cache } from 'react'
+import PageClient from './page.client'
 import SignupForm from './SignupForm'
-import { getEventSlotAvailability } from '@/utilities/eventRegistration'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,11 +46,7 @@ export async function generateStaticParams() {
     },
   })
 
-  const params = events.docs.map(({ slug }) => {
-    return { slug }
-  })
-
-  return params
+  return events.docs.map(({ slug }) => ({ slug }))
 }
 
 type Args = {
@@ -53,12 +58,12 @@ type Args = {
 export default async function Event({ params: paramsPromise }: Args) {
   const { isEnabled: draft } = await draftMode()
   const { slug = '' } = await paramsPromise
-  // Decode to support slugs with special characters
   const decodedSlug = decodeURIComponent(slug)
-  const url = '/events/' + decodedSlug
-  const post = await queryPostBySlug({ slug: decodedSlug })
-  
-  if (!post) return <PayloadRedirects url={url} />
+  const url = `/events/${decodedSlug}`
+  const event = await queryEventBySlug({ slug: decodedSlug })
+
+  if (!event) return <PayloadRedirects url={url} />
+
   const payload = await getPayload({ config: configPromise })
   const registrations = await payload.find({
     collection: 'event-registrations',
@@ -73,152 +78,249 @@ export default async function Event({ params: paramsPromise }: Args) {
     },
     where: {
       event: {
-        equals: post.id,
+        equals: event.id,
       },
     },
   })
   const slotAvailability = getEventSlotAvailability({
-    event: post,
+    event,
     registrations: registrations.docs,
   })
-  const location = post.location ? post.location as any as LocationValue : undefined
+  const participantsCount = registrations.docs.filter(
+    (registration) => registration.status !== 'cancelled',
+  ).length
+  const accentColor = event.useColors && event.secondaryColor ? event.secondaryColor : '#00a2e0'
+  const backgroundColor = event.useColors && event.primaryColor ? event.primaryColor : undefined
+  const eventDays = event.days?.filter((day) => day.eventDate) ?? []
+  const compactProgram = eventDays.length > 3
+  const location = getEventLocation(event.location)
+  const googleMapsURL = getGoogleMapsURL(location)
+
   return (
-    <article className="pt-16 pb-16" style={post.useColors ? {backgroundColor: post.primaryColor!, color: getTextColor(post.primaryColor!)} : {}}>
+    <article
+      className="halftone-background bg-background text-foreground"
+      style={
+        {
+          '--event-accent': accentColor,
+          '--halftone-color': accentColor,
+          ...(backgroundColor
+            ? {
+                backgroundColor,
+                color: getContrastTextColor(backgroundColor),
+              }
+            : {}),
+        } as CSSProperties
+      }
+    >
       <PageClient />
-
-      {/* Allows redirects for valid pages too */}
       <PayloadRedirects disableNotFound url={url} />
-
       {draft && <LivePreviewListener />}
 
-      <EventHero event={post} />
-      <div className='flex container justify-center m-4' >
-        <div className=" gap-4 pt-8 w-full max-w-[48rem]">
-          <div className="container">
-            <h2>Despre Eveniment</h2>
-            <RichText enableProse={false} className="max-w-[48rem] mx-auto" data={post.content} enableGutter={false} />
-            {post.inspoboard && <h2 className='mt-8 mb-2'>Inspoboard</h2>}
-            {post.inspoboard && <Masonry columnProps={[4, 4, 3, 2]} items={post.inspoboard.map(i => (typeof i == 'object' ? {img: i.url!, url: i.url!, id: i.id!, height: i.height!, width: i.width!} : null)).filter(e=>e!=null)}/>}
-          </div>
-        </div>
-        <div className='flex flex-col gap-2' style={post.useColors ? {color: getTextColor(post.secondaryColor!)} : {}}>
-          <div className='w-50'>
-            {post.cause && typeof post.cause == 'object' && <div className='rounded-md bg-card p-4 not-prose' style={post.useColors ? {backgroundColor: post.secondaryColor!, color: getTextColor(post.secondaryColor!)} : {}}>
-                <p className='flex text-sm items-center gap-1 opacity-50'><HeartIcon className='h-4 w-4'/>Cauza</p>
-              <div className='flex items-center gap-2'>
-                {post.cause.logo && <Media resource={post.cause.logo} imgClassName='rounded-full' className='max-w-10'/>}
-                <p className='font-bold text-md leading-4'>{post.cause.name}</p>
-              </div>
-            </div>}
-          </div>
+      <EventHero event={event} />
 
-          <div className='w-50'>
-            <div className='rounded-md bg-card p-4' style={post.useColors ? {backgroundColor: post.secondaryColor!, color: getTextColor(post.secondaryColor!)} : {}}>
-              <p className='flex text-sm items-center gap-1 opacity-50'><HandHelpingIcon className='h-4 w-4'/>Donație Minimǎ</p>
-              <p className='font-bold text-lg leading-4 mt-1'>{post.donation} lei</p>
-
-            </div>
-          </div>
-
-          {location && (
-            <div className='w-50 relative group'>
-              <div
-                className='rounded-md bg-card p-4 '
-                style={
-                  post.useColors
-                    ? { backgroundColor: post.secondaryColor!, color: getTextColor(post.secondaryColor!) }
-                    : {}
-                }
-              >
-                <p className='flex text-sm items-center gap-1 opacity-50'><MapPin className='h-4 w-4'/>Locatie</p>
-                <p className='font-bold text-md leading-4 mt-1'>{location.name}</p>
-                
-                
-                <div className='absolute top-[100%] -right-100 left-0 bg-card p-4 rounded-md flex flex-col gap-4 shadow-lg hidden duration-250'
-                  style={
-                    post.useColors
-                      ? { backgroundColor: post.secondaryColor!, color: getTextColor(post.secondaryColor!) }
-                      : {}
-                  }
-              
-                >
-                  <div>
-                    {typeof location.rating === 'number' && <StarRating rating={location.rating}/>}
-                    <i>{location.formattedAddress}</i>
-                  </div>
-
-                  {location.description && <p>{location.description}</p>}
-                  {!!location.photos?.length && (
-                    <div>
-                      <Masonry
-                      columnProps={[3,2,1,1]}
-                        items={location.photos.map((photo, i) => ({
-                          height: photo.heightPx,
-                          width: photo.widthPx,
-                          id: i.toFixed(),
-                          img: photo.photoURL,
-                          url: photo.photoURL,
-                        }))}
-                      />
-                    </div>
+      <main className="container py-12 md:py-16">
+        <div
+          className={
+            event.private
+              ? 'grid'
+              : 'grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start xl:gap-14'
+          }
+        >
+          <div className="min-w-0 space-y-4">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.72fr)]">
+              <DetailCard accentColor={accentColor} icon={CalendarDays} label="Program">
+                <div className={compactProgram ? 'grid grid-cols-2 gap-2' : 'space-y-3'}>
+                  {eventDays.map((day) =>
+                    day.eventDate ? (
+                      <div
+                        className={
+                          compactProgram ? 'rounded-lg bg-background/10 px-2.5 py-2' : undefined
+                        }
+                        key={day.id || day.eventDate}
+                      >
+                        <p
+                          className={
+                            compactProgram ? 'text-xs font-bold capitalize' : 'font-bold capitalize'
+                          }
+                        >
+                          {compactProgram
+                            ? formatCompactEventDayLabel(day.eventDate)
+                            : formatEventDayLabel(day.eventDate)}
+                        </p>
+                        {compactProgram ? (
+                          <p className="mt-0.5 text-[11px] leading-4 text-card-foreground/60">
+                            {formatSlotCount(day.slots?.length ?? 0)}
+                          </p>
+                        ) : (
+                          day.slots &&
+                          day.slots.length > 0 && (
+                            <p className="mt-1 text-xs leading-5 text-card-foreground/60">
+                              {day.slots
+                                .map((slot) => formatEventSlotLabel(slot.startTime, slot.endTime))
+                                .join(' · ')}
+                            </p>
+                          )
+                        )}
+                      </div>
+                    ) : null,
                   )}
                 </div>
-                
-              </div>
-            </div>
-          )}
-           <div className='w-50'>
-            <div className='rounded-md bg-card p-4' style={post.useColors ? {backgroundColor: post.secondaryColor!, color: getTextColor(post.secondaryColor!)} : {}}>
-              <p className='flex text-sm items-center gap-1 opacity-50'><CalendarIcon className='h-4 w-4'/>Data</p>
-              <div className='font-bold text-md leading-4 mt-1'>
-                {post.days?.map((day, i) => <div key={i}>{new Date(day.eventDate!).toLocaleDateString('ro-RO', {dateStyle: 'long'})}: {day.slots?.length} ture</div>)}
-                </div>
+              </DetailCard>
 
-            </div>
+              {location && (
+                <DetailCard accentColor={accentColor} icon={MapPin} label="Locație">
+                  <p className="font-bold">{location.name}</p>
+                  {location.formattedAddress && (
+                    <p className="mt-1 text-sm leading-5 text-card-foreground/60">
+                      {location.formattedAddress}
+                    </p>
+                  )}
+                  {googleMapsURL && (
+                    <a
+                      className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--event-accent)] transition hover:opacity-75"
+                      href={googleMapsURL}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Deschide în Maps
+                      <ExternalLink aria-hidden className="size-3.5" />
+                    </a>
+                  )}
+                </DetailCard>
+              )}
+
+              {event.cause && typeof event.cause === 'object' && (
+                <DetailCard
+                  accentColor={accentColor}
+                  compact
+                  icon={HeartHandshake}
+                  label="Cauza susținută"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {event.cause.logo && typeof event.cause.logo !== 'string' && (
+                      <Media
+                        className="size-18 shrink-0 overflow-hidden rounded-full"
+                        imgClassName="size-18 object-cover"
+                        resource={event.cause.logo}
+                      />
+                    )}
+                    <p className="min-w-0 text-lg font-bold leading-5">{event.cause.name}</p>
+                  </div>
+                </DetailCard>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg shadow-black/10 md:p-8">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--event-accent)]">
+                Povestea proiectului
+              </p>
+              <h2 className="text-3xl font-bold tracking-tight">Despre eveniment</h2>
+              <RichText
+                className="mt-5 max-w-none text-card-foreground/80 [&_p]:leading-7"
+                data={event.content}
+                enableGutter={false}
+              />
+            </section>
+
+            {event.inspoboard && event.inspoboard.length > 0 && (
+              <section>
+                <div className="mb-6 mt-12">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--event-accent)]">
+                    Inspoboard
+                  </p>
+                  <h2 className="text-3xl font-bold tracking-tight">Inspirație pentru eveniment</h2>
+                </div>
+                <div className="overflow-hidden rounded-2xl">
+                  <Masonry
+                    columnProps={[4, 4, 3, 2]}
+                    items={event.inspoboard
+                      .map((image) =>
+                        typeof image === 'object'
+                          ? {
+                              height: image.height!,
+                              id: image.id!,
+                              img: image.url!,
+                              url: image.url!,
+                              width: image.width!,
+                            }
+                          : null,
+                      )
+                      .filter((image) => image !== null)}
+                  />
+                </div>
+              </section>
+            )}
           </div>
-         <SignupForm event={post} slotAvailability={slotAvailability} />
+
+          {!event.private && (
+            <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-28">
+              {typeof event.donation === 'number' && (
+                <DetailCard accentColor={accentColor} icon={HandHelping} label="Donație minimă">
+                  <p className="text-2xl font-bold">{event.donation} lei</p>
+                </DetailCard>
+              )}
+              <SignupForm
+                accentColor={accentColor}
+                event={{
+                  capacity: event.capacity,
+                  days: event.days,
+                  id: event.id,
+                  participantsCount,
+                  private: event.private,
+                }}
+                slotAvailability={slotAvailability}
+              />
+            </aside>
+          )}
         </div>
-      </div>
-      
+      </main>
     </article>
   )
 }
 
+function formatSlotCount(slotCount: number) {
+  if (slotCount === 0) return 'Fără intervale'
+  if (slotCount === 1) return '1 interval'
 
-function StarRating(props: {rating: number}) {
-  const {rating} = props
-  const stars = []
-  for(let i=1;i<=5;i++) {
+  return `${slotCount} intervale`
+}
 
-    if(i<Math.ceil(rating)) {
-      
-      if(i>=Math.trunc(rating) && i<=Math.ceil(rating)) {
-        stars.push(<StarHalfIcon fill='var(--accent)' strokeWidth={0}/>)
-      } else
-        stars.push(<StarIcon fill='var(--accent)' strokeWidth={0}/>)
-    } 
-    // else {
-    //   stars.push(<Star fill='#111'/>)
-    // }
-
-  }
-  return (<div className='flex'>{...stars}</div>)
+function DetailCard({
+  accentColor,
+  children,
+  compact = false,
+  icon: Icon,
+  label,
+}: {
+  accentColor: string
+  children: ReactNode
+  compact?: boolean
+  icon: LucideIcon
+  label: string
+}) {
+  return (
+    <section
+      className={`rounded-2xl border border-border bg-card text-card-foreground shadow-lg shadow-black/10 ${compact ? 'p-4' : 'p-5'}`}
+    >
+      <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-card-foreground/55">
+        <Icon aria-hidden className="size-4" style={{ color: accentColor }} />
+        {label}
+      </p>
+      {children}
+    </section>
+  )
 }
 
 export async function generateMetadata({ params: paramsPromise }: Args): Promise<Metadata> {
   const { slug = '' } = await paramsPromise
-  // Decode to support slugs with special characters
-  const decodedSlug = decodeURIComponent(slug)
-  const post = await queryPostBySlug({ slug: decodedSlug })
+  const event = await queryEventBySlug({ slug: decodeURIComponent(slug) })
 
-  return generateMeta({ doc: post })
+  return generateMeta({ doc: event })
 }
 
-const queryPostBySlug = cache(async ({ slug }: { slug: string }) => {
+const queryEventBySlug = cache(async ({ slug }: { slug: string }) => {
   const { isEnabled: draft } = await draftMode()
-
   const payload = await getPayload({ config: configPromise })
-
   const result = await payload.find({
     collection: 'events',
     draft,
@@ -232,16 +334,5 @@ const queryPostBySlug = cache(async ({ slug }: { slug: string }) => {
     },
   })
 
-  return result.docs?.[0] || null
+  return (result.docs?.[0] as Event | undefined) || null
 })
-
-
-
-function getTextColor(hexString: string) {
-  if(!hexString) 
-    return undefined;
-  const hex = hexString[0] == '#' ? hexString.substring(1) : hexString;
-
-  const avg = (parseInt(hex.substring(0,2), 16) + parseInt(hex.substring(2,4), 16) + parseInt(hex.substring(5,6), 16))/3
-  return avg > 255/2 ? '#000000' : '#ffffffff'
-}

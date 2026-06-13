@@ -9,10 +9,11 @@ import RichText from '@/components/RichText'
 import { Link } from '@payloadcms/ui'
 import { CMSLink } from '@/components/Link'
 import Grainient from '@/components/ui/grainient'
+import { useTheme } from '@/providers/Theme'
 
 export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) => {
   const { setHeaderTheme, headerTheme } = useHeaderTheme()
-
+  const {theme} = useTheme()
   useEffect(() => {
     setHeaderTheme('dark')
   })
@@ -23,14 +24,13 @@ export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) =>
     <div
       className="relative items-center justify-center text-foreground h-200 not-md:overflow-hidden"
       
-      data-theme="dark"
       
     >
       <div className='absolute inset-0'>
       
       <Grainient
-        color1={headerTheme ===  'dark' ? '#e9e9e9' :"#1d2847"}
-        color2={headerTheme === 'dark' ? '#e9e9e9' :"#36405c"}
+        color1={theme ===  'light' ? '#6aa4ee' :"#1d2847"}
+        color2={theme === 'light' ? '#dddddd' :"#36405c"}
         color3="#00a2e0"
         timeSpeed={0.25}
         colorBalance={0}
@@ -61,8 +61,8 @@ export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) =>
       >
         <div className='max-w-150 w-full m-4 p-2 flex gap-6 flex-col'>
           <div className='flex items-end gap-6  z-1 '>
-            <img src={'/logo.png'} className='h-35 -mx-5'/>
-            <h1 className='text-xl md:text-4xl leading-8 md:leading-8 text-shadow-lg'>Interact Bucureşti <div className='text-5xl md:text-8xl font-bold text-accent'>Triumph</div></h1>
+            <img src={'/logo.png'} className='h-35 -mx-5 not-dark:invert'/>
+            <h1 className='text-xl md:text-4xl leading-8 md:leading-8 text-shadow-lg text-foreground'>Interact Bucureşti <div className='text-5xl md:text-8xl font-bold text-accent'>Triumph</div></h1>
           </div>
           
           {richText && <RichText data={richText} enableProse={false}  className='p-0! z-1 text-foreground text-shadow-lg'></RichText> }
@@ -72,7 +72,7 @@ export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) =>
                 {links.map(({ link }, i) => {
                   return (
                     <li key={i}>
-                      <CMSLink {...link} />
+                      <CMSLink {...link} className='text-card'/>
                     </li>
                   )
                 })}
@@ -85,7 +85,7 @@ export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) =>
             
           
             
-            {galery[0] && <div className='bg-foreground absolute top-20 right-[-50] p-2 py-2 pbe-12 flex -rotate-5'>
+            {galery[0] && <div className='bg-white absolute top-20 right-[-50] p-2 py-2 pbe-12 flex -rotate-5'>
                 <Media imgClassName=" object-cover  h-50 w-auto" priority resource={galery[0]} />
                
             </div>}
@@ -96,20 +96,20 @@ export const MainHero: React.FC<Page['hero']> = ({ links, galery, richText }) =>
             <img src={'/detail2.png'} className='absolute top-130 left-90 z-1  w-10'/>
             <img src={'/detail.png'} className='absolute top-18 right-150 z-1 rotate-20 w-10'/>
 
-            {galery[1] && <div className='bg-foreground absolute top-70 right-70 p-2 py-2 pbe-12 flex rotate-3 shadow-2xl'>
+            {galery[1] && <div className='bg-white absolute top-70 right-70 p-2 py-2 pbe-12 flex rotate-3 shadow-2xl'>
                 <Media imgClassName=" object-cover  h-40 w-auto" priority resource={galery[1]} />
                
             </div>}
-            {galery[2] && <div className='bg-foreground absolute top-120 right-2 p-2 py-2 pbe-12 flex rotate-2 shadow-2xl'>
+            {galery[2] && <div className='bg-white absolute top-120 right-2 p-2 py-2 pbe-12 flex rotate-2 shadow-2xl'>
                 <Media imgClassName=" object-cover  h-40 w-auto" priority resource={galery[2]} />
                 
             </div>}
-            {galery[3] && <div className=' bg-foreground absolute top-130 left-100 -translate-x-[50%] p-2 py-2 pbe-12 flex -rotate-5 shadow-2xl'>
+            {galery[3] && <div className=' bg-white absolute top-130 left-100 -translate-x-[50%] p-2 py-2 pbe-12 flex -rotate-5 shadow-2xl'>
                 <Media imgClassName=" object-cover  h-40 w-auto" priority resource={galery[3]} />
                 
             </div>}
             <img src="/Thread.svg" className='absolute'  alt="" ></img>
-            {galery[4] && <div className='bg-foreground absolute top-20 right-140 p-2 py-2 pbe-12 flex rotate-2 shadow-2xl'>
+            {galery[4] && <div className='bg-white absolute top-20 right-140 p-2 py-2 pbe-12 flex rotate-2 shadow-2xl'>
                   <Media imgClassName=" object-cover h-40 w-auto" priority resource={galery[4]} />
                   
             </div>}

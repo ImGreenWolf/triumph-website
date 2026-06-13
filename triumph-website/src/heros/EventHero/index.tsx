@@ -1,50 +1,62 @@
-import { formatDateTime } from 'src/utilities/formatDateTime'
-import React from 'react'
-
-import type { Event, Post, User } from '@/payload-types'
-
 import { Media } from '@/components/Media'
-import { formatAuthors } from '@/utilities/formatAuthors'
+import type { Event } from '@/payload-types'
+import {
+  formatEventDateRange,
+  getContrastTextColor,
+  getEventLocation,
+  getEventStatus,
+} from '@/utilities/eventDisplay'
+import { CalendarDays, MapPin } from 'lucide-react'
+import React from 'react'
 
 export const EventHero: React.FC<{
   event: Event
 }> = ({ event }) => {
-  const { heroImage, coordonators, days, name } = event
-
-  const hasAuthors =
-    coordonators && coordonators.length > 0 && formatAuthors(coordonators as User[]) !== ''
+  const { heroImage, name } = event
+  const location = getEventLocation(event.location)
+  const status = getEventStatus(event)
+  const accentColor = event.useColors && event.secondaryColor ? event.secondaryColor : '#00a2e0'
 
   return (
-    <div className="relative -mt-[10.4rem] flex items-end z-1">
-      <div className="container z-10 relative lg:grid lg:grid-cols-[1fr_48rem_1fr] text-white pb-8">
-        <div className="col-start-1 col-span-1 md:col-start-2 md:col-span-2">
-          
+    <section className="relative flex min-h-[68svh] items-end overflow-hidden bg-card pt-40 text-white">
+      {heroImage && typeof heroImage !== 'string' && (
+        <Media
+          alt={name}
+          className="absolute inset-0"
+          fill
+          imgClassName="object-cover"
+          pictureClassName="relative block size-full"
+          priority
+          resource={heroImage}
+          size="100vw"
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/35" />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/50 to-transparent" />
 
-          <div className="">
-            <h1 className="mb-6 text-3xl md:text-5xl lg:text-6xl">{name}</h1>
-          </div>
-
-          {/* <div className="flex flex-col md:flex-row gap-4 md:gap-16">
-            {hasAuthors && (
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm">Coordonatori</p>
-
-                  <p>{formatAuthors(coordonators as User[])}</p>
-                </div>
-              </div>
-            )}
-            
-          </div> */}
+      <div className="container relative z-10 pb-10 pt-20 md:pb-14">
+        <p
+          className="mb-5 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] shadow-sm"
+          style={{ backgroundColor: accentColor, color: getContrastTextColor(accentColor) }}
+        >
+          {status.label}
+        </p>
+        <h1 className="max-w-4xl text-4xl font-bold tracking-tight text-white md:text-6xl lg:text-7xl">
+          {name}
+        </h1>
+        <div className="mt-6 flex flex-col gap-3 text-sm text-white/85 sm:flex-row sm:flex-wrap sm:gap-x-6">
+          <p className="flex items-center gap-2">
+            <CalendarDays aria-hidden className="size-4" style={{ color: accentColor }} />
+            {formatEventDateRange(event)}
+          </p>
+          {location?.name && (
+            <p className="flex items-center gap-2">
+              <MapPin aria-hidden className="size-4" style={{ color: accentColor }} />
+              {location.name}
+            </p>
+          )}
         </div>
       </div>
-      <div className="min-h-[80vh] select-none">
-        {heroImage && typeof heroImage !== 'string' && (
-          <Media fill priority imgClassName="-z-10 object-cover" resource={heroImage} />
-        )}
-        <div className="absolute pointer-events-none left-0 bottom-0 w-full h-1/2 bg-linear-to-t from-black/50 to-transparent" />
-        <div className="absolute pointer-events-none left-0 top-0 w-full h-1/2 bg-linear-to-t to-black from-transparent" />
-      </div>
-    </div>
+    </section>
   )
 }

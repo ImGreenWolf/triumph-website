@@ -19,7 +19,7 @@ export const FAQBlock: React.FC<FAQBlockProps> = ({
 }) => {
   return (
     <section className="container">
-      <div className="relative overflow-hidden rounded-[2rem] border border-border bg-card/80 text-card-foreground shadow-[0_30px_100px_rgba(0,0,0,0.18)]">
+      <div className="relative overflow-hidden rounded-[2rem] border border-border bg-card text-card-foreground shadow-[0_30px_100px_rgba(0,0,0,0.18)]">
         <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-accent/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-12 size-72 rounded-full bg-accent/10 blur-3xl" />
 
@@ -30,6 +30,7 @@ export const FAQBlock: React.FC<FAQBlockProps> = ({
                 <p className="mb-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-normal text-accent">
                   <span className="h-px w-8 bg-accent" />
                   {eyebrow}
+                  <span className="h-px w-8 bg-accent" />
                 </p>
               )}
               {introContent && (
@@ -42,7 +43,7 @@ export const FAQBlock: React.FC<FAQBlockProps> = ({
             </div>
 
             {(supportingText || supportingLinkLabel) && (
-              <aside className="max-w-md rounded-xl border border-border bg-background/70 p-5 text-foreground backdrop-blur-sm">
+              <aside className="max-w-md rounded-xl border-2 border-border bg-sidebar p-5 text-foreground backdrop-blur-sm">
                 <MessageCircleQuestion aria-hidden className="size-6 text-accent" strokeWidth={1.8} />
                 {supportingText && (
                   <p className="mt-4 text-sm leading-6 text-muted-foreground">{supportingText}</p>

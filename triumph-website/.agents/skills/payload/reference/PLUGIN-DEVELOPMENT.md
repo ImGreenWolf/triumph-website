@@ -1333,7 +1333,7 @@ export default buildConfig({
 3. Run development server:
 
 ```bash
-npm run dev  # Starts Next.js on http://localhost:3000
+npm run dev  # Starts Next.js on https://v87tf5l6-3000.euw.devtunnels.ms/
 ```
 
 ### Integration Tests (Vitest) (optional)
@@ -1376,7 +1376,7 @@ describe('Plugin integration tests', () => {
   })
 
   test('should query custom endpoint', async () => {
-    const request = new Request('http://localhost:3000/api/my-endpoint')
+    const request = new Request('https://v87tf5l6-3000.euw.devtunnels.ms//api/my-endpoint')
     const payloadRequest = await createPayloadRequest({ config, request })
     const response = await customEndpointHandler(payloadRequest)
     const data = await response.json()
@@ -1396,7 +1396,7 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Plugin e2e tests', () => {
   test('should render custom admin component', async ({ page }) => {
-    await page.goto('http://localhost:3000/admin')
+    await page.goto('https://v87tf5l6-3000.euw.devtunnels.ms//admin')
     await expect(page.getByText('Added by the plugin')).toBeVisible()
   })
 })

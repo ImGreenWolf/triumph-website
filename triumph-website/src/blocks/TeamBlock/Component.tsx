@@ -13,6 +13,7 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
         {mandates?.map((mandate, i) => {
           const isFourCols =
             mandate.members && mandate.members.length % 4 === 0 || false
+          const isFiveCols = mandate.columns === 5
 
           return (
             <div key={i} className="relative overflow-hidden">
@@ -62,16 +63,17 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
                         key={member.id || memberIndex}
                         member={member}
                         small={isFourCols}
+                        extraSmall={isFiveCols}
                       /> : <div key={member.id || memberIndex}></div>
                     )
                   })}
                 </div>
 
                 {/* Footer */}
-                <h2 className="m-6 text-center prose-xl">
+                {/* <h2 className="m-6 text-center prose-xl">
                   <span className="text-3xl sm:text-4xl">+133</span>{' '}
                   membri activi
-                </h2>
+                </h2> */}
               </div>
             </div>
           )

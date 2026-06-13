@@ -29,7 +29,7 @@ export const FAQAccordion: React.FC<Props> = ({ items, openFirstItem }) => {
         return (
           <article
             className={cn(
-              'group overflow-hidden rounded-xl border bg-card/75 text-card-foreground transition-all duration-300',
+              'group overflow-hidden rounded-xl border-2 bg-card/75 text-card-foreground transition-all duration-300',
               isOpen
                 ? 'border-accent/60 shadow-[0_18px_48px_rgba(0,0,0,0.12)]'
                 : 'border-border hover:border-accent/35 hover:bg-card',

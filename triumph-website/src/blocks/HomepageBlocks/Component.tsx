@@ -28,7 +28,7 @@ export const SectionIntroBlock: React.FC<SectionIntroBlockProps> = ({ alignment,
             {eyebrow}
           </p>
         )}
-        {richText && <RichText data={richText} enableGutter={false} />}
+        {richText && <RichText data={richText} enableGutter={false}  className='text-foreground'/>}
       </div>
     </section>
   )
@@ -129,7 +129,7 @@ export  const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery 
           
             {events.map(event => {
               return ( <div key={event.id || event.slug} className='grid grid-cols-[auto_1fr] grid-rows-2 auto-cols-max'>
-                <Media resource={event.meta?.image} className='h-18 row-span-full col-1 aspect-5/4' imgClassName='h-18  w-auto object-cover'/>
+                <Media resource={event.meta?.image} className='h-18 row-span-full col-1 aspect-4/5 overflow-hidden mr-2' imgClassName=' overflow-hidden h-18  w-auto object-cover'/>
                 <span className='text-xl font-bold leading-5'>{event.name}</span>
                 <a href={'/events/'+event.slug} className='flex gap-2 text-xs'>Mai multe <ArrowUpRightIcon size={16}/></a>
               </div>)
@@ -168,11 +168,11 @@ export const SplitMediaBlock: React.FC<any> = ({ links, media, mediaPosition, ri
             'lg:order-1': mediaPosition !== 'left',
           })}
         >
-          {richText && <RichText data={richText} enableGutter={false} />}
+          {richText && <RichText data={richText} enableProse={false} enableGutter={false} />}
           {Boolean(links?.length) && (
             <div className="mt-8 flex flex-wrap gap-3">
               {links.map(({ link }: any, index: number) => (
-                <CMSLink key={index} {...link} />
+                <CMSLink className='text-card-foreground' key={index} {...link} />
               ))}
             </div>
           )}

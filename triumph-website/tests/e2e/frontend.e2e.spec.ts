@@ -9,7 +9,7 @@ test.describe('Frontend', () => {
   })
 
   test('can load homepage', async ({ page }) => {
-    await page.goto('http://localhost:3000')
+    await page.goto('https://v87tf5l6-3000.euw.devtunnels.ms/')
     await expect(page).toHaveTitle(/Payload Website Template/)
     const heading = page.locator('h1').first()
     await expect(heading).toHaveText('Payload Website Template')

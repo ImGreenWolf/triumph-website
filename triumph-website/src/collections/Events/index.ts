@@ -317,6 +317,16 @@ export const Events: CollectionConfig<'posts'> = {
       relationTo: 'users',
     },
     {
+      name: 'private',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'Private event',
+      admin: {
+        description: 'Disable public signups for this event.',
+        position: 'sidebar',
+      },
+    },
+    {
       name: 'capacity',
       type: 'number',
       virtual: true,
@@ -499,7 +509,7 @@ export const EventRegistrations: CollectionConfig = {
       if (operation !== 'create') return data
 
       if (!data?.event || !data?.day || !data?.slot) {
-        throw new Error('Selectează o zi și un interval.')
+        throw new APIError('Selectează o zi și un interval.', 400)
       }
 
       const eventId = typeof data.event === 'string' ? data.event : data.event.id
@@ -510,10 +520,42 @@ export const EventRegistrations: CollectionConfig = {
         depth: 0,
       })
 
+      if (event.private) {
+        throw new APIError('Înscrierile pentru acest eveniment sunt private.', 403)
+      }
+
       const { day, slot } = findEventSlot(event, data.day, data.slot)
 
       if (!day?.id || !day.eventDate || !slot?.id) {
-        throw new Error('Slotul selectat nu mai este disponibil.')
+        throw new APIError('Slotul selectat nu mai este disponibil.', 400)
+      }
+
+      const existing = await req.payload.find({
+        collection: 'event-registrations',
+        limit: 1,
+        where: {
+          and: [
+            {
+              email: {
+                equals: data.email,
+              },
+            },
+            {
+              event: {
+                equals: eventId,
+              },
+            },
+            {
+              status: {
+                not_equals: 'cancelled',
+              },
+            },
+          ],
+        },
+      })
+
+      if (existing.docs.length > 0) {
+        throw new APIError('Te-ai înscris deja la acest eveniment cu această adresă de email.', 409)
       }
 
       const existingForSlot = await req.payload.find({
@@ -547,31 +589,10 @@ export const EventRegistrations: CollectionConfig = {
       })
 
       if (existingForSlot.docs.length >= (slot.capacity ?? 0)) {
-        throw new Error(
+        throw new APIError(
           `${formatEventDayLabel(day.eventDate)}, ${formatEventSlotLabel(slot.startTime, slot.endTime)} este complet.`,
+          409,
         )
-      }
-
-      const existing = await req.payload.find({
-        collection: 'event-registrations',
-        where: {
-          and: [
-            {
-              email: {
-                equals: data!.email,
-              },
-            },
-            {
-              event: {
-                equals: eventId,
-              },
-            },
-          ],
-        },
-      })
-
-      if (existing.docs.length > 0) {
-        throw new Error('Already registered')
       }
 
       return data

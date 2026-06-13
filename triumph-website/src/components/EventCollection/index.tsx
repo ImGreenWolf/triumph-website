@@ -5,31 +5,33 @@ import { EventCard } from '@/components/EventCard'
 import { Event } from '@/payload-types'
 
 export type Props = {
-  events: Event[],
-  showDescription: boolean,
+  className?: string
+  contained?: boolean
+  events: Event[]
+  showDescription: boolean
   small: boolean
 }
 
 export const EventsCollection: React.FC<Props> = (props) => {
-  const { events, showDescription = true, small } = props
+  const { className, contained = true, events, showDescription = true, small } = props
 
   return (
-    <div className={cn('container')}>
-        <div>
-          <div className={cn("grid gap-y-4 gap-x-4 lg:gap-y-8 lg:gap-x-8 xl:gap-x-8", true ? 'grid-cols-4' : 'grid-cols-3')}>
-            {events?.map((result, index) => {
-              if (typeof result === 'object' && result !== null) {
-                return (
-                  <div className="" key={index}>
-                    <EventCard className="h-full" doc={result} showDescription={showDescription} small={small}/>
-                  </div>
-                )
-              }
-  
-              return null
-            })}
-          </div>
-        </div>
+    <div className={cn(contained && 'container', className)}>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
+        {events?.map((result) => {
+          if (typeof result !== 'object' || result === null) return null
+
+          return (
+            <EventCard
+              className="h-full"
+              doc={result}
+              key={result.id || result.slug}
+              showDescription={showDescription}
+              small={small}
+            />
+          )
+        })}
       </div>
+    </div>
   )
 }

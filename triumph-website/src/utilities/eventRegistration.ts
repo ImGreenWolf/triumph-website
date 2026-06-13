@@ -1,4 +1,5 @@
 import type { Event, EventRegistration } from '@/payload-types'
+import { isEventSlotUpcoming } from '@/utilities/eventDisplay'
 
 type EventDay = NonNullable<Event['days']>[number]
 type EventSlot = NonNullable<NonNullable<EventDay['slots']>>[number]
@@ -23,6 +24,14 @@ export function formatEventDayLabel(eventDate: string) {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
+  }).format(new Date(eventDate))
+}
+
+export function formatCompactEventDayLabel(eventDate: string) {
+  return new Intl.DateTimeFormat('ro-RO', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
   }).format(new Date(eventDate))
 }
 
@@ -89,7 +98,8 @@ export function getEventSlotAvailability(args: {
               dayLabel,
               slotLabel,
               optionLabel: `${dayLabel}, ${slotLabel}`,
-              isAvailable: remaining > 0,
+              isAvailable:
+                remaining > 0 && isEventSlotUpcoming(eventDate, slot.endTime ?? slot.startTime),
             },
           ] satisfies EventSlotAvailability[]
         }) ?? []

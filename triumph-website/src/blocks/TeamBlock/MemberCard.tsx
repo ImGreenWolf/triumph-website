@@ -5,9 +5,10 @@ import { Media as MediaElem } from '../../components/Media'
 import { useRef, useState } from 'react'
 import { ArrowUpRight as Arrow } from 'lucide-react'
 import Logo from '@/components/Logo'
+import defaultProfilePicture from '../../../public/profile_picture.png'
 
-export default function Card(props: { member: any; small?: boolean }) {
-  const { member, small = false } = props
+export default function Card(props: { member: any; small?: boolean; extraSmall?: boolean }) {
+  const { member, small = false, extraSmall = false } = props
   const [flipped, setFlipped] = useState(false)
 
   return (
@@ -41,7 +42,8 @@ export default function Card(props: { member: any; small?: boolean }) {
               'group-hover:scale-105 duration-300 ease-in-circ',
               'select-none'
             )}
-            resource={member.picture || '/profile_picture.png'}
+            resource={member.picture}
+            src={!member.picture ? defaultProfilePicture : undefined}
           />
 
           <div className='absolute flex items-end inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/70 to-transparent'>
@@ -50,7 +52,11 @@ export default function Card(props: { member: any; small?: boolean }) {
             <p
               className={cn(
                 'text-primary/60 font-thin text-shadow-xl',
-                small ? 'text-sm leading-4' : 'text-lg leading-6'
+                extraSmall
+                  ? 'text-xs leading-3'
+                  : small
+                    ? 'text-sm leading-4'
+                    : 'text-lg leading-6'
               )}
             >
               {member.role}
@@ -59,16 +65,18 @@ export default function Card(props: { member: any; small?: boolean }) {
             <p
               className={cn(
                 'font-bold text-primary text-shadow-lg',
-                small
-                  ? 'text-2xl leading-7'
-                  : 'text-3xl sm:text-4xl leading-tighter'
+                extraSmall
+                  ? 'text-xl leading-6'
+                  : small
+                    ? 'text-2xl leading-7'
+                    : 'text-3xl sm:text-4xl leading-tighter'
               )}
             >
               {member.name}
             </p>
 
           </div>
-            <Arrow size={small ? 20 : 35} className='opacity-70 transition-opacity group-hover:opacity-100 ml-auto' />
+            <Arrow size={extraSmall ? 16 : small ? 20 : 35} className='opacity-70 transition-opacity group-hover:opacity-100 ml-auto' />
             
           </div>
 
@@ -90,7 +98,7 @@ export default function Card(props: { member: any; small?: boolean }) {
           <p
             className={cn(
               'font-bold uppercase text-accent border-r-2 border-dotted border-accent pr-2 shrink-0',
-              small ? 'text-lg' : 'text-2xl md:text-4xl'
+              extraSmall ? 'text-base' : small ? 'text-lg' : 'text-2xl md:text-4xl'
             )}
             style={{ writingMode: 'vertical-rl' }}
           >
@@ -104,7 +112,7 @@ export default function Card(props: { member: any; small?: boolean }) {
             <p
               className={cn(
                 'indent-2',
-                small ? 'text-xs' : 'text-xs md:text-sm '
+                extraSmall ? 'text-[10px] leading-3' : small ? 'text-xs' : 'text-xs md:text-sm '
               )}
             >
               {member.description}

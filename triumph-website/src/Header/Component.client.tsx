@@ -53,20 +53,5 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({ data, links }) => {
     </header>
   )
 }
-type si = {
-    label?: string | null | undefined;
-    sectionId?: string | null | undefined;
-    reference?: {
-        relationTo: "pages";
-        value: string | Page;
-    } | {
-        relationTo: "events";
-        value: string | Event;
-    } | {
-        relationTo: "posts";
-        value: string | Post;
-    } | null | undefined;
-    id?: string | null;
-}
 
 

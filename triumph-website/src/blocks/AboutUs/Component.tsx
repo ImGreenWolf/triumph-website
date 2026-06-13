@@ -64,7 +64,7 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
           <div className="relative w-8/12 z-10 ">
             <div className={cn(
               "rounded-2xl lg:rounded-3xl",
-              "bg-foreground/50 backdrop-blur-xl",
+              "bg-primary/50 backdrop-blur-xl",
               "border shadow-2xl",
               currentAccent.border
             )}>
@@ -90,13 +90,13 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                 {/* Two Column Content */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                   <div className="group/card">
-                    <div className="relative h-full p-6 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
+                    <div className="relative h-full p-6 bg-white backdrop-blur-lg rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
                       <div className="mb-4">
-                        <div className="w-50 h-12 mb-3">
+                        <div className="h-12 mb-3">
                           <img 
                             src="/interact.png" 
                             alt="Interact" 
-                            className="w-full h-full object-contain"
+                            className=" h-full object-contain"
                             loading="lazy"
                           />
                         </div>
@@ -114,11 +114,11 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                   <div className="group/card">
                     <div className="relative h-full p-6 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
                       <div className="mb-4">
-                        <div className="w-50 h-12 mb-3">
+                        <div className="h-12 mb-3">
                           <img 
                             src="/rotary.png" 
                             alt="Rotary" 
-                            className="w-full h-full object-contain"
+                            className="h-full object-contain"
                             loading="lazy"
                           />
                         </div>
@@ -204,7 +204,7 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                       About Us
                     </span>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-secondary leading-tight">
                     {title}
                   </h2>
                 </div>
