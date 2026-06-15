@@ -16,6 +16,7 @@ jobs:
       RAYON_NUM_THREADS: 1
       NEXT_PRIVATE_MAX_WORKERS: 1
       NODE_OPTIONS: --no-deprecation
+      PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
 
     steps:
       - name: Checkout repository
