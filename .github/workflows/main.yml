@@ -15,6 +15,7 @@ jobs:
       NODE_ENV: production
       RAYON_NUM_THREADS: 1
       NEXT_PRIVATE_MAX_WORKERS: 1
+      NODE_OPTIONS: --no-deprecation
 
     steps:
       - name: Checkout repository
@@ -30,9 +31,10 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: ${{ env.APP_DIR }}/pnpm-lock.yaml
 
       - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
         run: pnpm install --frozen-lockfile
 
       - name: Build Next.js app
