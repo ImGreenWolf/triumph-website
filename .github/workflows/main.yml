@@ -68,39 +68,16 @@ jobs:
             cp -a "$APP_DIR/public" deploy/public
           fi
 
-          tar -czf deploy.tar.gz -C deploy .
+          mkdir -p deploy/tmp
+          date > deploy/tmp/restart.txt
 
-      - name: Configure SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.CPANEL_SSH_KEY }}" > ~/.ssh/cpanel_key
-          chmod 600 ~/.ssh/cpanel_key
-          ssh-keyscan -p "${{ secrets.CPANEL_PORT }}" "${{ secrets.CPANEL_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Upload build archive to cPanel
-        run: |
-          scp -P "${{ secrets.CPANEL_PORT }}" -i ~/.ssh/cpanel_key deploy.tar.gz \
-            "${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }}:/home/${{ secrets.CPANEL_USER }}/deploy.tar.gz"
-
-      - name: Extract build on cPanel
-        run: |
-          ssh -p "${{ secrets.CPANEL_PORT }}" -i ~/.ssh/cpanel_key \
-            "${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }}" << 'EOF'
-              set -e
-
-              DEPLOY_PATH="${{ secrets.CPANEL_DEPLOY_PATH }}"
-
-              mkdir -p "$DEPLOY_PATH"
-              cd "$DEPLOY_PATH"
-
-              find . -mindepth 1 -maxdepth 1 \
-                ! -name ".htaccess" \
-                ! -name "tmp" \
-                -exec rm -rf {} +
-
-              tar -xzf "/home/${{ secrets.CPANEL_USER }}/deploy.tar.gz" -C "$DEPLOY_PATH"
-              rm -f "/home/${{ secrets.CPANEL_USER }}/deploy.tar.gz"
-
-              mkdir -p tmp
-              touch tmp/restart.txt 2>/dev/null || true
-          EOF
+      - name: Deploy files by FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          protocol: ftp
+          local-dir: ./deploy/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
