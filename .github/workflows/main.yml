@@ -17,6 +17,10 @@ jobs:
       NEXT_PRIVATE_MAX_WORKERS: 1
       NODE_OPTIONS: --no-deprecation
       PAYLOAD_SECRET: ${{ secrets.PAYLOAD }}
+      DATABASE_URL: ${{ vars.DATABASE_URL }}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ vars.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+      NEXT_PUBLIC_GOOGLE_MAP_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_MAP_ID }}
+      NEXT_PUBLIC_SERVER_URL: ${{ vars.NEXT_PUBLIC_SERVER_URL }}
 
     steps:
       - name: Check Payload secret
