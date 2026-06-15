@@ -24,9 +24,9 @@ const mainFont =
 //   {path: '../../../public/fonts/fonnts.com-Mont_Bold.ttf', weight: '600', style: 'normal'}
 // ]}) 
 
-Poppins({weight: ['600', '300', '400', '800', '500', '200']});
-export const outlineFont = Bungee_Outline({weight: '400'})
-export const fancyFont = Lobster({weight: '400'})
+Poppins({weight: ['600', '300', '400', '800', '500', '200'], subsets: ['latin', 'latin-ext'],});
+export const outlineFont = Bungee_Outline({weight: '400', subsets: ['latin', 'latin-ext'],})
+export const fancyFont = Lobster({weight: '400', subsets: ['latin', 'latin-ext'],})
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { isEnabled } = await draftMode()
 
