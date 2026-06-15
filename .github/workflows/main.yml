@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      APP_DIR: triumph-website
       NODE_ENV: production
       RAYON_NUM_THREADS: 1
       NEXT_PRIVATE_MAX_WORKERS: 1
@@ -35,20 +36,21 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Next.js app
-        run: pnpm build
+        working-directory: ${{ env.APP_DIR }}
+        run: pnpm run build
 
       - name: Prepare standalone deployment folder
         run: |
           rm -rf deploy
           mkdir -p deploy
 
-          cp -a .next/standalone/. deploy/
+          cp -a "$APP_DIR/.next/standalone/." deploy/
 
           mkdir -p deploy/.next
-          cp -a .next/static deploy/.next/static
+          cp -a "$APP_DIR/.next/static" deploy/.next/static
 
-          if [ -d public ]; then
-            cp -a public deploy/public
+          if [ -d "$APP_DIR/public" ]; then
+            cp -a "$APP_DIR/public" deploy/public
           fi
 
           tar -czf deploy.tar.gz -C deploy .
