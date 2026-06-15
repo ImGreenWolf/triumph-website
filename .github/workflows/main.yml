@@ -1,0 +1,82 @@
+name: Build and deploy Next.js to cPanel
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: production
+      RAYON_NUM_THREADS: 1
+      NEXT_PRIVATE_MAX_WORKERS: 1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js app
+        run: npm run build
+
+      - name: Prepare standalone deployment folder
+        run: |
+          rm -rf deploy
+          mkdir -p deploy
+
+          cp -a .next/standalone/. deploy/
+
+          mkdir -p deploy/.next
+          cp -a .next/static deploy/.next/static
+
+          if [ -d public ]; then
+            cp -a public deploy/public
+          fi
+
+          tar -czf deploy.tar.gz -C deploy .
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.CPANEL_SSH_KEY }}" > ~/.ssh/cpanel_key
+          chmod 600 ~/.ssh/cpanel_key
+          ssh-keyscan -p "${{ secrets.CPANEL_PORT }}" "${{ secrets.CPANEL_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload build archive to cPanel
+        run: |
+          scp -P "${{ secrets.CPANEL_PORT }}" -i ~/.ssh/cpanel_key deploy.tar.gz \
+            "${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }}:/home/${{ secrets.CPANEL_USER }}/deploy.tar.gz"
+
+      - name: Extract build on cPanel
+        run: |
+          ssh -p "${{ secrets.CPANEL_PORT }}" -i ~/.ssh/cpanel_key \
+            "${{ secrets.CPANEL_USER }}@${{ secrets.CPANEL_HOST }}" << 'EOF'
+              set -e
+
+              DEPLOY_PATH="${{ secrets.CPANEL_DEPLOY_PATH }}"
+
+              mkdir -p "$DEPLOY_PATH"
+              cd "$DEPLOY_PATH"
+
+              find . -mindepth 1 -maxdepth 1 \
+                ! -name ".htaccess" \
+                ! -name "tmp" \
+                -exec rm -rf {} +
+
+              tar -xzf "/home/${{ secrets.CPANEL_USER }}/deploy.tar.gz" -C "$DEPLOY_PATH"
+              rm -f "/home/${{ secrets.CPANEL_USER }}/deploy.tar.gz"
+
+              touch tmp/restart.txt 2>/dev/null || true
+          EOF
