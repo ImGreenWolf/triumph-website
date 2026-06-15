@@ -19,17 +19,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build Next.js app
-        run: npm run build
+        run: pnpm build
 
       - name: Prepare standalone deployment folder
         run: |
@@ -78,5 +84,6 @@ jobs:
               tar -xzf "/home/${{ secrets.CPANEL_USER }}/deploy.tar.gz" -C "$DEPLOY_PATH"
               rm -f "/home/${{ secrets.CPANEL_USER }}/deploy.tar.gz"
 
+              mkdir -p tmp
               touch tmp/restart.txt 2>/dev/null || true
           EOF
