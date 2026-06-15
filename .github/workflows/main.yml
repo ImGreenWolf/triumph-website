@@ -19,6 +19,14 @@ jobs:
       PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
 
     steps:
+      - name: Check Payload secret
+        run: |
+          if [ -z "$PAYLOAD_SECRET" ]; then
+            echo "PAYLOAD_SECRET is missing or empty"
+            exit 1
+          else
+            echo "PAYLOAD_SECRET is present"
+          fi
       - name: Checkout repository
         uses: actions/checkout@v4
 
