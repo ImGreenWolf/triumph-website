@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
     loadPaths: ['./node_modules/@payloadcms/ui/dist/scss/'],
   },
   output: 'standalone',
+  serverExternalPackages: ['mongoose', 'mongodb'],
   images: {
     localPatterns: [
       {
