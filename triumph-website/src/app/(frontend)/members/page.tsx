@@ -39,6 +39,7 @@ import { cn } from '@/utilities/ui'
 
 import PageClient from './page.client'
 import TimelineDots from './TimelineDots'
+import { CMSLink } from '@/components/Link'
 
 const MONTHLY_DUE = 21
 const OVERDUE_DUE = 41
@@ -605,14 +606,13 @@ function QuickLinks(props: { links?: MembersDashboard['quickLinks'] }) {
       {links?.length ? (
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {links.map((link, index) => (
-            <a
+          <CMSLink key={link.id || `${link.link.label}-${index}`} reference={link.link.reference} url={link.link.url}
               className="group flex min-h-16 items-center justify-between gap-4 rounded-md border border-border bg-background/40 px-4 py-3 text-sm font-semibold transition hover:border-[#00a2e0]/50 hover:bg-[#00a2e0]/10"
-              href={link.link.url || '#'}
-              key={link.id || `${link.link.label}-${index}`}
-            >
-              <span>{link.link.label}</span>
-              <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-[#00a2e0]" />
-            </a>
+          
+          >
+            {link.link.label}
+            <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-[#00a2e0]" />
+          </CMSLink>
           ))}
         </div>
       ) : (
