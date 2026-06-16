@@ -6,6 +6,9 @@ type EventSlot = NonNullable<NonNullable<EventDay['slots']>>[number]
 
 const MILLISECONDS_PER_MINUTE = 60_000
 
+// Change this value to close signup this many minutes before each timed slot starts.
+export const REGISTRATION_CUTOFF_MINUTES = 0
+
 export type EventSlotAvailability = {
   dayId: string
   slotId: string
@@ -58,7 +61,7 @@ export function findEventSlot(event: Pick<Event, 'days'>, dayId: string, slotId:
 }
 
 export function getEventSlotAvailability(args: {
-  event: Pick<Event, 'days'> & { registrationCutoffMinutes?: number | null }
+  event: Pick<Event, 'days'>
   registrations: Array<Pick<EventRegistration, 'day' | 'slot' | 'status'>>
   now?: Date
 }) {
@@ -93,7 +96,6 @@ export function getEventSlotAvailability(args: {
           const registrationDeadline = getEventSlotRegistrationDeadline({
             endTime: slot.endTime,
             eventDate,
-            registrationCutoffMinutes: args.event.registrationCutoffMinutes,
             startTime: slot.startTime,
           })
           const isRegistrationOpen = registrationDeadline
@@ -129,7 +131,6 @@ export function isEventSlotRegistrationOpen(
     eventDate: string
     startTime?: string | null
     endTime?: string | null
-    registrationCutoffMinutes?: number | null
   },
   now = new Date(),
 ) {
@@ -141,7 +142,6 @@ export function getEventSlotRegistrationDeadline(args: {
   eventDate: string
   startTime?: string | null
   endTime?: string | null
-  registrationCutoffMinutes?: number | null
 }) {
   const slotStartDate = args.startTime
     ? combineEventDateAndTime(args.eventDate, args.startTime)
@@ -153,9 +153,7 @@ export function getEventSlotRegistrationDeadline(args: {
 
   if (!deadlineBase) return null
 
-  const cutoffMinutes = slotStartDate
-    ? normalizeRegistrationCutoff(args.registrationCutoffMinutes)
-    : 0
+  const cutoffMinutes = slotStartDate ? normalizeRegistrationCutoff() : 0
 
   return new Date(deadlineBase.getTime() - cutoffMinutes * MILLISECONDS_PER_MINUTE)
 }
@@ -173,9 +171,9 @@ function formatTime(value?: string | null) {
   }).format(new Date(value))
 }
 
-function normalizeRegistrationCutoff(value?: number | null) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
-  return Math.max(0, value)
+function normalizeRegistrationCutoff() {
+  if (!Number.isFinite(REGISTRATION_CUTOFF_MINUTES)) return 0
+  return Math.max(0, REGISTRATION_CUTOFF_MINUTES)
 }
 
 function getEventDayEnd(eventDate: string) {

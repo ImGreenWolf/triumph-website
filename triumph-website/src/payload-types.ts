@@ -807,7 +807,7 @@ export interface Event {
     | boolean
     | null;
   cause?: (string | null) | Cause;
-  donation?: number | null;
+  donation?: string | null;
   days?:
     | {
         eventDate?: string | null;
@@ -834,10 +834,6 @@ export interface Event {
    * Disable public signups for this event.
    */
   private?: boolean | null;
-  /**
-   * Close public signup this many minutes before each slot starts.
-   */
-  registrationCutoffMinutes?: number | null;
   capacity?: number | null;
   populatedCoordonators?:
     | {
@@ -2770,7 +2766,6 @@ export interface EventsSelect<T extends boolean = true> {
       };
   coordonators?: T;
   private?: T;
-  registrationCutoffMinutes?: T;
   capacity?: T;
   populatedCoordonators?:
     | T

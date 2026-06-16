@@ -177,7 +177,7 @@ export const Events: CollectionConfig<'posts'> = {
           },
         },
         {
-          type: 'number',
+          type: 'text',
           name: 'donation'
         }
       ]
@@ -323,17 +323,6 @@ export const Events: CollectionConfig<'posts'> = {
       label: 'Private event',
       admin: {
         description: 'Disable public signups for this event.',
-        position: 'sidebar',
-      },
-    },
-    {
-      name: 'registrationCutoffMinutes',
-      type: 'number',
-      defaultValue: 0,
-      label: 'Registration cutoff (minutes)',
-      min: 0,
-      admin: {
-        description: 'Close public signup this many minutes before each slot starts.',
         position: 'sidebar',
       },
     },
@@ -555,7 +544,6 @@ export const EventRegistrations: CollectionConfig = {
         !isEventSlotRegistrationOpen({
           endTime: slot.endTime,
           eventDate: day.eventDate,
-          registrationCutoffMinutes: event.registrationCutoffMinutes,
           startTime: slot.startTime,
         })
       ) {

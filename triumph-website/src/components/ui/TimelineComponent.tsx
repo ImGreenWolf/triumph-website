@@ -143,7 +143,7 @@ function ArchiveEventCard({
       )}
       href={`/events/${event.slug}`}
     >
-      <div className="relative aspect-[16/9] overflow-hidden bg-background/10">
+      <div className="relative aspect-[12/3] overflow-hidden bg-background/10">
         {event.heroImage && typeof event.heroImage !== 'string' ? (
           <Media
             alt={event.name}
@@ -165,7 +165,7 @@ function ArchiveEventCard({
         </p>
       </div>
 
-      <div className="p-5">
+      <div className="p-2 px-6">
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-xl font-bold leading-tight transition-colors group-hover:text-accent">
             {event.name}

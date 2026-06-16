@@ -277,9 +277,10 @@ export default async function Event({ params: paramsPromise }: Args) {
 
           {!event.private && (
             <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-28">
-              {typeof event.donation === 'number' && (
+              {event.donation && (
                 <DetailCard accentColor={accentColor} icon={HandHelping} label="Donație minimă">
-                  <p className="text-2xl font-bold">{event.donation} lei</p>
+                  {typeof event.donation === 'number' ? <p className="text-2xl font-bold">{event.donation} lei</p> :
+                  <p className="text-2xl font-bold">{event.donation}</p>}
                 </DetailCard>
               )}
               <SignupForm

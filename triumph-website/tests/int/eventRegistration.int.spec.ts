@@ -3,22 +3,24 @@ import { describe, expect, it } from 'vitest'
 import {
   getEventSlotAvailability,
   isEventSlotRegistrationOpen,
+  REGISTRATION_CUTOFF_MINUTES,
 } from '@/utilities/eventRegistration'
 
 describe('event registration availability', () => {
-  it('closes a timed slot at the configured cutoff before its start time', () => {
+  it('closes a timed slot at the file configured cutoff before its start time', () => {
     const eventDate = localDate(2026, 5, 15).toISOString()
     const startTime = localDate(2026, 5, 15, 10).toISOString()
     const endTime = localDate(2026, 5, 15, 11).toISOString()
-    const beforeCutoff = localDate(2026, 5, 15, 9, 29)
-    const atCutoff = localDate(2026, 5, 15, 9, 30)
+    const atCutoff = localDate(2026, 5, 15, 10)
+    atCutoff.setMinutes(atCutoff.getMinutes() - REGISTRATION_CUTOFF_MINUTES)
+    const beforeCutoff = new Date(atCutoff)
+    beforeCutoff.setMinutes(beforeCutoff.getMinutes() - 1)
 
     expect(
       isEventSlotRegistrationOpen(
         {
           endTime,
           eventDate,
-          registrationCutoffMinutes: 30,
           startTime,
         },
         beforeCutoff,
@@ -30,7 +32,6 @@ describe('event registration availability', () => {
         {
           endTime,
           eventDate,
-          registrationCutoffMinutes: 30,
           startTime,
         },
         atCutoff,
@@ -67,7 +68,6 @@ describe('event registration availability', () => {
             ],
           },
         ],
-        registrationCutoffMinutes: 0,
       },
       now: localDate(2026, 5, 15, 12),
       registrations: [],
@@ -85,7 +85,6 @@ describe('event registration availability', () => {
       isEventSlotRegistrationOpen(
         {
           eventDate,
-          registrationCutoffMinutes: 120,
         },
         localDate(2026, 5, 15, 20),
       ),
@@ -95,7 +94,6 @@ describe('event registration availability', () => {
       isEventSlotRegistrationOpen(
         {
           eventDate,
-          registrationCutoffMinutes: 120,
         },
         localDate(2026, 5, 16),
       ),
