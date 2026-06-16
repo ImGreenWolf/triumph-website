@@ -38,6 +38,9 @@ const HEIF_MIME_TYPES = new Set([
 const SUPPORTED_IMAGE_EXTENSIONS = [
   '.avif',
   '.gif',
+  '.heic',
+  '.heif',
+  '.hif',
   '.jpeg',
   '.jpg',
   '.png',
@@ -48,6 +51,10 @@ const SUPPORTED_IMAGE_EXTENSIONS = [
 const SUPPORTED_IMAGE_MIME_TYPES = new Set([
   'image/avif',
   'image/gif',
+  'image/heic',
+  'image/heic-sequence',
+  'image/heif',
+  'image/heif-sequence',
   'image/jpeg',
   'image/png',
   'image/tiff',
