@@ -17,6 +17,7 @@ type EventOption = {
 
 type SelectedPhoto = {
   file: File
+  isHEIF: boolean
   preview: string
 }
 
@@ -24,6 +25,34 @@ type SubmitState = {
   message: string
   type: 'error' | 'success'
 }
+
+const ACCEPTED_IMAGE_TYPES =
+  'image/jpeg,image/png,image/webp,image/avif,image/gif,image/tiff,image/heic,image/heif,.heic,.heif,.hif'
+const HEIF_EXTENSIONS = ['.heic', '.heif', '.hif']
+const HEIF_MIME_TYPES = new Set([
+  'image/heic',
+  'image/heic-sequence',
+  'image/heif',
+  'image/heif-sequence',
+])
+const SUPPORTED_IMAGE_EXTENSIONS = [
+  '.avif',
+  '.gif',
+  '.jpeg',
+  '.jpg',
+  '.png',
+  '.tif',
+  '.tiff',
+  '.webp',
+]
+const SUPPORTED_IMAGE_MIME_TYPES = new Set([
+  'image/avif',
+  'image/gif',
+  'image/jpeg',
+  'image/png',
+  'image/tiff',
+  'image/webp',
+])
 
 export default function GalleryUploadForm(props: { events: EventOption[] }) {
   const { events } = props
@@ -66,10 +95,15 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
     setState(null)
     if (!files) return
 
-    const nextPhotos = Array.from(files).filter((file) => file.type.startsWith('image/'))
+    const selectedFiles = Array.from(files)
+
+    const nextPhotos = selectedFiles.filter(isSupportedImage)
 
     if (!nextPhotos.length) {
-      setState({ message: 'Momentan, putem accepta doar imagini.', type: 'error' })
+      setState({
+        message: 'Momentan, putem accepta JPEG, PNG, WebP, AVIF, GIF, TIFF sau HEIC.',
+        type: 'error',
+      })
       return
     }
 
@@ -77,6 +111,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
       ...current,
       ...nextPhotos.map((file) => ({
         file,
+        isHEIF: isHEIFImage(file),
         preview: URL.createObjectURL(file),
       })),
     ])
@@ -133,9 +168,10 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
       setPhotos([])
       setState({
         message:
-          visibility === 'public'
+          data.message ||
+          (visibility === 'public'
             ? 'Pozele au fost trimise pentru verificare.'
-            : 'Poze adaugate in galeria membrilor.',
+            : 'Poze adaugate in galeria membrilor.'),
         type: 'success',
       })
       router.refresh()
@@ -166,7 +202,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
             <ImagePlus className="size-10 text-[#00a2e0]" />
             <span className="mt-4 text-sm font-semibold">Alege imagini</span>
             <input
-              accept="image/*"
+              accept={ACCEPTED_IMAGE_TYPES}
               className="sr-only"
               id="photos"
               multiple
@@ -183,8 +219,18 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
                 className="group relative aspect-square overflow-hidden rounded-md border border-white/10 bg-white/10"
                 key={`${photo.file.name}-${photo.preview}`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt="" className="h-full w-full object-cover" src={photo.preview} />
+                {photo.isHEIF ? (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-3 text-center text-white">
+                    <ImagePlus className="size-7 text-[#00a2e0]" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em]">HEIC</span>
+                    <span className="max-w-full truncate text-xs text-white/70">
+                      {photo.file.name}
+                    </span>
+                  </div>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt="" className="h-full w-full object-cover" src={photo.preview} />
+                )}
                 <button
                   aria-label="Remove photo"
                   className="absolute right-2 top-2 inline-flex size-8 items-center justify-center rounded-md bg-black/55 text-white opacity-100 transition hover:bg-black/75 sm:opacity-0 sm:group-hover:opacity-100"
@@ -279,4 +325,18 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
       </div>
     </form>
   )
+}
+
+function isSupportedImage(file: File) {
+  if (SUPPORTED_IMAGE_MIME_TYPES.has(file.type)) return true
+
+  const fileName = file.name.toLowerCase()
+  return SUPPORTED_IMAGE_EXTENSIONS.some((extension) => fileName.endsWith(extension))
+}
+
+function isHEIFImage(file: File) {
+  if (HEIF_MIME_TYPES.has(file.type)) return true
+
+  const fileName = file.name.toLowerCase()
+  return HEIF_EXTENSIONS.some((extension) => fileName.endsWith(extension))
 }

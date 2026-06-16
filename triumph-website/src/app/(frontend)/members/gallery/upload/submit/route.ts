@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 import payloadConfig from '@payload-config'
+import heicConvert from 'heic-convert'
 import { getPayload } from 'payload'
 import sharp from 'sharp'
 
@@ -13,6 +14,33 @@ export const runtime = 'nodejs'
 const MAX_IMAGE_SIZE = 12 * 1024 * 1024
 const MAX_WEBP_WIDTH = 1920
 const WEBP_QUALITY = 82
+const HEIF_EXTENSIONS = ['.heic', '.heif', '.hif']
+const HEIF_MIME_TYPES = new Set([
+  'image/heic',
+  'image/heic-sequence',
+  'image/heif',
+  'image/heif-sequence',
+])
+const SUPPORTED_IMAGE_EXTENSIONS = [
+  '.avif',
+  '.gif',
+  ...HEIF_EXTENSIONS,
+  '.jpeg',
+  '.jpg',
+  '.png',
+  '.tif',
+  '.tiff',
+  '.webp',
+]
+const SUPPORTED_IMAGE_MIME_TYPES = new Set([
+  'image/avif',
+  'image/gif',
+  ...HEIF_MIME_TYPES,
+  'image/jpeg',
+  'image/png',
+  'image/tiff',
+  'image/webp',
+])
 
 type PayloadUploadFile = {
   data: Buffer
@@ -125,37 +153,70 @@ function getFile(value: FormDataEntryValue) {
 }
 
 async function toPayloadUploadFile(file: File): Promise<PayloadUploadFile> {
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Only image uploads are allowed.')
+  if (!isSupportedImage(file)) {
+    throw new Error('Only JPEG, PNG, WebP, AVIF, GIF, TIFF, or HEIC photos are allowed.')
   }
 
   if (file.size > MAX_IMAGE_SIZE) {
     throw new Error('Images must be smaller than 12 MB.')
   }
 
-  const inputBuffer = Buffer.from(await file.arrayBuffer())
-  const { data, info } = await sharp(inputBuffer, {
-    failOn: 'none',
-  })
-    .rotate()
-    .resize({
-      width: MAX_WEBP_WIDTH,
-      withoutEnlargement: true,
+  try {
+    const inputBuffer = Buffer.from(await file.arrayBuffer())
+    const sourceBuffer = isHEIFImage(file) ? await convertHEIFToJPEG(inputBuffer) : inputBuffer
+    const convertedImage = await sharp(sourceBuffer, {
+      failOn: 'none',
     })
-    .webp({
-      effort: 5,
-      quality: WEBP_QUALITY,
-    })
-    .toBuffer({
-      resolveWithObject: true,
-    })
+      .rotate()
+      .resize({
+        width: MAX_WEBP_WIDTH,
+        withoutEnlargement: true,
+      })
+      .webp({
+        effort: 5,
+        quality: WEBP_QUALITY,
+      })
+      .toBuffer({
+        resolveWithObject: true,
+      })
 
-  return {
-    data,
-    mimetype: 'image/webp',
-    name: toWebPFileName(file.name),
-    size: info.size,
+    return {
+      data: convertedImage.data,
+      mimetype: 'image/webp',
+      name: toWebPFileName(file.name),
+      size: convertedImage.info.size,
+    }
+  } catch (error) {
+    if (isHEIFImage(file)) {
+      throw new Error('The HEIC/HEIF photo could not be converted. Try exporting it as JPEG first.')
+    }
+
+    throw new Error('The image could not be converted to WebP.')
   }
+}
+
+async function convertHEIFToJPEG(inputBuffer: Buffer) {
+  const jpegBuffer = await heicConvert({
+    buffer: inputBuffer,
+    format: 'JPEG',
+    quality: 0.92,
+  })
+
+  return Buffer.from(jpegBuffer)
+}
+
+function isSupportedImage(file: File) {
+  if (SUPPORTED_IMAGE_MIME_TYPES.has(file.type)) return true
+
+  const fileName = file.name.toLowerCase()
+  return SUPPORTED_IMAGE_EXTENSIONS.some((extension) => fileName.endsWith(extension))
+}
+
+function isHEIFImage(file: File) {
+  if (HEIF_MIME_TYPES.has(file.type)) return true
+
+  const fileName = file.name.toLowerCase()
+  return HEIF_EXTENSIONS.some((extension) => fileName.endsWith(extension))
 }
 
 function toWebPFileName(fileName: string) {
