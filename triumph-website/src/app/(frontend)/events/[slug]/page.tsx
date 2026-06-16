@@ -1,14 +1,18 @@
 import type { Metadata } from 'next'
 import type { CSSProperties, ReactNode } from 'react'
 
-import Masonry from '@/blocks/Masonry/MasonyComponent'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Media } from '@/components/Media'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import RichText from '@/components/RichText'
 import { EventHero } from '@/heros/EventHero'
-import type { Event } from '@/payload-types'
-import { getContrastTextColor, getEventLocation, getGoogleMapsURL } from '@/utilities/eventDisplay'
+import type { Event, GalleryPhoto, Media as MediaType, User } from '@/payload-types'
+import {
+  getContrastTextColor,
+  getEventLocation,
+  getGoogleMapsURL,
+  isEventCompleted,
+} from '@/utilities/eventDisplay'
 import {
   formatCompactEventDayLabel,
   formatEventDayLabel,
@@ -16,6 +20,7 @@ import {
   getEventSlotAvailability,
 } from '@/utilities/eventRegistration'
 import { generateMeta } from '@/utilities/generateMeta'
+import { getMediaUrl } from '@/utilities/getMediaUrl'
 import configPromise from '@payload-config'
 import {
   CalendarDays,
@@ -25,9 +30,13 @@ import {
   MapPin,
   type LucideIcon,
 } from 'lucide-react'
-import { draftMode } from 'next/headers'
+import { cookies, draftMode } from 'next/headers'
 import { getPayload } from 'payload'
 import { cache } from 'react'
+import EventPhotoBoard, {
+  type EventPhotoBoardImage,
+  type EventPhotoBoardMode,
+} from './EventPhotoBoard.client'
 import PageClient from './page.client'
 import SignupForm from './SignupForm'
 
@@ -65,23 +74,52 @@ export default async function Event({ params: paramsPromise }: Args) {
   if (!event) return <PayloadRedirects url={url} />
 
   const payload = await getPayload({ config: configPromise })
-  const registrations = await payload.find({
-    collection: 'event-registrations',
-    depth: 0,
-    limit: 0,
-    overrideAccess: true,
-    pagination: false,
-    select: {
-      day: true,
-      slot: true,
-      status: true,
-    },
-    where: {
-      event: {
-        equals: event.id,
+  const cookieStore = await cookies()
+  const token = cookieStore.get('payload-token')?.value
+  const auth = token
+    ? await payload.auth({
+        headers: new Headers({
+          cookie: cookieStore.toString(),
+        }),
+      })
+    : null
+  const user = auth?.user as User | undefined
+  const [registrations, galleryPhotos] = await Promise.all([
+    payload.find({
+      collection: 'event-registrations',
+      depth: 0,
+      limit: 0,
+      overrideAccess: true,
+      pagination: false,
+      select: {
+        day: true,
+        slot: true,
+        status: true,
       },
-    },
-  })
+      where: {
+        event: {
+          equals: event.id,
+        },
+      },
+    }),
+    payload.find({
+      collection: 'gallery-photos',
+      depth: 1,
+      limit: 200,
+      overrideAccess: false,
+      pagination: false,
+      sort: '-submittedAt',
+      user,
+      where: {
+        event: {
+          equals: event.id,
+        },
+        status: {
+          equals: 'approved',
+        },
+      },
+    }),
+  ])
   const slotAvailability = getEventSlotAvailability({
     event,
     registrations: registrations.docs,
@@ -95,6 +133,12 @@ export default async function Event({ params: paramsPromise }: Args) {
   const compactProgram = eventDays.length > 3
   const location = getEventLocation(event.location)
   const googleMapsURL = getGoogleMapsURL(location)
+  const inspoboardItems = getInspoboardItems(event.inspoboard)
+  const galleryItems = getGalleryItems(galleryPhotos.docs as GalleryPhoto[])
+  const photoBoardDefaultMode: EventPhotoBoardMode =
+    galleryItems.length > 0 && (isEventCompleted(event) || inspoboardItems.length === 0)
+      ? 'gallery'
+      : 'inspoboard'
 
   return (
     <article
@@ -222,33 +266,12 @@ export default async function Event({ params: paramsPromise }: Args) {
               />
             </section>
 
-            {event.inspoboard && event.inspoboard.length > 0 && (
-              <section>
-                <div className="mb-6 mt-12">
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--event-accent)]">
-                    Inspoboard
-                  </p>
-                  <h2 className="text-3xl font-bold tracking-tight">Inspirație pentru eveniment</h2>
-                </div>
-                <div className="overflow-hidden rounded-2xl">
-                  <Masonry
-                    columnProps={[4, 4, 3, 2]}
-                    items={event.inspoboard
-                      .map((image) =>
-                        typeof image === 'object'
-                          ? {
-                              height: image.height!,
-                              id: image.id!,
-                              img: image.url!,
-                              url: image.url!,
-                              width: image.width!,
-                            }
-                          : null,
-                      )
-                      .filter((image) => image !== null)}
-                  />
-                </div>
-              </section>
+            {(inspoboardItems.length > 0 || galleryItems.length > 0) && (
+              <EventPhotoBoard
+                defaultMode={photoBoardDefaultMode}
+                galleryItems={galleryItems}
+                inspoboardItems={inspoboardItems}
+              />
             )}
           </div>
 
@@ -283,6 +306,48 @@ function formatSlotCount(slotCount: number) {
   if (slotCount === 1) return '1 interval'
 
   return `${slotCount} intervale`
+}
+
+function getInspoboardItems(inspoboard: Event['inspoboard']): EventPhotoBoardImage[] {
+  return (inspoboard ?? []).flatMap((image) => {
+    if (!image || typeof image !== 'object') return []
+
+    const item = getMediaPhotoItem(image)
+    return item ? [item] : []
+  })
+}
+
+function getGalleryItems(photos: GalleryPhoto[]): EventPhotoBoardImage[] {
+  return photos.flatMap((photo) => {
+    if (!photo.photo || typeof photo.photo !== 'object') return []
+
+    const item = getMediaPhotoItem(photo.photo, {
+      caption: photo.caption || photo.photo.alt || undefined,
+      id: `gallery-${photo.id}`,
+    })
+
+    return item ? [item] : []
+  })
+}
+
+function getMediaPhotoItem(
+  media: MediaType,
+  options: {
+    caption?: string
+    id?: string
+  } = {},
+): EventPhotoBoardImage | null {
+  const imageUrl = getMediaUrl(media.url, media.updatedAt)
+  if (!imageUrl) return null
+
+  return {
+    caption: options.caption,
+    height: media.height ?? 1,
+    id: options.id ?? `media-${media.id}`,
+    img: imageUrl,
+    url: imageUrl,
+    width: media.width ?? 1,
+  }
 }
 
 function DetailCard({
