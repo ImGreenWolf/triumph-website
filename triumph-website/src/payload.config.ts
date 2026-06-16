@@ -1,6 +1,7 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
-import { postgresAdapter } from '@payloadcms/db-postgres'
 
+import { nodemailerAdapter, } from '@payloadcms/email-nodemailer'
+import nodemailer from 'nodemailer'
 import sharp from 'sharp'
 import path from 'path'
 import { buildConfig, PayloadRequest } from 'payload'
@@ -112,6 +113,19 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
+  serverURL: process.env.NEXT_PUBLIC_SERVER_URL,
+  email: nodemailerAdapter({
+    defaultFromAddress: 'hello@interact-triumph.org',
+    defaultFromName: 'Interact Bucureşti Triumph',
+    transport: nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT as number | undefined,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    })
+  }),
   jobs: {
     access: {
       run: ({ req }: { req: PayloadRequest }): boolean => {

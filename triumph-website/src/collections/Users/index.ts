@@ -4,6 +4,11 @@ import { APIError } from 'payload'
 import { authenticated } from '../../access/authenticated'
 import type { User } from '@/payload-types'
 import { hasBoardRole } from '@/utilities/membersAccess'
+import { importMembersFromCSV } from './bulkUpload'
+import {
+  generateForgotPasswordEmailHTML,
+  generateForgotPasswordEmailSubject,
+} from './forgotPasswordEmail'
 
 const canManageUsers: FieldAccess = ({ req }) => hasBoardRole({ req })
 
@@ -85,8 +90,67 @@ export const Users: CollectionConfig = {
     defaultColumns: ['name', 'email', 'joinedAt'],
     useAsTitle: 'name',
     group: 'Club Administration',
+    components: {
+      beforeList: [
+        {
+          path: '@/components/payload/MembersBeforeList',
+        },
+      ],
+    },
   },
-  auth: true,
+  auth: {
+    forgotPassword: {
+      generateEmailHTML: generateForgotPasswordEmailHTML,
+      generateEmailSubject: generateForgotPasswordEmailSubject,
+    },
+  },
+  endpoints: [
+    {
+      path: '/bulk-upload',
+      method: 'post',
+      handler: async (req) => {
+        if (!hasBoardRole({ req })) {
+          return Response.json(
+            { message: 'Only board members can bulk upload users.' },
+            { status: 403 },
+          )
+        }
+
+        if (typeof req.formData !== 'function') {
+          return Response.json(
+            { message: 'CSV upload is not available for this request.' },
+            { status: 400 },
+          )
+        }
+
+        const formData = await req.formData()
+        const file = formData.get('file')
+
+        if (!isUploadedFile(file) || file.size === 0) {
+          return Response.json({ message: 'Select a CSV file to upload.' }, { status: 400 })
+        }
+
+        if (!isCSVFile(file)) {
+          return Response.json({ message: 'Upload a .csv file.' }, { status: 400 })
+        }
+
+        const result = await importMembersFromCSV({
+          csv: await file.text(),
+          payload: req.payload,
+          user: req.user,
+        })
+
+        const totalIssues = result.errors.length + result.skipped.length
+        const status = result.created.length === 0 && totalIssues > 0 ? 400 : 200
+        const message =
+          result.created.length > 0
+            ? `Created ${result.created.length} user${result.created.length === 1 ? '' : 's'}.`
+            : 'No users were created.'
+
+        return Response.json({ message, ...result }, { status })
+      },
+    },
+  ],
   hooks: {
     beforeChange: [preventMemberBirthdayChanges],
   },
@@ -250,4 +314,20 @@ export const Users: CollectionConfig = {
     },
   ],
   timestamps: true,
+}
+
+function isUploadedFile(value: FormDataEntryValue | null): value is File {
+  return typeof File !== 'undefined' && value instanceof File
+}
+
+function isCSVFile(file: File) {
+  const fileName = file.name.toLowerCase()
+  const mimeType = file.type.toLowerCase()
+
+  return (
+    fileName.endsWith('.csv') ||
+    mimeType === 'text/csv' ||
+    mimeType === 'text/plain' ||
+    mimeType === 'application/vnd.ms-excel'
+  )
 }

@@ -3,14 +3,10 @@
 import {
   ArrowRight,
   CalendarCheck2,
-  Eye,
-  EyeOff,
   CheckIcon,
   Mail,
   ShieldCheck,
-  LockIcon
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -20,58 +16,46 @@ import { Label } from '@/components/ui/label'
 import PageClient from './page.client'
 
 async function resetEmail(email: string) {
-  const res = await fetch(
-  `${process.env.NEXT_PUBLIC_SERVER_URL}/api/users/forgot-password`,
-  {
+  const normalizedEmail = email.trim()
+
+  if (!normalizedEmail) {
+    throw new Error('Introdu o adresa de mail')
+  }
+
+  const res = await fetch('/api/users/forgot-password', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      email,
+      email: normalizedEmail,
     }),
-  },
-)
+  })
+
+  const data = await res.json().catch(() => null)
+
+  if (!res.ok) {
+    throw new Error(data?.errors?.[0]?.message || data?.message || 'Password reset failed')
+  }
 }
-export default function Login() {
-  const router = useRouter()
-
+export default function PasswordResetPage() {
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     setLoading(true)
     setError('')
+    setSent(false)
 
     try {
-      const res = await fetch('/api/users/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.errors?.[0]?.message || 'Login failed')
-      }
-
-      router.push('/members/')
-      router.refresh()
+      await resetEmail(email)
+      setSent(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : 'Password reset failed')
     } finally {
       setLoading(false)
     }
@@ -90,11 +74,11 @@ export default function Login() {
         <section className="hidden max-w-2xl lg:block">
          
           <h1 className="max-w-xl text-5xl font-semibold leading-tight tracking-normal">
-            Acceseazǎ contul tau de membru Interact Bucureşti Triumph
+            Reseteaza parola contului tau de membru Interact Bucureşti Triumph
           </h1>
 
           <p className="mt-5 max-w-lg text-base leading-7 text-white/70">
-            Intrǎ in cont pentru a-ți vedea absențele, cotizațiile şi şedintele viitaore şi trecute.
+            Introdu adresa ta de email si acceseaza linkul din casuta de mail pentru a reseta parola.
           </p>
 
           <div className="mt-10 grid max-w-xl gap-3 sm:grid-cols-3">
@@ -128,20 +112,20 @@ export default function Login() {
           </div>
 
           <div className="mb-8">
-            <h2 className="text-3xl text-foreground font-semibold leading-tight">Member login</h2>
+            <h2 className="text-3xl text-foreground font-semibold leading-tight">Resetează Parola</h2>
             <p className="mt-2 text-sm leading-6 text-[#526071]">
-              Use your club account to continue to the members dashboard.
+             Introdu adresa de email.
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email"  className='text-primary/50'>Email address</Label>
+              <Label htmlFor="email">Email address</Label>
               <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" />
+                <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6b7280]" />
                 <Input
                   autoComplete="email"
-                  className="h-12 border-accent bg-[#0f172c] pl-10 text-primary placeholder:text-[#8b95a5] focus-visible:ring-[#00a2e0]/20"
+                  className="h-12 border-accent bg-[#0f172c] pl-10 text-[#0f172c] placeholder:text-[#8b95a5] focus-visible:ring-[#00a2e0]/20"
                   id="email"
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
@@ -152,45 +136,24 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className='text-primary/50'>Password</Label>
-              <div className="relative">
-                <LockIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" />
-                <Input
-                  autoComplete="current-password"
-                  className="h-12 border-accent bg-[#0f172c] pl-10 pr-11 text-primary placeholder:text-[#8b95a5] focus-visible:ring-[#00a2e0]/20"
-                  id="password"
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                />
-                <button
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-[#526071] transition hover:bg-[#eef3f8] hover:text-[#0f172c]"
-                  onClick={() => setShowPassword((current) => !current)}
-                  type="button"
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-            </div>
-
             {error && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
             )}
-            <a href='/members/password-reset'>
-              Resteaza Parola
-            </a>
+
+            {sent && (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                Dacă adresa există, vei primi un email cu linkul de resetare.
+              </div>
+            )}
+
             <Button
-              className="h-12 w-full bg-foreground text-card shadow-lg shadow-[#0f172c]/20 transition hover:bg-[#141e34]"
+              className="h-12 w-full bg-foreground text-card hover:text-primary shadow-lg shadow-[#0f172c]/20 transition hover:bg-sidebar"
               disabled={loading}
               type="submit"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Se trimite...' : 'Trimite Mail'}
               {!loading && <ArrowRight className="size-4" />}
             </Button>
           </form>
