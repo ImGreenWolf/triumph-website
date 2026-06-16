@@ -3286,11 +3286,28 @@ export interface MembersDashboard {
   };
   quickLinks?:
     | {
-        label: string;
-        url: string;
+        link: {
+          type?: ('reference' | 'custom') | null;
+          newTab?: boolean | null;
+          reference?:
+            | ({
+                relationTo: 'pages';
+                value: string | Page;
+              } | null)
+            | ({
+                relationTo: 'posts';
+                value: string | Post;
+              } | null);
+          url?: string | null;
+          label: string;
+        };
         id?: string | null;
       }[]
     | null;
+  /**
+   * Shown on the member gallery upload page.
+   */
+  galleryUploadInstructions?: string | null;
   duesInfoText?: string | null;
   supportEmail?: string | null;
   updatedAt?: string | null;
@@ -3410,10 +3427,18 @@ export interface MembersDashboardSelect<T extends boolean = true> {
   quickLinks?:
     | T
     | {
-        label?: T;
-        url?: T;
+        link?:
+          | T
+          | {
+              type?: T;
+              newTab?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+            };
         id?: T;
       };
+  galleryUploadInstructions?: T;
   duesInfoText?: T;
   supportEmail?: T;
   updatedAt?: T;

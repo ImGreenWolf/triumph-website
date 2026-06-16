@@ -14,8 +14,8 @@ import GalleryPageClient, { type GalleryPhotoCard } from './page.client'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  description: 'Photo gallery for Interact Bucuresti Triumph.',
-  title: 'Gallery | Interact Bucuresti Triumph',
+  description: 'Galeria foto al clubului Interact Bucuresti Triumph.',
+  title: 'Galerie | Interact Bucuresti Triumph',
 }
 
 export default async function GalleryPage() {
@@ -76,9 +76,9 @@ export default async function GalleryPage() {
         <div className="max-w-3xl">
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-sm font-semibold text-accent">
             <Camera aria-hidden className="size-4" />
-            Triumph Gallery
+            Galeria Triumph
           </p>
-          <h1 className="text-4xl font-bold tracking-tight md:text-6xl">Club photos</h1>
+          <h1 className="text-4xl font-bold tracking-tight md:text-6xl">Pozele Clubului</h1>
         </div>
 
         {user && (
@@ -87,7 +87,7 @@ export default async function GalleryPage() {
             href="/members/gallery/upload"
           >
             <Upload className="size-4" />
-            Upload photos
+            Trimite Poze
           </Link>
         )}
       </section>

@@ -4,10 +4,10 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import payloadConfig from '@payload-config'
-import { ArrowLeft, Images } from 'lucide-react'
+import { ArrowLeft, Images, Info } from 'lucide-react'
 import { getPayload } from 'payload'
 
-import type { Event, User } from '@/payload-types'
+import type { Event, MembersDashboard, User } from '@/payload-types'
 
 import GalleryUploadForm from './page.client'
 
@@ -38,19 +38,25 @@ export default async function GalleryUploadPage() {
     redirect('/members/login')
   }
 
-  const events = await payload.find({
-    collection: 'events',
-    depth: 0,
-    limit: 100,
-    overrideAccess: false,
-    sort: '-createdAt',
-    user: auth.user as User,
-  })
+  const [events, dashboard] = await Promise.all([
+    payload.find({
+      collection: 'events',
+      depth: 0,
+      limit: 100,
+      overrideAccess: false,
+      sort: '-createdAt',
+      user: auth.user as User,
+    }),
+    payload.findGlobal({
+      slug: 'members-dashboard',
+    }) as Promise<MembersDashboard>,
+  ])
 
   const eventOptions = (events.docs as Event[]).map((event) => ({
     id: event.id,
     name: event.name,
   }))
+  const galleryInstructions = dashboard.galleryUploadInstructions?.trim()
 
   return (
     <div className="halftone-background min-h-screen bg-[#0f172c] text-white">
@@ -70,9 +76,9 @@ export default async function GalleryUploadPage() {
               <Images className="size-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold uppercase text-[#00a2e0]">Club Gallery</p>
+              <p className="text-sm font-semibold uppercase text-[#00a2e0]">Galerie Foto</p>
               <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">
-                Upload photos
+                Incarcă Poze
               </h1>
             </div>
           </div>
@@ -80,6 +86,12 @@ export default async function GalleryUploadPage() {
       </section>
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        {galleryInstructions && (
+          <div className="mb-5 flex gap-3 rounded-lg border border-white/10 bg-white/[0.06] p-4 text-sm leading-6 text-white/75">
+            <Info className="mt-0.5 size-4 shrink-0 text-[#00a2e0]" />
+            <p className="whitespace-pre-line">{galleryInstructions}</p>
+          </div>
+        )}
         <GalleryUploadForm events={eventOptions} />
       </main>
     </div>

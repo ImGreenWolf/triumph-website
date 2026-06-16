@@ -1,3 +1,4 @@
+import { linkGroup } from '@/fields/linkGroup'
 import type { GlobalConfig } from 'payload'
 
 export const MembersDashboard: GlobalConfig = {
@@ -46,22 +47,18 @@ export const MembersDashboard: GlobalConfig = {
         },
       ],
     },
+    linkGroup({
+      appearances: false,
+      overrides: { name: 'quickLinks' },
+    }),
 
     {
-      name: 'quickLinks',
-      type: 'array',
-      fields: [
-        {
-          name: 'label',
-          type: 'text',
-          required: true,
-        },
-        {
-          name: 'url',
-          type: 'text',
-          required: true,
-        },
-      ],
+      name: 'galleryUploadInstructions',
+      label: 'Member Gallery Instructions',
+      type: 'textarea',
+      admin: {
+        description: 'Shown on the member gallery upload page.',
+      },
     },
 
     {

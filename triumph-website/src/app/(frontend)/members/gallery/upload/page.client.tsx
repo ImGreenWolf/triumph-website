@@ -40,12 +40,12 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
     () => [
       {
         icon: Users,
-        label: 'Public gallery',
+        label: 'Galerie Publică',
         value: 'public' as const,
       },
       {
         icon: Lock,
-        label: 'Members only',
+        label: 'Galeria Membrilor',
         value: 'private' as const,
       },
     ],
@@ -69,7 +69,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
     const nextPhotos = Array.from(files).filter((file) => file.type.startsWith('image/'))
 
     if (!nextPhotos.length) {
-      setState({ message: 'Only image uploads are allowed.', type: 'error' })
+      setState({ message: 'Momentan, putem accepta doar imagini.', type: 'error' })
       return
     }
 
@@ -96,7 +96,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
     setState(null)
 
     if (!photos.length) {
-      setState({ message: 'Select at least one photo.', type: 'error' })
+      setState({ message: 'Selectează cel puțin o imagine.', type: 'error' })
       return
     }
 
@@ -124,7 +124,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
       const data = (await response.json().catch(() => ({}))) as { message?: string }
 
       if (!response.ok) {
-        throw new Error(data.message || 'The photos could not be uploaded.')
+        throw new Error(data.message || 'Pozele selectate nu au putut fi procesate.')
       }
 
       photos.forEach((photo) => URL.revokeObjectURL(photo.preview))
@@ -134,14 +134,14 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
       setState({
         message:
           visibility === 'public'
-            ? 'Photos submitted for public gallery review.'
-            : 'Photos added to the members gallery.',
+            ? 'Pozele au fost trimise pentru verificare.'
+            : 'Poze adaugate in galeria membrilor.',
         type: 'success',
       })
       router.refresh()
     } catch (error) {
       setState({
-        message: error instanceof Error ? error.message : 'The photos could not be uploaded.',
+        message: error instanceof Error ? error.message : 'Pozele nu au putut fi încărcate.',
         type: 'error',
       })
     } finally {
@@ -164,7 +164,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
             htmlFor="photos"
           >
             <ImagePlus className="size-10 text-[#00a2e0]" />
-            <span className="mt-4 text-sm font-semibold">Choose images</span>
+            <span className="mt-4 text-sm font-semibold">Alege imagini</span>
             <input
               accept="image/*"
               className="sr-only"
@@ -199,7 +199,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
         )}
 
         <fieldset className="grid gap-3">
-          <legend className="text-sm font-medium">Gallery type</legend>
+          <legend className="text-sm font-medium">Alege Galeria</legend>
           <div className="grid gap-3 sm:grid-cols-2">
             {visibilityOptions.map((option) => (
               <button
@@ -221,7 +221,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
 
         <div className="grid gap-2">
           <Label className="text-white" htmlFor="event">
-            Event
+            Eveniment
           </Label>
           <select
             className="h-11 rounded-md border border-white/15 bg-white px-3 text-sm text-[#0f172c] outline-none transition focus-visible:ring-4 focus-visible:ring-white/20"
@@ -274,7 +274,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
           type="submit"
         >
           <Send className="size-4" />
-          {isSubmitting ? 'Uploading...' : 'Submit photos'}
+          {isSubmitting ? 'Se încarcă...' : 'Trimite Pozele'}
         </Button>
       </div>
     </form>

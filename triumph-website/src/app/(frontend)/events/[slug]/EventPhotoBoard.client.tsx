@@ -17,7 +17,7 @@ export type EventPhotoBoardMode = 'gallery' | 'inspoboard'
 
 const modeLabels: Record<EventPhotoBoardMode, string> = {
   gallery: 'Galerie',
-  inspoboard: 'Inspoboard',
+  inspoboard: 'Inspo',
 }
 
 export default function EventPhotoBoard(props: {
@@ -30,10 +30,9 @@ export default function EventPhotoBoard(props: {
   const hasGallery = galleryItems.length > 0
   const hasInspoboard = inspoboardItems.length > 0
   const availableModes = useMemo<EventPhotoBoardMode[]>(() => {
-    return [
-      hasInspoboard ? 'inspoboard' : null,
-      hasGallery ? 'gallery' : null,
-    ].filter((value): value is EventPhotoBoardMode => value !== null)
+    return [hasInspoboard ? 'inspoboard' : null, hasGallery ? 'gallery' : null].filter(
+      (value): value is EventPhotoBoardMode => value !== null,
+    )
   }, [hasGallery, hasInspoboard])
   const activeMode = availableModes.includes(mode) ? mode : availableModes[0]
   const activeItems = activeMode === 'gallery' ? galleryItems : inspoboardItems
@@ -56,19 +55,19 @@ export default function EventPhotoBoard(props: {
         {showToggle && (
           <div
             aria-label="Alege setul de fotografii"
-            className="relative grid w-full grid-cols-2 rounded-md border border-border bg-card p-1 sm:w-auto sm:min-w-64"
+            className="relative grid h-8 w-36 grid-cols-2 rounded-full border border-border/70 bg-card/70 p-0.5 shadow-inner shadow-black/10 backdrop-blur"
             role="tablist"
           >
             <span
               aria-hidden
-              className={`absolute bottom-1 left-1 top-1 w-[calc(50%-0.25rem)] rounded bg-foreground transition-transform duration-200 ease-out ${
-                activeMode === 'gallery' ? 'translate-x-[calc(100%+0.25rem)]' : 'translate-x-0'
+              className={`absolute bottom-0.5 left-0.5 top-0.5 w-[calc(50%-0.125rem)] rounded-full bg-foreground shadow-sm transition-transform duration-200 ease-out ${
+                activeMode === 'gallery' ? 'translate-x-[calc(100%+0.125rem)]' : 'translate-x-0'
               }`}
             />
             {availableModes.map((option) => (
               <button
                 aria-selected={activeMode === option}
-                className={`relative z-10 h-9 rounded px-3 text-sm font-semibold transition ${
+                className={`relative z-10 rounded-full px-2 text-xs font-semibold transition ${
                   activeMode === option
                     ? 'text-background'
                     : 'text-muted-foreground hover:text-foreground'
@@ -86,7 +85,7 @@ export default function EventPhotoBoard(props: {
       </div>
 
       <div className="overflow-hidden rounded-2xl">
-        <Masonry columnProps={[4, 4, 3, 2]} items={activeItems} />
+        <Masonry columnProps={[4, 4, 3, 2]} items={activeItems} animateFrom='top'/>
       </div>
     </section>
   )

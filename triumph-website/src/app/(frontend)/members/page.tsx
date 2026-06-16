@@ -607,10 +607,10 @@ function QuickLinks(props: { links?: MembersDashboard['quickLinks'] }) {
           {links.map((link, index) => (
             <a
               className="group flex min-h-16 items-center justify-between gap-4 rounded-md border border-border bg-background/40 px-4 py-3 text-sm font-semibold transition hover:border-[#00a2e0]/50 hover:bg-[#00a2e0]/10"
-              href={link.url || '#'}
-              key={link.id || `${link.label}-${index}`}
+              href={link.link.url || '#'}
+              key={link.id || `${link.link.label}-${index}`}
             >
-              <span>{link.label}</span>
+              <span>{link.link.label}</span>
               <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-[#00a2e0]" />
             </a>
           ))}

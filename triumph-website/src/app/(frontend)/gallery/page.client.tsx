@@ -22,11 +22,11 @@ const modeOptions: {
   value: GalleryMode
 }[] = [
   {
-    label: 'Public',
+    label: 'Publice',
     value: 'public',
   },
   {
-    label: 'Mixed',
+    label: 'Mixte',
     value: 'mixed',
   },
   {
@@ -53,7 +53,7 @@ export default function GalleryPageClient(props: {
     <div>
       <div className="mb-7 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Photos</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Poze</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight">
             {visiblePhotos.length} {visiblePhotos.length === 1 ? 'photo' : 'photos'}
           </h2>
