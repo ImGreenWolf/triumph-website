@@ -3,12 +3,16 @@ import { NextResponse } from 'next/server'
 
 import payloadConfig from '@payload-config'
 import { getPayload } from 'payload'
+import sharp from 'sharp'
 
 import type { User } from '@/payload-types'
+import { boardRoles, type BoardRole } from '@/utilities/membersAccess'
 
 export const runtime = 'nodejs'
 
 const MAX_IMAGE_SIZE = 12 * 1024 * 1024
+const MAX_WEBP_WIDTH = 1920
+const WEBP_QUALITY = 82
 
 type PayloadUploadFile = {
   data: Buffer
@@ -38,6 +42,7 @@ export async function POST(request: Request) {
     }
 
     const member = auth.user as User
+    const isBoardMember = boardRoles.includes(member.role as BoardRole)
     const formData = await request.formData()
     const files = formData.getAll('photos')
     const visibility = getVisibility(formData)
@@ -88,9 +93,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       count: createdPhotos.length,
       message:
-        visibility === 'public'
+        visibility === 'public' && !isBoardMember
           ? 'Photos submitted for public gallery review.'
-          : 'Photos added to the members gallery.',
+          : visibility === 'public'
+            ? 'Photos added to the public gallery.'
+            : 'Photos added to the members gallery.',
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'The photos could not be uploaded.'
@@ -126,10 +133,35 @@ async function toPayloadUploadFile(file: File): Promise<PayloadUploadFile> {
     throw new Error('Images must be smaller than 12 MB.')
   }
 
+  const inputBuffer = Buffer.from(await file.arrayBuffer())
+  const { data, info } = await sharp(inputBuffer, {
+    failOn: 'none',
+  })
+    .rotate()
+    .resize({
+      width: MAX_WEBP_WIDTH,
+      withoutEnlargement: true,
+    })
+    .webp({
+      effort: 5,
+      quality: WEBP_QUALITY,
+    })
+    .toBuffer({
+      resolveWithObject: true,
+    })
+
   return {
-    data: Buffer.from(await file.arrayBuffer()),
-    mimetype: file.type,
-    name: file.name,
-    size: file.size,
+    data,
+    mimetype: 'image/webp',
+    name: toWebPFileName(file.name),
+    size: info.size,
   }
+}
+
+function toWebPFileName(fileName: string) {
+  const safeName = fileName.trim() || 'gallery-photo'
+  const extensionIndex = safeName.lastIndexOf('.')
+  const baseName = extensionIndex > 0 ? safeName.slice(0, extensionIndex) : safeName
+
+  return `${baseName}.webp`
 }

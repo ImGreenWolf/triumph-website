@@ -62,7 +62,9 @@ export default async function GalleryPage() {
         eventName: event?.name || '',
         id: photo.id,
         imageAlt: (media as Media).alt || photo.caption || '',
-        imageUrl: getMediaUrl((media as Media).url, (media as Media).updatedAt),
+        imageSizes: '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw',
+        imageSrcSet: getGalleryImageSrcSet(media as Media),
+        imageUrl: getGalleryImageUrl(media as Media),
         submittedAt: photo.submittedAt || photo.createdAt,
         uploadedBy: uploader?.name || uploader?.email || '',
         visibility: photo.visibility,
@@ -97,4 +99,23 @@ export default async function GalleryPage() {
       </section>
     </main>
   )
+}
+
+function getGalleryImageUrl(media: Media) {
+  return getMediaUrl(
+    media.sizes?.large?.url || media.sizes?.medium?.url || media.url,
+    media.updatedAt,
+  )
+}
+
+function getGalleryImageSrcSet(media: Media) {
+  const sources = [media.sizes?.small, media.sizes?.medium, media.sizes?.large, media.sizes?.xlarge]
+
+  return sources
+    .flatMap((size) => {
+      if (!size?.url || !size.width) return []
+
+      return `${getMediaUrl(size.url, media.updatedAt)} ${size.width}w`
+    })
+    .join(', ')
 }

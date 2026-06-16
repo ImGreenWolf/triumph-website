@@ -47,13 +47,16 @@ const setSubmissionMetadata: CollectionBeforeChangeHook = ({
     }
 
     const visibility = data.visibility === 'private' ? 'private' : 'public'
+    const submittedByBoardMember = hasBoardRole({ req })
+    const submittedAt = new Date().toISOString()
+    const status = visibility === 'private' || submittedByBoardMember ? 'approved' : 'pending'
 
     return {
       ...data,
-      reviewedAt: null,
-      reviewedBy: null,
-      status: visibility === 'private' ? 'approved' : 'pending',
-      submittedAt: new Date().toISOString(),
+      reviewedAt: submittedByBoardMember ? submittedAt : null,
+      reviewedBy: submittedByBoardMember ? req.user.id : null,
+      status,
+      submittedAt,
       uploadedBy: req.user.id,
       visibility,
     }

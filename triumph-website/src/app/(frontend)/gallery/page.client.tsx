@@ -9,6 +9,8 @@ export type GalleryPhotoCard = {
   eventName: string
   id: string
   imageAlt: string
+  imageSizes: string
+  imageSrcSet: string
   imageUrl: string
   submittedAt: string
   uploadedBy: string
@@ -94,7 +96,11 @@ export default function GalleryPageClient(props: {
                 <img
                   alt={photo.imageAlt}
                   className="h-full w-full object-cover transition duration-500 hover:scale-[1.03]"
+                  decoding="async"
+                  loading="lazy"
+                  sizes={photo.imageSizes}
                   src={photo.imageUrl}
+                  srcSet={photo.imageSrcSet}
                 />
                 <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
                   {photo.visibility === 'private' ? (
