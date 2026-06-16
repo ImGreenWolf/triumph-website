@@ -34,7 +34,7 @@ export const EventHero: React.FC<{
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/35" />
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/50 to-transparent" />
 
-      <div className="container relative z-10 pb-10 pt-20 md:pb-14">
+      <div className="container relative pb-10 pt-20 md:pb-14">
         <p
           className="mb-5 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] shadow-sm"
           style={{ backgroundColor: accentColor, color: getContrastTextColor(accentColor) }}

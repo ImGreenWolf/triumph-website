@@ -9,7 +9,7 @@ import { redirects } from './redirects'
 
 const NEXT_PUBLIC_SERVER_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : process.env.__NEXT_PRIVATE_ORIGIN || 'https://v87tf5l6-3000.euw.devtunnels.ms/'
+  : process.env.__NEXT_PRIVATE_ORIGIN || 'https://interact-triumph.org'
 
 const nextConfig: NextConfig = {
   // Temporarily required on Windows until Next.js fixes Turbopack Sass resolution.
@@ -18,7 +18,6 @@ const nextConfig: NextConfig = {
     loadPaths: ['./node_modules/@payloadcms/ui/dist/scss/'],
   },
   output: 'standalone',
-  serverExternalPackages: ['mongoose', 'mongodb'],
   images: {
     localPatterns: [
       {

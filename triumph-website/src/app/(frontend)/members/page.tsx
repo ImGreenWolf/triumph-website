@@ -12,10 +12,12 @@ import {
   CreditCard,
   ExternalLink,
   HelpCircle,
+  ImagePlus,
   Info,
   LogOut,
   Mail,
   Megaphone,
+  SettingsIcon,
   ShieldCheck,
   UserCircle,
 } from 'lucide-react'
@@ -25,11 +27,13 @@ import MarkOfExcellence from '@/components/ui/MarkOfExcellence'
 import {
   AbsenceMotivation,
   Attendance as AttendanceType,
+  Media,
   Meeting,
   MembersDashboard,
   Payment,
   User,
 } from '@/payload-types'
+import { getMediaUrl } from '@/utilities/getMediaUrl'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
 import { cn } from '@/utilities/ui'
 
@@ -81,7 +85,15 @@ export default async function DashboardPage() {
     redirect('/members/login')
   }
 
-  const member = me.user as User
+  const authUser = me.user as User
+
+  const member = (await payload.findByID({
+    collection: 'users',
+    depth: 2,
+    id: authUser.id,
+    overrideAccess: false,
+    user: authUser,
+  })) as User
 
   const dashboard = (await payload.findGlobal({
     slug: 'members-dashboard',
@@ -109,26 +121,6 @@ export default async function DashboardPage() {
                 {dashboard?.welcomeMessage ||
                   'Spațiul tău pentru prezență, cotizații și întâlnirile clubului.'}
               </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              {boardMemberRoles.has(member.role) && (
-                <Link
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15"
-                  href="/admin"
-                >
-                  <ShieldCheck className="size-4" />
-                  Club Admin
-                </Link>
-              )}
-
-              <Link
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white px-4 text-sm font-semibold text-[#0f172c] transition hover:bg-white/90"
-                href="/members/logout"
-              >
-                <LogOut className="size-4" />
-                Logout
-              </Link>
             </div>
           </div>
         </div>
@@ -187,28 +179,77 @@ function MemberSummary(props: { member: User }) {
   const { member } = props
 
   return (
-    <section className="grid gap-4 md:grid-cols-3">
-      <MetricCard
-        icon={<UserCircle className="size-5" />}
-        label="Profil"
-        value={member.name || member.email}
-        detail={roleLabels[member.role]}
-      />
-      <MetricCard
-        icon={<Mail className="size-5" />}
-        label="Email"
-        value={member.email}
-        detail="Contul tău de membru"
-      />
-      <MetricCard
-        icon={<ShieldCheck className="size-5" />}
-        label="Membru din"
-        value={formatDate(member.joinedAt, {
-          dateStyle: 'long',
-        })}
-        detail="Înregistrat în club"
-      />
+    <section>
+      <DashboardPanel className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <ProfilePicture member={member} />
+
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Profil</p>
+            <p className="mt-1 truncate text-2xl font-semibold leading-tight">
+              {member.name || member.email}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{roleLabels[member.role]}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Link
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-background hover:text-foreground"
+            href="/members/profile"
+          >
+            <SettingsIcon className="size-4" />
+            Profile
+          </Link>
+
+          <Link
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-background hover:text-foreground"
+            href="/members/gallery/upload"
+          >
+            <ImagePlus className="size-4" />
+            Upload photos
+          </Link>
+
+          {boardMemberRoles.has(member.role) && (
+            <Link
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-background hover:text-foreground"
+              href="/admin"
+            >
+              <ShieldCheck className="size-4" />
+              Club Admin
+            </Link>
+          )}
+
+          <Link
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-background hover:text-foreground"
+            href="/members/logout"
+          >
+            <LogOut className="size-4" />
+            Logout
+          </Link>
+        </div>
+      </DashboardPanel>
     </section>
+  )
+}
+
+function ProfilePicture(props: { member: User }) {
+  const { member } = props
+  const profilePicture = member.profilePicture
+  const imageUrl =
+    profilePicture && typeof profilePicture === 'object'
+      ? getMediaUrl((profilePicture as Media).url, (profilePicture as Media).updatedAt)
+      : ''
+
+  return (
+    <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-background/60">
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img alt="" className="h-full w-full object-cover" src={imageUrl} />
+      ) : (
+        <UserCircle className="size-9 text-muted-foreground" />
+      )}
+    </div>
   )
 }
 
@@ -648,22 +689,6 @@ function PanelIcon(props: HTMLAttributes<HTMLDivElement>) {
       )}
       {...rest}
     />
-  )
-}
-
-function MetricCard(props: { label: string; value: string; detail: string; icon: ReactNode }) {
-  const { label, value, detail, icon } = props
-
-  return (
-    <DashboardPanel className="p-5 flex gap-4">
-      <PanelIcon className="size-10">{icon}</PanelIcon>
-      <div className="flex flex-col justify-between">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
-
-        <p className="break-words text-xl font-semibold leading-tight">{value}</p>
-        <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
-      </div>
-    </DashboardPanel>
   )
 }
 

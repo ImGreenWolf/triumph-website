@@ -1,8 +1,10 @@
 import type { Event, EventRegistration } from '@/payload-types'
-import { isEventSlotUpcoming } from '@/utilities/eventDisplay'
+import { combineEventDateAndTime } from '@/utilities/eventDisplay'
 
 type EventDay = NonNullable<Event['days']>[number]
 type EventSlot = NonNullable<NonNullable<EventDay['slots']>>[number]
+
+const MILLISECONDS_PER_MINUTE = 60_000
 
 export type EventSlotAvailability = {
   dayId: string
@@ -16,6 +18,8 @@ export type EventSlotAvailability = {
   dayLabel: string
   slotLabel: string
   optionLabel: string
+  registrationDeadline: string | null
+  isRegistrationOpen: boolean
   isAvailable: boolean
 }
 
@@ -54,10 +58,12 @@ export function findEventSlot(event: Pick<Event, 'days'>, dayId: string, slotId:
 }
 
 export function getEventSlotAvailability(args: {
-  event: Pick<Event, 'days'>
+  event: Pick<Event, 'days'> & { registrationCutoffMinutes?: number | null }
   registrations: Array<Pick<EventRegistration, 'day' | 'slot' | 'status'>>
+  now?: Date
 }) {
   const counts = new Map<string, number>()
+  const now = args.now ?? new Date()
 
   for (const registration of args.registrations) {
     if (registration.status === 'cancelled') continue
@@ -84,6 +90,15 @@ export function getEventSlotAvailability(args: {
           const remaining = Math.max(capacity - registrationCount, 0)
           const dayLabel = formatEventDayLabel(eventDate)
           const slotLabel = formatEventSlotLabel(slot.startTime, slot.endTime)
+          const registrationDeadline = getEventSlotRegistrationDeadline({
+            endTime: slot.endTime,
+            eventDate,
+            registrationCutoffMinutes: args.event.registrationCutoffMinutes,
+            startTime: slot.startTime,
+          })
+          const isRegistrationOpen = registrationDeadline
+            ? registrationDeadline.getTime() > now.getTime()
+            : false
 
           return [
             {
@@ -98,14 +113,51 @@ export function getEventSlotAvailability(args: {
               dayLabel,
               slotLabel,
               optionLabel: `${dayLabel}, ${slotLabel}`,
-              isAvailable:
-                remaining > 0 && isEventSlotUpcoming(eventDate, slot.endTime ?? slot.startTime),
+              registrationDeadline: registrationDeadline?.toISOString() ?? null,
+              isRegistrationOpen,
+              isAvailable: remaining > 0 && isRegistrationOpen,
             },
           ] satisfies EventSlotAvailability[]
         }) ?? []
       )
     }) ?? []
   )
+}
+
+export function isEventSlotRegistrationOpen(
+  args: {
+    eventDate: string
+    startTime?: string | null
+    endTime?: string | null
+    registrationCutoffMinutes?: number | null
+  },
+  now = new Date(),
+) {
+  const registrationDeadline = getEventSlotRegistrationDeadline(args)
+  return registrationDeadline ? registrationDeadline.getTime() > now.getTime() : false
+}
+
+export function getEventSlotRegistrationDeadline(args: {
+  eventDate: string
+  startTime?: string | null
+  endTime?: string | null
+  registrationCutoffMinutes?: number | null
+}) {
+  const slotStartDate = args.startTime
+    ? combineEventDateAndTime(args.eventDate, args.startTime)
+    : null
+  const fallbackDate = args.endTime
+    ? combineEventDateAndTime(args.eventDate, args.endTime)
+    : getEventDayEnd(args.eventDate)
+  const deadlineBase = slotStartDate ?? fallbackDate
+
+  if (!deadlineBase) return null
+
+  const cutoffMinutes = slotStartDate
+    ? normalizeRegistrationCutoff(args.registrationCutoffMinutes)
+    : 0
+
+  return new Date(deadlineBase.getTime() - cutoffMinutes * MILLISECONDS_PER_MINUTE)
 }
 
 function toAvailabilityKey(dayId: string, slotId: string) {
@@ -119,4 +171,17 @@ function formatTime(value?: string | null) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))
+}
+
+function normalizeRegistrationCutoff(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  return Math.max(0, value)
+}
+
+function getEventDayEnd(eventDate: string) {
+  const date = new Date(eventDate)
+  if (Number.isNaN(date.getTime())) return null
+
+  date.setHours(23, 59, 59, 999)
+  return date
 }

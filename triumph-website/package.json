@@ -25,6 +25,7 @@
   "dependencies": {
     "@payloadcms/admin-bar": "3.84.1",
     "@payloadcms/db-mongodb": "3.84.1",
+    "@payloadcms/db-postgres": "^3.84.1",
     "@payloadcms/live-preview-react": "3.84.1",
     "@payloadcms/next": "3.84.1",
     "@payloadcms/plugin-form-builder": "3.84.1",

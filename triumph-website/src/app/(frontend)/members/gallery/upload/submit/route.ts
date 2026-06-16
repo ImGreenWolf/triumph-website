@@ -1,0 +1,135 @@
+import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
+
+import payloadConfig from '@payload-config'
+import { getPayload } from 'payload'
+
+import type { User } from '@/payload-types'
+
+export const runtime = 'nodejs'
+
+const MAX_IMAGE_SIZE = 12 * 1024 * 1024
+
+type PayloadUploadFile = {
+  data: Buffer
+  mimetype: string
+  name: string
+  size: number
+}
+
+export async function POST(request: Request) {
+  try {
+    const payload = await getPayload({
+      config: payloadConfig,
+    })
+
+    const cookieStore = await cookies()
+    const auth = await payload.auth({
+      headers: new Headers({
+        cookie: cookieStore.toString(),
+      }),
+    })
+
+    if (!auth.user) {
+      return NextResponse.json(
+        { message: 'You must be logged in to submit photos.' },
+        { status: 401 },
+      )
+    }
+
+    const member = auth.user as User
+    const formData = await request.formData()
+    const files = formData.getAll('photos')
+    const visibility = getVisibility(formData)
+    const caption = getString(formData, 'caption')?.trim() || undefined
+    const event = getString(formData, 'event') || undefined
+
+    if (!files.length) {
+      return NextResponse.json({ message: 'Select at least one photo.' }, { status: 400 })
+    }
+
+    const createdPhotos = []
+
+    for (const fileValue of files) {
+      const file = getFile(fileValue)
+      if (!file) continue
+
+      const uploadFile = await toPayloadUploadFile(file)
+      const media = await payload.create({
+        collection: 'media',
+        data: {
+          alt: caption || `${member.name || member.email} gallery photo`,
+        },
+        file: uploadFile,
+        overrideAccess: false,
+        user: member,
+      })
+
+      const galleryPhoto = await payload.create({
+        collection: 'gallery-photos',
+        data: {
+          caption,
+          event,
+          photo: media.id,
+          status: visibility === 'private' ? 'approved' : 'pending',
+          visibility,
+        },
+        overrideAccess: false,
+        user: member,
+      })
+
+      createdPhotos.push(galleryPhoto)
+    }
+
+    if (!createdPhotos.length) {
+      return NextResponse.json({ message: 'Only image uploads are allowed.' }, { status: 400 })
+    }
+
+    return NextResponse.json({
+      count: createdPhotos.length,
+      message:
+        visibility === 'public'
+          ? 'Photos submitted for public gallery review.'
+          : 'Photos added to the members gallery.',
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'The photos could not be uploaded.'
+
+    return NextResponse.json({ message }, { status: 400 })
+  }
+}
+
+function getString(formData: FormData, key: string) {
+  const value = formData.get(key)
+
+  return typeof value === 'string' ? value : null
+}
+
+function getVisibility(formData: FormData) {
+  return getString(formData, 'visibility') === 'private' ? 'private' : 'public'
+}
+
+function getFile(value: FormDataEntryValue) {
+  if (typeof File === 'undefined' || !(value instanceof File) || value.size === 0) {
+    return null
+  }
+
+  return value
+}
+
+async function toPayloadUploadFile(file: File): Promise<PayloadUploadFile> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Only image uploads are allowed.')
+  }
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error('Images must be smaller than 12 MB.')
+  }
+
+  return {
+    data: Buffer.from(await file.arrayBuffer()),
+    mimetype: file.type,
+    name: file.name,
+    size: file.size,
+  }
+}

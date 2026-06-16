@@ -50,6 +50,17 @@ export default function SignupForm({ accentColor, event, slotAvailability }: Sig
   )
   const eventHasEnded = isEventCompleted(event)
   const eventIsPrivate = Boolean(event.private)
+  const hasConfiguredSlots = slotAvailability.length > 0
+  const hasSlotsWithRemainingCapacity = slotAvailability.some((slot) => slot.remaining > 0)
+  const hasOpenRegistrationSlots = slotAvailability.some((slot) => slot.isRegistrationOpen)
+  const signupButtonLabel = getSignupButtonLabel({
+    availableSlotsCount: availableSlots.length,
+    eventHasEnded,
+    eventIsPrivate,
+    hasConfiguredSlots,
+    hasOpenRegistrationSlots,
+    hasSlotsWithRemainingCapacity,
+  })
 
   useEffect(() => {
     setParticipantsCount(event.participantsCount)
@@ -121,13 +132,7 @@ export default function SignupForm({ accentColor, event, slotAvailability }: Sig
         onClick={openDialog}
         style={{ backgroundColor: accentColor, color: getContrastTextColor(accentColor) }}
       >
-        {eventIsPrivate
-          ? 'Înscrierile sunt private'
-          : eventHasEnded
-            ? 'Eveniment încheiat'
-            : availableSlots.length === 0
-              ? 'Nu mai sunt locuri disponibile'
-              : 'Înscrie-te acum'}
+        {signupButtonLabel}
       </Button>
 
       {isOpen && (
@@ -138,7 +143,7 @@ export default function SignupForm({ accentColor, event, slotAvailability }: Sig
           <div
             aria-labelledby={dialogTitleId}
             aria-modal="true"
-            className="relative max-h-full w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl"
+            className="relative max-h-full w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-2xl md:p-6"
             onClick={(clickEvent) => clickEvent.stopPropagation()}
             role="dialog"
           >
@@ -175,12 +180,12 @@ export default function SignupForm({ accentColor, event, slotAvailability }: Sig
                     Înscriere la eveniment
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-card-foreground/65">
-                    Selectează ziua și intervalul, apoi introdu adresa ta de email.
+                    Selectează ziua și intervalul, apoi completează datele de contact.
                   </p>
                 </div>
 
                 <form
-                  className="flex flex-col gap-4"
+                  className="flex flex-col gap-5"
                   onSubmit={async (submitEvent) => {
                     submitEvent.preventDefault()
                     setIsSubmitting(true)
@@ -194,6 +199,9 @@ export default function SignupForm({ accentColor, event, slotAvailability }: Sig
                         day: formData.get('day') as string,
                         email: formData.get('email') as string,
                         eventId: event.id,
+                        name: formData.get('name') as string,
+                        phone: formData.get('phone') as string,
+                        questions: formData.get('questions') as string,
                         slot: formData.get('slot') as string,
                       })
                       form.reset()
@@ -208,49 +216,114 @@ export default function SignupForm({ accentColor, event, slotAvailability }: Sig
                     }
                   }}
                 >
-                  <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold">Zi</span>
-                    <select
-                      className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
-                      name="day"
-                      onChange={(changeEvent) => setSelectedDay(changeEvent.target.value)}
-                      required
-                      value={selectedDay}
-                    >
+                  <input name="day" readOnly required type="hidden" value={selectedDay} />
+                  <input name="slot" readOnly required type="hidden" value={selectedSlot} />
+
+                  <fieldset className="min-w-0">
+                    <legend className="mb-2 text-sm font-semibold">Zi</legend>
+                    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
                       {dayOptions.map((day) => (
-                        <option key={day.dayId} value={day.dayId}>
+                        <button
+                          className={`min-h-14 min-w-36 shrink-0 rounded-md border px-3 py-2 text-left text-sm font-semibold leading-5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            selectedDay === day.dayId
+                              ? 'border-transparent text-white shadow-md'
+                              : 'border-border bg-background/40 text-card-foreground hover:border-card-foreground/30 hover:bg-background/70'
+                          }`}
+                          key={day.dayId}
+                          onClick={() => {
+                            setSelectedDay(day.dayId)
+                            setSelectedSlot(
+                              availableSlots.find((slot) => slot.dayId === day.dayId)?.slotId ?? '',
+                            )
+                          }}
+                          style={
+                            selectedDay === day.dayId
+                              ? {
+                                  backgroundColor: accentColor,
+                                  color: getContrastTextColor(accentColor),
+                                }
+                              : undefined
+                          }
+                          type="button"
+                        >
                           {day.dayLabel}
-                        </option>
+                        </button>
                       ))}
-                    </select>
-                  </label>
+                    </div>
+                  </fieldset>
 
-                  <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold">Interval</span>
-                    <select
-                      className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={slotsForSelectedDay.length === 0}
-                      name="slot"
-                      onChange={(changeEvent) => setSelectedSlot(changeEvent.target.value)}
-                      required
-                      value={selectedSlot}
-                    >
+                  <fieldset>
+                    <legend className="mb-2 text-sm font-semibold">Interval</legend>
+                    <div className="grid grid-cols-4 gap-2">
                       {slotsForSelectedDay.map((slot) => (
-                        <option key={slot.slotId} value={slot.slotId}>
-                          {slot.slotLabel} ({slot.remaining} locuri rămase)
-                        </option>
+                        <button
+                          className={`rounded-md border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            selectedSlot === slot.slotId
+                              ? 'border-transparent text-white shadow-md'
+                              : 'border-border bg-background/40 text-card-foreground hover:border-card-foreground/30 hover:bg-background/70'
+                          }`}
+                          key={slot.slotId}
+                          onClick={() => setSelectedSlot(slot.slotId)}
+                          style={
+                            selectedSlot === slot.slotId
+                              ? {
+                                  backgroundColor: accentColor,
+                                  color: getContrastTextColor(accentColor),
+                                }
+                              : undefined
+                          }
+                          type="button"
+                        >
+                          <span className="block text-sm font-bold">{slot.slotLabel}</span>
+                          <span className="mt-1 block text-xs opacity-75">
+                            {slot.remaining} locuri rămase
+                          </span>
+                        </button>
                       ))}
-                    </select>
-                  </label>
+                    </div>
+                  </fieldset>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="flex flex-col gap-2">
+                      <span className="text-sm font-semibold">Nume</span>
+                      <input
+                        className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        name="name"
+                        placeholder="Nume complet"
+                        required
+                        type="text"
+                      />
+                    </label>
+
+                    <label className="flex flex-col gap-2">
+                      <span className="text-sm font-semibold">Email</span>
+                      <input
+                        className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        name="email"
+                        placeholder="nume@exemplu.com"
+                        required
+                        type="email"
+                      />
+                    </label>
+
+                    <label className="flex flex-col gap-2 md:col-span-2">
+                      <span className="text-sm font-semibold">Telefon</span>
+                      <input
+                        className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                        name="phone"
+                        placeholder="+40 700 000 000"
+                        required
+                        type="tel"
+                      />
+                    </label>
+                  </div>
 
                   <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold">Email</span>
-                    <input
-                      className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                      name="email"
-                      placeholder="nume@exemplu.com"
-                      required
-                      type="email"
+                    <span className="text-sm font-semibold">Întrebări</span>
+                    <textarea
+                      className="min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                      name="questions"
+                      placeholder="Scrie aici orice întrebare pentru organizatori."
                     />
                   </label>
 
@@ -283,12 +356,41 @@ export default function SignupForm({ accentColor, event, slotAvailability }: Sig
   )
 }
 
-async function register(args: { email: string; eventId: string; day: string; slot: string }) {
+function getSignupButtonLabel(args: {
+  availableSlotsCount: number
+  eventHasEnded: boolean
+  eventIsPrivate: boolean
+  hasConfiguredSlots: boolean
+  hasOpenRegistrationSlots: boolean
+  hasSlotsWithRemainingCapacity: boolean
+}) {
+  if (args.eventIsPrivate) return 'Înscrierile sunt private'
+  if (args.eventHasEnded) return 'Eveniment încheiat'
+  if (args.availableSlotsCount > 0) return 'Înscrie-te acum'
+  if (!args.hasConfiguredSlots) return 'Nu există intervale disponibile'
+  if (!args.hasSlotsWithRemainingCapacity) return 'Nu mai sunt locuri disponibile'
+  if (!args.hasOpenRegistrationSlots) return 'Înscrierile pentru intervale s-au închis'
+
+  return 'Nu mai sunt intervale disponibile'
+}
+
+async function register(args: {
+  email: string
+  eventId: string
+  day: string
+  name: string
+  phone: string
+  questions: string
+  slot: string
+}) {
   const response = await fetch('/api/event-registrations', {
     body: JSON.stringify({
       day: args.day,
       email: args.email,
       event: args.eventId,
+      name: args.name,
+      phone: args.phone,
+      questions: args.questions,
       slot: args.slot,
     }),
     headers: {

@@ -2,6 +2,7 @@ import type { GlobalConfig } from 'payload'
 
 import { link } from '@/fields/link'
 import { revalidateHeader } from './hooks/revalidateHeader'
+import { linkGroup } from '@/fields/linkGroup'
 
 export const Header: GlobalConfig = {
   slug: 'header',
@@ -38,25 +39,17 @@ export const Header: GlobalConfig = {
           type: 'text',
           name: 'collectionSlug',
         },
-        {
-          type: 'array',
-          name: 'subItems',
-          fields: [
-            {
-              name: 'label',
-              type: 'text'
-            },
+         linkGroup({
+          appearances: false,
+          
+          overrides: {required: false, name: 'reference'}, 
+          field: [
             {
               name: 'sectionId',
               type: 'text'
             },
-            {
-              type: 'relationship',
-              name: 'reference',
-              relationTo: ['pages', 'events', 'posts']
-            }
           ]
-        }
+        }),
       ],
       maxRows: 6,
       admin: {

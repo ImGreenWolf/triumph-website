@@ -1,4 +1,6 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
+import { postgresAdapter } from '@payloadcms/db-postgres'
+
 import sharp from 'sharp'
 import path from 'path'
 import { buildConfig, PayloadRequest } from 'payload'
@@ -23,7 +25,7 @@ import { Meetings } from './collections/Meetings'
 import { Attendance } from './collections/Attendance'
 import { AbsenceMotivations } from './collections/AbsenceMotivations'
 import { Payments } from './collections/Members/payments'
-
+import { GalleryPhotos } from './collections/GalleryPhotos'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -35,26 +37,27 @@ export default buildConfig({
       // Feel free to delete this at any time. Simply remove the line below.
       graphics: {
         Logo: '@/components/Logo',
-        Icon: '@/components/Logo/icon.tsx'
+        Icon: '@/components/Logo/icon.tsx',
       },
       // The `BeforeDashboard` component renders the 'welcome' block that you see after logging into your admin panel.
       // Feel free to delete this at any time. Simply remove the line below
     },
     meta: {
       title: 'Interact Bucureşti Triumph',
-      description: "ONG-ul de voluntariat Interact Bucureşti Triumph, ramura a Rotary International",
+      description:
+        'ONG-ul de voluntariat Interact Bucureşti Triumph, ramura a Rotary International',
       icons: [
         {
           rel: 'icon',
           type: 'image/png',
-          url: '/logo.png'
-        }
-      ]
+          url: '/logo.png',
+        },
+      ],
     },
     importMap: {
       baseDir: path.resolve(dirname),
     },
-    
+
     user: Users.slug,
     livePreview: {
       breakpoints: [
@@ -79,13 +82,28 @@ export default buildConfig({
       ],
     },
   },
-  
+
   // This config helps us configure global or default features that the other editors can inherit
   editor: defaultLexical,
   db: mongooseAdapter({
     url: process.env.DATABASE_URL || '',
   }),
-  collections: [Pages, Posts, Media, Categories, Users, Meetings, Attendance, AbsenceMotivations, Events, EventRegistrations, Sponsors, Causes, Payments],
+  collections: [
+    Pages,
+    Posts,
+    Media,
+    Categories,
+    Users,
+    Meetings,
+    Attendance,
+    AbsenceMotivations,
+    Events,
+    EventRegistrations,
+    Sponsors,
+    Causes,
+    Payments,
+    GalleryPhotos,
+  ],
   cors: [getServerSideURL()].filter(Boolean),
   globals: [Header, Footer, MembersDashboard],
   plugins,

@@ -80,6 +80,7 @@ export interface Config {
     sponsors: Sponsor;
     causes: Cause;
     payments: Payment;
+    'gallery-photos': GalleryPhoto;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -122,6 +123,7 @@ export interface Config {
     sponsors: SponsorsSelect<false> | SponsorsSelect<true>;
     causes: CausesSelect<false> | CausesSelect<true>;
     payments: PaymentsSelect<false> | PaymentsSelect<true>;
+    'gallery-photos': GalleryPhotosSelect<false> | GalleryPhotosSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -475,8 +477,25 @@ export interface Category {
 export interface User {
   id: string;
   name?: string | null;
+  /**
+   * Photo shown on the member profile page.
+   */
+  profilePicture?: (string | null) | Media;
   role: 'aspirer' | 'active' | 'president' | 'pr-director' | 'hr-director' | 'secretary' | 'tresoursier';
   joinedAt: string;
+  /**
+   * Members can set this once from their profile page.
+   */
+  birthday?: string | null;
+  /**
+   * Records that the member confirmed their birthday is final.
+   */
+  birthdayConfirmed?: boolean | null;
+  birthdayStoryConsent?: boolean | null;
+  /**
+   * Image members provide for birthday social media stories.
+   */
+  birthdayStoryImage?: (string | null) | Media;
   payments?: {
     docs?: (string | Payment)[];
     hasNextPage?: boolean;
@@ -815,6 +834,10 @@ export interface Event {
    * Disable public signups for this event.
    */
   private?: boolean | null;
+  /**
+   * Close public signup this many minutes before each slot starts.
+   */
+  registrationCutoffMinutes?: number | null;
   capacity?: number | null;
   populatedCoordonators?:
     | {
@@ -858,7 +881,9 @@ export interface EventRegistration {
   day: string;
   slot: string;
   email: string;
-  name?: string | null;
+  name: string;
+  phone: string;
+  questions?: string | null;
   status?: ('registered' | 'cancelled') | null;
   updatedAt: string;
   createdAt: string;
@@ -1680,6 +1705,28 @@ export interface Sponsor {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gallery-photos".
+ */
+export interface GalleryPhoto {
+  id: string;
+  photo: string | Media;
+  caption?: string | null;
+  visibility: 'public' | 'private';
+  /**
+   * Public submissions start pending. Private submissions are visible to members until rejected.
+   */
+  status: 'pending' | 'approved' | 'rejected';
+  event?: (string | null) | Event;
+  uploadedBy?: (string | null) | User;
+  submittedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "redirects".
  */
 export interface Redirect {
@@ -1929,6 +1976,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'payments';
         value: string | Payment;
+      } | null)
+    | ({
+        relationTo: 'gallery-photos';
+        value: string | GalleryPhoto;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -2612,8 +2663,13 @@ export interface CategoriesSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  profilePicture?: T;
   role?: T;
   joinedAt?: T;
+  birthday?: T;
+  birthdayConfirmed?: T;
+  birthdayStoryConsent?: T;
+  birthdayStoryImage?: T;
   payments?: T;
   attendance?: T;
   absenceMotivations?: T;
@@ -2714,6 +2770,7 @@ export interface EventsSelect<T extends boolean = true> {
       };
   coordonators?: T;
   private?: T;
+  registrationCutoffMinutes?: T;
   capacity?: T;
   populatedCoordonators?:
     | T
@@ -2738,6 +2795,8 @@ export interface EventRegistrationsSelect<T extends boolean = true> {
   slot?: T;
   email?: T;
   name?: T;
+  phone?: T;
+  questions?: T;
   status?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -2772,6 +2831,24 @@ export interface PaymentsSelect<T extends boolean = true> {
   month?: T;
   amount?: T;
   type?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gallery-photos_select".
+ */
+export interface GalleryPhotosSelect<T extends boolean = true> {
+  photo?: T;
+  caption?: T;
+  visibility?: T;
+  status?: T;
+  event?: T;
+  uploadedBy?: T;
+  submittedAt?: T;
+  reviewedBy?: T;
+  reviewedAt?: T;
+  rejectionReason?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -3095,23 +3172,24 @@ export interface Header {
           label: string;
         };
         collectionSlug?: string | null;
-        subItems?:
+        reference?:
           | {
-              label?: string | null;
+              link: {
+                type?: ('reference' | 'custom') | null;
+                newTab?: boolean | null;
+                reference?:
+                  | ({
+                      relationTo: 'pages';
+                      value: string | Page;
+                    } | null)
+                  | ({
+                      relationTo: 'posts';
+                      value: string | Post;
+                    } | null);
+                url?: string | null;
+                label: string;
+              };
               sectionId?: string | null;
-              reference?:
-                | ({
-                    relationTo: 'pages';
-                    value: string | Page;
-                  } | null)
-                | ({
-                    relationTo: 'events';
-                    value: string | Event;
-                  } | null)
-                | ({
-                    relationTo: 'posts';
-                    value: string | Post;
-                  } | null);
               id?: string | null;
             }[]
           | null;
@@ -3250,12 +3328,19 @@ export interface HeaderSelect<T extends boolean = true> {
               label?: T;
             };
         collectionSlug?: T;
-        subItems?:
+        reference?:
           | T
           | {
-              label?: T;
+              link?:
+                | T
+                | {
+                    type?: T;
+                    newTab?: T;
+                    reference?: T;
+                    url?: T;
+                    label?: T;
+                  };
               sectionId?: T;
-              reference?: T;
               id?: T;
             };
         id?: T;

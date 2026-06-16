@@ -28,7 +28,7 @@ import {
 } from '@payloadcms/plugin-seo/fields'
 import { APIError, getPayload, slugField } from 'payload'
 import { locationField } from '@/fields/location-selector/field'
-import { findEventSlot, formatEventDayLabel, formatEventSlotLabel } from '@/utilities/eventRegistration'
+import { findEventSlot, formatEventDayLabel, formatEventSlotLabel, isEventSlotRegistrationOpen } from '@/utilities/eventRegistration'
 import payloadConfig from '@payload-config'
 
 class MySpecialError extends APIError {
@@ -327,6 +327,17 @@ export const Events: CollectionConfig<'posts'> = {
       },
     },
     {
+      name: 'registrationCutoffMinutes',
+      type: 'number',
+      defaultValue: 0,
+      label: 'Registration cutoff (minutes)',
+      min: 0,
+      admin: {
+        description: 'Close public signup this many minutes before each slot starts.',
+        position: 'sidebar',
+      },
+    },
+    {
       name: 'capacity',
       type: 'number',
       virtual: true,
@@ -485,6 +496,16 @@ export const EventRegistrations: CollectionConfig = {
     {
       name: 'name',
       type: 'text',
+      required: true,
+    },
+    {
+      name: 'phone',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'questions',
+      type: 'textarea',
     },
     {
       name: 'status',
@@ -528,6 +549,20 @@ export const EventRegistrations: CollectionConfig = {
 
       if (!day?.id || !day.eventDate || !slot?.id) {
         throw new APIError('Slotul selectat nu mai este disponibil.', 400)
+      }
+
+      if (
+        !isEventSlotRegistrationOpen({
+          endTime: slot.endTime,
+          eventDate: day.eventDate,
+          registrationCutoffMinutes: event.registrationCutoffMinutes,
+          startTime: slot.startTime,
+        })
+      ) {
+        throw new APIError(
+          `Înscrierile pentru ${formatEventDayLabel(day.eventDate)}, ${formatEventSlotLabel(slot.startTime, slot.endTime)} s-au închis.`,
+          409,
+        )
       }
 
       const existing = await req.payload.find({

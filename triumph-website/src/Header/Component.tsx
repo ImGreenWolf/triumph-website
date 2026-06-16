@@ -1,4 +1,4 @@
-import { Header as HeaderType} from '@/payload-types'
+import { Header as HeaderType, Page, Post } from '@/payload-types'
 import { HeaderClient } from './Component.client'
 import { getCachedGlobal } from '@/utilities/getGlobals'
 import payloadConfig from '@payload-config'
@@ -8,46 +8,73 @@ import { CardNavItem } from './Nav/CardNav'
 
 export async function Header() {
   const headerData = await getCachedGlobal('header', 1)()
-  return <HeaderClient data={headerData} links={await fetchNav(headerData)}/>
+  return <HeaderClient data={headerData} links={await fetchNav(headerData)} />
 }
 
 async function fetchNav(data: HeaderType): Promise<CardNavItem[]> {
-  return Promise.all(data.navCategory!.map(async i => {
-    return {label: i.link.label!, link: i.link.url! || getHref(i.link)!,
-       bgColor: 'var(--background)', textColor: 'var(--card-foreground)',
-    links: await fetchLinks(i.collectionSlug as CollectionSlug, i.subItems) || []
-  }}))
+  return Promise.all(
+    (data.navCategory || []).map(async (item) => ({
+      label: item.link.label,
+      link: getHref(item.link),
+      bgColor: 'var(--background)',
+      textColor: 'var(--card-foreground)',
+      links: (await fetchLinks(item.collectionSlug as CollectionSlug | null, item.reference)) || [],
+    })),
+  )
 }
 
-async function fetchLinks(slug: CollectionSlug, subItems: any[] | undefined | null): Promise<CardNavItem['links'] | undefined> {
-  
-  const payload = await getPayload({config: payloadConfig})
+type HeaderNavCategory = NonNullable<HeaderType['navCategory']>[number]
+type HeaderSubItem = NonNullable<HeaderNavCategory['reference']>[number]
+type HeaderLink = HeaderNavCategory['link']
+
+async function fetchLinks(
+  slug: CollectionSlug | null | undefined,
+  subItems: HeaderNavCategory['reference'],
+): Promise<CardNavItem['links'] | undefined> {
+  const fallbackLinks = getSubItemLinks(subItems)
+
+  if (!slug) return fallbackLinks
+
+  const payload = await getPayload({ config: payloadConfig })
   const collection = payload.collections[slug]
-  if(!collection || !(collection.config.custom.links))
-    if(subItems) {
-      
-      return subItems.map(si => ({href: getHref(si) || "s", label: si.label!, ariaLabel: si.label!}))
-    }
-    else return;
+  const customLinks = collection?.config.custom?.links as
+    | { value: string; label: string; ariaLabel?: string }[]
+    | undefined
 
-  const customField = collection.config.custom
-  const links = customField.links as {value: string, label: string}[]
-   
-  return links.map(si => ({href: si.value, label: si.label!, ariaLabel: si.label!}))
+  if (!customLinks) return fallbackLinks
+
+  return customLinks.map((link) => ({
+    href: link.value,
+    label: link.label,
+    ariaLabel: link.ariaLabel || link.label,
+  }))
 }
 
+function getSubItemLinks(subItems: HeaderNavCategory['reference']): CardNavItem['links'] {
+  return (subItems || [])
+    .map((item: HeaderSubItem) => ({
+      href: getHref(item.link, item.sectionId),
+      label: item.link.label,
+      ariaLabel: item.link.label,
+    }))
+    .filter((item) => Boolean(item.href))
+}
 
-function getHref(si: any) {
-  if(!si.reference)
-    return ''
-  if(typeof si.reference.value == 'string')
-    return si.reference.value + (si.sectionId ? ('#' + si.sectionId) : '')
-  switch (si.reference.relationTo) {
+function getHref(link: HeaderLink, sectionId?: string | null) {
+  const suffix = sectionId ? `#${sectionId}` : ''
+
+  if (link.type === 'custom') return `${link.url || ''}${suffix}`
+
+  if (!link.reference) return ''
+
+  if (typeof link.reference.value === 'string') return `${link.reference.value}${suffix}`
+
+  switch (link.reference.relationTo) {
     case 'pages':
-      return '/'+si.reference.value.slug + (si.sectionId ? ('#' + si.sectionId) : '')
+      return `/${(link.reference.value as Page).slug}${suffix}`
     case 'posts':
-      return '/posts/'+si.reference.value.slug + (si.sectionId ? ('#' + si.sectionId) : '')
-    case 'events':
-      return '/events/'+si.reference.value.slug + (si.sectionId ? ('#' + si.sectionId) : '')
+      return `/posts/${(link.reference.value as Post).slug}${suffix}`
+    default:
+      return ''
   }
 }
