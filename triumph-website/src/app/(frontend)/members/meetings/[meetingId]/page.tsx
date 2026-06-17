@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import { getPayload } from 'payload'
@@ -11,6 +10,7 @@ import {
   User,
 } from '@/payload-types'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
+import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
 import MotivateAbsenceDialog from './MotivateAbsenceDialog'
 import PageClient from './page.client'
@@ -70,12 +70,8 @@ export default async function MeetingPage(
   )
 
   // Logged in member
-  const cookieStore = await cookies()
-
   const authResult = await payload.auth({
-    headers: new Headers({
-      cookie: cookieStore.toString(),
-    }),
+    headers: await getPayloadAuthHeaders(),
   })
 
   const member =

@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { cookies } from 'next/headers'
 
 import payloadConfig from '@payload-config'
 import { Camera, Upload } from 'lucide-react'
@@ -8,6 +7,7 @@ import { getPayload } from 'payload'
 
 import type { Event, GalleryPhoto, Media, User } from '@/payload-types'
 import { getMediaUrl } from '@/utilities/getMediaUrl'
+import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
 import GalleryPageClient, { type GalleryPhotoCard } from './page.client'
 
@@ -23,15 +23,9 @@ export default async function GalleryPage() {
     config: payloadConfig,
   })
 
-  const cookieStore = await cookies()
-  const token = cookieStore.get('payload-token')?.value
-  const auth = token
-    ? await payload.auth({
-        headers: new Headers({
-          cookie: cookieStore.toString(),
-        }),
-      })
-    : null
+  const auth = await payload.auth({
+    headers: await getPayloadAuthHeaders(),
+  })
 
   const user = auth?.user as User | undefined
   const galleryPhotos = await payload.find({

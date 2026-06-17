@@ -30,9 +30,10 @@ import {
   MapPin,
   type LucideIcon,
 } from 'lucide-react'
-import { cookies, draftMode } from 'next/headers'
+import { draftMode } from 'next/headers'
 import { getPayload } from 'payload'
 import { cache } from 'react'
+import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 import EventPhotoBoard, {
   type EventPhotoBoardImage,
   type EventPhotoBoardMode,
@@ -74,15 +75,9 @@ export default async function Event({ params: paramsPromise }: Args) {
   if (!event) return <PayloadRedirects url={url} />
 
   const payload = await getPayload({ config: configPromise })
-  const cookieStore = await cookies()
-  const token = cookieStore.get('payload-token')?.value
-  const auth = token
-    ? await payload.auth({
-        headers: new Headers({
-          cookie: cookieStore.toString(),
-        }),
-      })
-    : null
+  const auth = await payload.auth({
+    headers: await getPayloadAuthHeaders(),
+  })
   const user = auth?.user as User | undefined
   const [registrations, galleryPhotos] = await Promise.all([
     payload.find({

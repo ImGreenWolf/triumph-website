@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { HTMLAttributes, ReactNode } from 'react'
 
@@ -35,6 +34,7 @@ import {
 } from '@/payload-types'
 import { getMediaUrl } from '@/utilities/getMediaUrl'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
+import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 import { cn } from '@/utilities/ui'
 
 import PageClient from './page.client'
@@ -69,17 +69,8 @@ export default async function DashboardPage() {
     config: payloadConfig,
   })
 
-  const cookieStore = await cookies()
-  const token = cookieStore.get('payload-token')?.value
-
-  if (!token) {
-    redirect('/members/login')
-  }
-
   const me = await payload.auth({
-    headers: new Headers({
-      cookie: cookieStore.toString(),
-    }),
+    headers: await getPayloadAuthHeaders(),
   })
 
   if (!me.user) {

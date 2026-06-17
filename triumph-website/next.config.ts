@@ -7,9 +7,24 @@ const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 import { redirects } from './redirects'
 
-const NEXT_PUBLIC_SERVER_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : process.env.__NEXT_PRIVATE_ORIGIN || 'https://interact-triumph.org'
+const imageRemoteURLs = [
+  process.env.NEXT_PUBLIC_SERVER_URL,
+  process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : undefined,
+  process.env.__NEXT_PRIVATE_ORIGIN,
+  'https://interact-triumph.org',
+].filter((url): url is string => Boolean(url))
+
+const imageRemotePatterns = Array.from(new Set(imageRemoteURLs)).map((item) => {
+  const url = new URL(item)
+
+  return {
+    hostname: url.hostname,
+    port: url.port,
+    protocol: url.protocol.replace(':', '') as 'http' | 'https',
+  }
+})
 
 const nextConfig: NextConfig = {
   // Temporarily required on Windows until Next.js fixes Turbopack Sass resolution.
@@ -25,16 +40,7 @@ const nextConfig: NextConfig = {
       },
     ],
     qualities: [100],
-    remotePatterns: [
-      ...[NEXT_PUBLIC_SERVER_URL /* 'https://example.com' */].map((item) => {
-        const url = new URL(item)
-
-        return {
-          hostname: url.hostname,
-          protocol: url.protocol.replace(':', '') as 'http' | 'https',
-        }
-      }),
-    ],
+    remotePatterns: imageRemotePatterns,
   },
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {

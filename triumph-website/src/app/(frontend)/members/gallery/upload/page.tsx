@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import payloadConfig from '@payload-config'
@@ -8,6 +7,7 @@ import { ArrowLeft, Images, Info } from 'lucide-react'
 import { getPayload } from 'payload'
 
 import type { Event, MembersDashboard, User } from '@/payload-types'
+import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
 import GalleryUploadForm from './page.client'
 
@@ -21,17 +21,8 @@ export default async function GalleryUploadPage() {
     config: payloadConfig,
   })
 
-  const cookieStore = await cookies()
-  const token = cookieStore.get('payload-token')?.value
-
-  if (!token) {
-    redirect('/members/login')
-  }
-
   const auth = await payload.auth({
-    headers: new Headers({
-      cookie: cookieStore.toString(),
-    }),
+    headers: await getPayloadAuthHeaders(),
   })
 
   if (!auth.user) {

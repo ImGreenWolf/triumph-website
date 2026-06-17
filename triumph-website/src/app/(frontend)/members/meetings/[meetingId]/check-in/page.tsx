@@ -1,8 +1,8 @@
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import { getPayload } from 'payload'
 import payloadConfig from '@payload-config'
+import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
 export default async function CheckInPage({
   params,
@@ -17,13 +17,9 @@ export default async function CheckInPage({
     config: payloadConfig,
   })
 
-  const cookieStore = await cookies()
-
   // Authenticate member
   const authResult = await payload.auth({
-    headers: new Headers({
-      cookie: cookieStore.toString(),
-    }),
+    headers: await getPayloadAuthHeaders(),
   })
 
   if (!authResult.user) {
