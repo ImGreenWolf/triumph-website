@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 import payloadConfig from '@payload-config'
@@ -34,11 +33,13 @@ export async function POST(request: Request) {
       config: payloadConfig,
     })
 
-    const cookieStore = await cookies()
+    const authHeaders = new Headers(request.headers)
+    if (!authHeaders.has('sec-fetch-site')) {
+      authHeaders.set('sec-fetch-site', 'same-origin')
+    }
+
     const auth = await payload.auth({
-      headers: new Headers({
-        cookie: cookieStore.toString(),
-      }),
+      headers: authHeaders,
     })
 
     if (!auth.user) {

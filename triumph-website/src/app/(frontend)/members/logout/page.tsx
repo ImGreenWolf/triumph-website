@@ -25,7 +25,7 @@ export default function LogoutPage() {
     setError('')
 
     try {
-      const res = await fetch('/api/users/logout', {
+      const res = await fetch('/members/logout/submit', {
         credentials: 'include',
         method: 'POST',
       })

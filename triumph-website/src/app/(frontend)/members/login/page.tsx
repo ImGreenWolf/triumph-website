@@ -68,8 +68,8 @@ export default function Login() {
         throw new Error(data.errors?.[0]?.message || 'Login failed')
       }
 
-      router.push('/members/')
-      router.refresh()
+      const redirectTo = getSafeRedirect(new URLSearchParams(window.location.search).get('redirect'))
+      router.replace(redirectTo)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {
@@ -134,7 +134,7 @@ export default function Login() {
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-5 flex flex-col">
             <div className="space-y-2">
               <Label htmlFor="email"  className='text-primary/50'>Email address</Label>
               <div className="relative">
@@ -182,7 +182,7 @@ export default function Login() {
                 {error}
               </div>
             )}
-            <a href='/members/password-reset'>
+            <a href='/members/password-reset' className='text-primary/25 text-sm'>
               Resteaza Parola
             </a>
             <Button
@@ -198,4 +198,12 @@ export default function Login() {
       </main>
     </div>
   )
+}
+
+function getSafeRedirect(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return '/members'
+  }
+
+  return value
 }
