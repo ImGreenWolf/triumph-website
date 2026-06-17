@@ -45,18 +45,18 @@ export const Card: React.FC<{
   return (
     <article
       className={cn(
-        'border border-border rounded-lg overflow-hidden bg-card text-card-foreground hover:cursor-pointer',
+        'border border-border rounded-lg overflow-hidden bg-card text-card-foreground hover:cursor-pointer aspect-3/4 relative ',
         className,
       )}
       ref={card.ref}
     >
-      <div className="relative w-full ">
+      <div className="relative w-full h-full">
         {!metaImage && <div className="">No image</div>}
-        {metaImage && typeof metaImage !== 'string' && <Media resource={metaImage} size="33vw" />}
+        {metaImage && typeof metaImage !== 'string' && <Media resource={metaImage} imgClassName='w-full h-full object-cover' className='h-full' />}
       </div>
-      <div className="p-4">
+      <div className="p-4 absolute left-0 right-0 min-h-30  bottom-0 backdrop-blur-md bg-linear-to-t from-card/50 to-transparent text-shadow-lg ">
         {showCategories && hasCategories && (
-          <div className="uppercase text-sm mb-4">
+          <div className="uppercase text-xs sm:text-sm mb-4 ">
             {categories?.map((category, index) => {
               if (typeof category === 'object') {
                 const { title: titleFromCategory } = category
@@ -80,7 +80,7 @@ export const Card: React.FC<{
         {titleToUse && (
           <div className="prose">
             <h3>
-              <Link className="not-prose" href={href} ref={link.ref}>
+              <Link className="not-prose text-xs sm:text-lg leading-4 block" href={href} ref={link.ref}>
                 {titleToUse}
               </Link>
             </h3>

@@ -4,14 +4,13 @@ import RichText from '@/components/RichText'
 import { CMSLink } from '@/components/Link'
 import { Media } from '@/components/Media'
 import { cn } from '@/utilities/ui'
-import Counter from '@/components/ui/counter'
 import CountUp from '@/components/ui/counterUp'
-import { Media as MediaType, SectionIntroBlock as  SectionIntroBlockProps, StatsBlock as StatsBlockTypes} from '@/payload-types'
+import { SectionIntroBlock as SectionIntroBlockProps, StatsBlock as StatsBlockTypes } from '@/payload-types'
 import { outlineFont } from '@/app/(frontend)/layout'
 import { GallerySlideshow } from '@/components/Gallery/component'
 import { getPayload } from 'payload'
 import payloadConfig from '@payload-config'
-import { ArrowUpLeftFromSquareIcon, ArrowUpRightIcon } from 'lucide-react'
+import { ArrowUpRightIcon } from 'lucide-react'
 
 const hasMediaObject = (media: unknown) => typeof media === 'object' && media !== null
 
@@ -84,59 +83,132 @@ export const FeatureGridBlock: React.FC<any> = ({ features, introContent }) => {
   )
 }
 
-export  const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }: StatsBlockTypes) => {
-  const payload = await getPayload({config: payloadConfig});
+export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }: StatsBlockTypes) => {
+  const payload = await getPayload({ config: payloadConfig })
   const req = await payload.find({
     collection: 'events',
-    limit: 5,
+    limit: 4,
     sort: '-createdAt',
   })
   const events = req.docs
+  const statsItems = stats || []
+  const hasGallery = Boolean(gallery?.some(hasMediaObject))
+  const hasEventList = events.length > 0
 
   return (
     <section className="container">
       {introContent && (
         <RichText className="mx-auto mb-10 max-w-3xl text-center" data={introContent} />
       )}
-      <div className="grid gap-px overflow-hidden rounded border border-border grid-cols-1 md:grid-cols-4 text-card-foreground auto-cols-min">
-        {(stats || []).map((stat: any, index: number) => (
-          <div className="bg-card m-2 p-6 rounded-md " key={index}>
-            {/* <div className="text-3xl font-semibold">{stat.value}</div> */}
-            <div className='flex gap-2 text-5xl font-semibold text-primary'>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start">
+        {statsItems.map((stat, index) => (
+          <article
+            className="min-w-0 rounded-lg border border-border/70 bg-card p-5 text-card-foreground shadow-sm sm:p-6"
+            key={stat.id || index}
+          >
+            <div className="flex min-w-0 flex-wrap items-end gap-x-2 gap-y-1 text-accent">
               <CountUp
-              to={stat.value}
-              from={0}
-              className=''
-            />
-            <div className="">{stat.unit}</div>
+                to={stat.value}
+                from={0}
+                separator=","
+                className="text-4xl font-bold leading-none tracking-normal tabular-nums sm:text-5xl"
+              />
+              {stat.unit && (
+                <span className="pb-1 text-xl font-semibold leading-none text-card-foreground/85 sm:text-2xl">
+                  {stat.unit}
+                </span>
+              )}
             </div>
-            
-            <div className="mt-2 font-medium">{stat.label}</div>
+
+            <div className="mt-4 text-base font-semibold leading-snug [overflow-wrap:anywhere]">
+              {stat.label}
+            </div>
             {stat.description && (
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{stat.description}</p>
+              <p className="mt-3 text-sm leading-6 text-card-foreground/70 [overflow-wrap:anywhere]">
+                {stat.description}
+              </p>
             )}
-          </div>
+          </article>
         ))}
 
-        <div className='lg:col-start-1 lg:-col-end-2 not-lg:col-[1/3] p-8'>
-          {gallery && <GallerySlideshow gallery={gallery}/>}
-        </div>
+        {hasGallery && (
+          <div
+            className={cn(
+              'min-w-0 overflow-hidden rounded-xl sm:col-span-2',
+              hasEventList ? 'lg:col-span-3' : 'lg:col-span-4',
+            )}
+          >
+            <GallerySlideshow gallery={gallery || []} />
+          </div>
+        )}
 
-        <div className='not-lg:row-[1_/_span_4] not-lg:row-start-1 col-2 lg:-col-2 m-2 bg-card overflow-hidden p-4 rounded-xl '>
-          <h3 className='text-center px-8'>Evenimentele Noastre</h3>
-            <div className='grid grid-rows-5 gap-4 p-4'>
+        {hasEventList && (
+          <aside
+            className={cn(
+              'min-w-0 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm',
+              hasGallery ? 'sm:col-span-2 lg:col-span-1' : 'sm:col-span-2 lg:col-span-2',
+            )}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
+              <h3 className="text-base font-semibold leading-tight">Evenimentele Noastre</h3>
+              <a
+                className="hidden min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-accent px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-accent/90 sm:inline-flex"
+                href="/events"
+              >
+                Toate
+                <ArrowUpRightIcon className="size-3.5" aria-hidden="true" />
+              </a>
+            </div>
 
-          
-            {events.map(event => {
-              return ( <div key={event.id || event.slug} className='grid grid-cols-[auto_1fr] grid-rows-2 auto-cols-max'>
-                <Media resource={event.meta?.image} className='h-18 row-span-full col-1 aspect-4/5 overflow-hidden mr-2' imgClassName=' overflow-hidden h-18  w-auto object-cover'/>
-                <span className='text-xl font-bold leading-5'>{event.name}</span>
-                <a href={'/events/'+event.slug} className='flex gap-2 text-xs'>Mai multe <ArrowUpRightIcon size={16}/></a>
-              </div>)
-            })}
-           </div>
-           <a className='px-8 py-4 rounded-xl bg-primary text-card font-bold flex items-center gap-4' href='/events'>Toate Evenimentele <ArrowUpRightIcon/></a>
-        </div>
+            <div className="mt-3 grid gap-2.5">
+              {events.map(event => {
+                const eventImage = event.meta?.image
+                const eventHref = event.slug ? `/events/${event.slug}` : '/events'
+
+                return (
+                  <article
+                    className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-2.5 rounded-md border border-border/60 bg-primary/5 p-2"
+                    key={event.id || event.slug}
+                  >
+                    {hasMediaObject(eventImage) ? (
+                      <Media
+                        resource={eventImage}
+                        className="aspect-[9/16] h-18 overflow-hidden rounded-md bg-primary/10 sm:h-20"
+                        imgClassName="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="aspect-[9/16] h-18 rounded-md bg-primary/10 sm:h-20"
+                        aria-hidden="true"
+                      />
+                    )}
+
+                    <div className="min-w-0 self-center">
+                      <h4 className="line-clamp-2 text-sm font-semibold leading-snug text-card-foreground">
+                        {event.name}
+                      </h4>
+                      <a
+                        href={eventHref}
+                        className="mt-1.5 inline-flex min-h-7 items-center gap-1.5 text-xs font-semibold text-accent transition hover:text-primary"
+                      >
+                        Mai multe
+                        <ArrowUpRightIcon className="size-3.5 shrink-0" aria-hidden="true" />
+                      </a>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+
+            <a
+              className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-bold text-white transition hover:bg-accent/90 sm:hidden"
+              href="/events"
+            >
+              Toate Evenimentele
+              <ArrowUpRightIcon className="size-4" aria-hidden="true" />
+            </a>
+          </aside>
+        )}
       </div>
     </section>
   )
