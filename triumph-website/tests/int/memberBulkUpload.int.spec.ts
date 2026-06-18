@@ -6,8 +6,8 @@ describe('member CSV bulk upload parsing', () => {
   it('parses valid member rows', () => {
     const result = parseMembersCSV(
       [
-        'email,password,name,role,joinedAt,birthday',
-        'ana@example.com,secret123,Ana Popescu,active,2026-01-05,2006-02-03',
+        'email,password,name,phone,status,join date,birthday',
+        'ana@example.com,secret123,Ana Popescu,+40 712 345 678,active,02/2026,2006-02-03',
       ].join('\n'),
       { now: new Date('2026-06-16T00:00:00.000Z') },
     )
@@ -18,9 +18,10 @@ describe('member CSV bulk upload parsing', () => {
       birthday: '2006-02-03T00:00:00.000Z',
       birthdayConfirmed: true,
       email: 'ana@example.com',
-      joinedAt: '2026-01-05T00:00:00.000Z',
+      joinedAt: '2026-02-15T00:00:00.000Z',
       name: 'Ana Popescu',
       password: 'secret123',
+      phone: '+40 712 345 678',
       role: 'active',
     })
   })
@@ -39,8 +40,8 @@ describe('member CSV bulk upload parsing', () => {
     const result = parseMembersCSV(
       [
         'email,password,role,joinedAt',
-        'not-an-email,short,invalid-role,16-06-2026',
-        'not-an-email,another-secret,active,2026-06-16',
+        'not-an-email,short,invalid-role,13/2026',
+        'not-an-email,another-secret,active,06/2026',
       ].join('\n'),
     )
 
@@ -48,7 +49,7 @@ describe('member CSV bulk upload parsing', () => {
     expect(result.errors).toEqual([
       {
         message:
-          'Email is invalid. Password must be at least 8 characters. Role "invalid-role" is not valid. joinedAt must use YYYY-MM-DD format.',
+          'Email is invalid. Password must be at least 8 characters. Role "invalid-role" is not valid. joinedAt is not a valid month.',
         row: 2,
       },
       {
@@ -59,7 +60,9 @@ describe('member CSV bulk upload parsing', () => {
   })
 
   it('handles quoted CSV fields', () => {
-    const result = parseMembersCSV('"email","password","name"\n"ion@example.com","secret123","Ion, Jr."')
+    const result = parseMembersCSV(
+      '"email","password","name"\n"ion@example.com","secret123","Ion, Jr."',
+    )
 
     expect(result.errors).toEqual([])
     expect(result.rows[0].data.name).toBe('Ion, Jr.')

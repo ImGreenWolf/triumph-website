@@ -44,10 +44,19 @@ const allowedRoles = new Set<UserCreateData['role']>([
 const headerAliases = {
   birthday: ['birthday', 'birthdate', 'birth date', 'date of birth', 'dob'],
   email: ['email', 'e-mail', 'mail'],
-  joinedAt: ['joinedat', 'joined_at', 'joined at', 'joined date', 'date joined', 'joined'],
+  joinedAt: [
+    'joinedat',
+    'joined_at',
+    'joined at',
+    'join date',
+    'joined date',
+    'date joined',
+    'joined',
+  ],
   name: ['name', 'full name', 'full_name', 'nume'],
   password: ['password', 'parola'],
-  role: ['role', 'rol'],
+  phone: ['phone', 'phone number', 'phone_number', 'telephone', 'tel', 'telefon'],
+  role: ['role', 'rol', 'status', 'member status', 'member_status'],
 } as const
 
 type CSVColumn = keyof typeof headerAliases
@@ -102,6 +111,7 @@ export function parseMembersCSV(
     const email = getCell(record, emailColumn).toLowerCase()
     const password = getCell(record, passwordColumn)
     const name = getOptionalCell(record, columns.name)
+    const phone = getOptionalCell(record, columns.phone)
     const role = getOptionalCell(record, columns.role) || 'active'
     const joinedAtValue = getOptionalCell(record, columns.joinedAt)
     const birthdayValue = getOptionalCell(record, columns.birthday)
@@ -127,7 +137,7 @@ export function parseMembersCSV(
     }
 
     const joinedAt = joinedAtValue
-      ? parseDateOnly(joinedAtValue, 'joinedAt', rowErrors)
+      ? parseMonthYear(joinedAtValue, 'joinedAt', rowErrors)
       : now.toISOString()
     const birthday = birthdayValue ? parseDateOnly(birthdayValue, 'birthday', rowErrors) : null
 
@@ -148,6 +158,10 @@ export function parseMembersCSV(
 
     if (name) {
       data.name = name
+    }
+
+    if (phone) {
+      data.phone = phone
     }
 
     if (birthday) {
@@ -306,7 +320,10 @@ function getOptionalCell(record: string[], index: number | undefined) {
 }
 
 function normalizeHeader(header: string) {
-  return header.trim().toLowerCase().replace(/[\s_-]+/g, '')
+  return header
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '')
 }
 
 function isValidEmail(email: string) {
@@ -327,4 +344,23 @@ function parseDateOnly(value: string, field: string, errors: string[]) {
   }
 
   return parsed.toISOString()
+}
+
+function parseMonthYear(value: string, field: string, errors: string[]) {
+  const match = /^(\d{2})\/(\d{4})$/.exec(value)
+
+  if (!match) {
+    errors.push(`${field} must use MM/YYYY format.`)
+    return ''
+  }
+
+  const month = Number(match[1])
+  const year = Number(match[2])
+
+  if (month < 1 || month > 12) {
+    errors.push(`${field} is not a valid month.`)
+    return ''
+  }
+
+  return new Date(Date.UTC(year, month - 1, 15)).toISOString()
 }

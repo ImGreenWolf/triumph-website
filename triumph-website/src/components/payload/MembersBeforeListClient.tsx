@@ -55,6 +55,7 @@ export default function MemberActions() {
     try {
       const response = await fetch('/api/users/bulk-upload', {
         body: formData,
+        credentials: 'include',
         method: 'POST',
       })
       const data = (await response.json()) as BulkUploadResponse
@@ -90,8 +91,9 @@ export default function MemberActions() {
       <div>
         <h2 className="members-before-list__title">Bulk upload members</h2>
         <p className="members-before-list__description">
-          Upload a CSV with email and password columns. Optional columns: name, role, joinedAt,
-          birthday. Dates must use YYYY-MM-DD.
+          Upload a CSV with email and password columns. Optional columns: name, phone, status (or
+          role), join date (or joinedAt), and birthday. Join date uses MM/YYYY; birthday uses
+          YYYY-MM-DD.
         </p>
       </div>
 
@@ -113,7 +115,9 @@ export default function MemberActions() {
       </form>
 
       {uploadState && (
-        <div className={`members-before-list__result members-before-list__result--${uploadState.tone}`}>
+        <div
+          className={`members-before-list__result members-before-list__result--${uploadState.tone}`}
+        >
           <p className="members-before-list__message">
             {uploadState.response?.message || 'CSV upload finished.'}
           </p>

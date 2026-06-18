@@ -25,9 +25,11 @@ export const hasRole =
     return Boolean(user?.role && allowed.includes(user.role))
   }
 
+export const isBoardMember = (user: { role?: string } | null | undefined) =>
+  Boolean(user?.role && boardRoles.includes(user.role as BoardRole))
+
 export const hasBoardRole: AdminAccess = ({ req }) => {
-  const user = req.user as { role?: AllRoles } | null
-  return Boolean(user?.role && boardRoles.includes(user.role as BoardRole))
+  return isBoardMember(req.user)
 }
 
 export const isSecretary = (user: { role?: string } | null | undefined) => {

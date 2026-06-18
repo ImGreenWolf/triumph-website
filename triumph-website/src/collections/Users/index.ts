@@ -3,7 +3,7 @@ import { APIError } from 'payload'
 
 import { authenticated } from '../../access/authenticated'
 import type { User } from '@/payload-types'
-import { hasBoardRole } from '@/utilities/membersAccess'
+import { hasBoardRole, isBoardMember } from '@/utilities/membersAccess'
 import { importMembersFromCSV } from './bulkUpload'
 import {
   generateForgotPasswordEmailHTML,
@@ -109,7 +109,21 @@ export const Users: CollectionConfig = {
       path: '/bulk-upload',
       method: 'post',
       handler: async (req) => {
-        if (!hasBoardRole({ req })) {
+        if (!req.user?.id) {
+          return Response.json(
+            { message: 'Your session has expired. Sign in again.' },
+            { status: 401 },
+          )
+        }
+
+        const authenticatedUser = await req.payload.findByID({
+          collection: 'users',
+          depth: 0,
+          id: req.user.id,
+          overrideAccess: true,
+        })
+
+        if (!isBoardMember(authenticatedUser)) {
           return Response.json(
             { message: 'Only board members can bulk upload users.' },
             { status: 403 },
@@ -157,6 +171,13 @@ export const Users: CollectionConfig = {
   fields: [
     {
       name: 'name',
+      type: 'text',
+      access: {
+        update: canManageUsers,
+      },
+    },
+    {
+      name: 'phone',
       type: 'text',
       access: {
         update: canManageUsers,

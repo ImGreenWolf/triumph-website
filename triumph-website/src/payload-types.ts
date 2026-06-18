@@ -477,6 +477,7 @@ export interface Category {
 export interface User {
   id: string;
   name?: string | null;
+  phone?: string | null;
   /**
    * Photo shown on the member profile page.
    */
@@ -2659,6 +2660,7 @@ export interface CategoriesSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  phone?: T;
   profilePicture?: T;
   role?: T;
   joinedAt?: T;
