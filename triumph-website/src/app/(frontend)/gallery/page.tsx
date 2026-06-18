@@ -10,6 +10,7 @@ import { getMediaUrl } from '@/utilities/getMediaUrl'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
 import GalleryPageClient, { type GalleryPhotoCard } from './page.client'
+import { LightboxProvider } from '@/components/ui/LightboxComponent'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,6 +68,7 @@ export default async function GalleryPage() {
   })
 
   return (
+    <LightboxProvider>
     <main className="halftone-background min-h-screen bg-background pb-24 pt-32 text-foreground">
       <section className="container relative pb-12 md:pb-16">
         <div className="max-w-3xl">
@@ -92,6 +94,7 @@ export default async function GalleryPage() {
         <GalleryPageClient canViewPrivate={Boolean(user)} photos={photos as GalleryPhotoCard[]} />
       </section>
     </main>
+    </LightboxProvider>
   )
 }
 

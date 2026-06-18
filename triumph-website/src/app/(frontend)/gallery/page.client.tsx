@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 
 import { CalendarDays, Lock, UserRound, Users } from 'lucide-react'
+import { useLightbox } from '@/components/ui/LightboxComponent'
 
 export type GalleryPhotoCard = {
   caption: string
@@ -43,7 +44,7 @@ export default function GalleryPageClient(props: {
 }) {
   const { canViewPrivate, photos } = props
   const [mode, setMode] = useState<GalleryMode>('public')
-
+  const { openImage } = useLightbox();
   const visiblePhotos = useMemo(() => {
     if (mode === 'public') return photos.filter((photo) => photo.visibility === 'public')
     if (mode === 'private') return photos.filter((photo) => photo.visibility === 'private')
@@ -101,15 +102,21 @@ export default function GalleryPageClient(props: {
                   sizes={photo.imageSizes}
                   src={photo.imageUrl}
                   srcSet={photo.imageSrcSet}
+                  onClick={() =>
+                    openImage({
+                      src: photo.imageUrl,
+                      alt: photo.imageAlt,
+                    })
+                  }
                 />
-                <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
+                {mode=='mixed' && <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
                   {photo.visibility === 'private' ? (
                     <Lock className="size-3" />
                   ) : (
                     <Users className="size-3" />
                   )}
                   {photo.visibility === 'private' ? 'Members' : 'Public'}
-                </div>
+                </div>}
               </div>
 
               <div className="grid gap-3 p-4">
@@ -162,3 +169,5 @@ function formatDate(value: string) {
     dateStyle: 'medium',
   }).format(date)
 }
+
+
