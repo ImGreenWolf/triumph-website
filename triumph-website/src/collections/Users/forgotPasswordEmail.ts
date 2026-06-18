@@ -10,7 +10,7 @@ type ForgotPasswordEmailArgs = {
 }
 
 export function generateForgotPasswordEmailHTML(args: ForgotPasswordEmailArgs = {}) {
-  const baseURL = getEmailBaseURL(args.req)
+  const baseURL = process.env.NEXT_PUBLIC_SERVER_URL
   const resetURL = `${baseURL}/admin/reset/${encodeURIComponent(args.token || '')}`
   const logoURL = `${baseURL}/logo_full.png`
   const displayName = escapeHTML(args.user?.name || 'membru Triumph')
