@@ -53,6 +53,12 @@ type PayloadUploadFile = {
   size: number
 }
 
+type PhotoUploadMetadata = {
+  caption?: string
+  event?: string
+  visibility: 'private' | 'public'
+}
+
 export async function POST(request: Request) {
   try {
     const payload = await getPayload({
@@ -78,26 +84,29 @@ export async function POST(request: Request) {
     const member = auth.user as User
     const isBoardMember = boardRoles.includes(member.role as BoardRole)
     const formData = await request.formData()
-    const files = formData.getAll('photos')
-    const visibility = getVisibility(formData)
-    const caption = getString(formData, 'caption')?.trim() || undefined
-    const event = getString(formData, 'event') || undefined
+    const fileValues = formData.getAll('photos')
 
-    if (!files.length) {
+    if (!fileValues.length) {
       return NextResponse.json({ message: 'Select at least one photo.' }, { status: 400 })
     }
 
+    const files = fileValues.map((fileValue) => {
+      const file = getFile(fileValue)
+      if (!file) throw new Error('Every upload must be a valid image file.')
+
+      return file
+    })
+    const photoMetadata = getPhotoMetadata(formData, files.length)
+
     const createdPhotos = []
 
-    for (const fileValue of files) {
-      const file = getFile(fileValue)
-      if (!file) continue
-
+    for (const [index, file] of files.entries()) {
+      const metadata = photoMetadata[index]
       const uploadFile = await toPayloadUploadFile(file)
       const media = await payload.create({
         collection: 'media',
         data: {
-          alt: caption || `${member.name || member.email} gallery photo`,
+          alt: metadata.caption || `${member.name || member.email} gallery photo`,
         },
         file: uploadFile,
         overrideAccess: false,
@@ -107,11 +116,11 @@ export async function POST(request: Request) {
       const galleryPhoto = await payload.create({
         collection: 'gallery-photos',
         data: {
-          caption,
-          event,
+          caption: metadata.caption,
+          event: metadata.event,
           photo: media.id,
-          status: visibility === 'private' ? 'approved' : 'pending',
-          visibility,
+          status: metadata.visibility === 'private' ? 'approved' : 'pending',
+          visibility: metadata.visibility,
         },
         overrideAccess: false,
         user: member,
@@ -124,14 +133,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Only image uploads are allowed.' }, { status: 400 })
     }
 
+    const hasPendingPublicPhotos =
+      !isBoardMember && photoMetadata.some((metadata) => metadata.visibility === 'public')
+
     return NextResponse.json({
       count: createdPhotos.length,
-      message:
-        visibility === 'public' && !isBoardMember
-          ? 'Photos submitted for public gallery review.'
-          : visibility === 'public'
-            ? 'Photos added to the public gallery.'
-            : 'Photos added to the members gallery.',
+      message: hasPendingPublicPhotos
+        ? `${createdPhotos.length} photos uploaded. Public photos are pending review.`
+        : `${createdPhotos.length} photos added to the gallery.`,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'The photos could not be uploaded.'
@@ -146,8 +155,47 @@ function getString(formData: FormData, key: string) {
   return typeof value === 'string' ? value : null
 }
 
-function getVisibility(formData: FormData) {
-  return getString(formData, 'visibility') === 'private' ? 'private' : 'public'
+function getPhotoMetadata(formData: FormData, fileCount: number): PhotoUploadMetadata[] {
+  const rawMetadata = getString(formData, 'photoMetadata')
+  if (!rawMetadata) throw new Error('Photo metadata is required.')
+
+  let parsedMetadata: unknown
+
+  try {
+    parsedMetadata = JSON.parse(rawMetadata)
+  } catch {
+    throw new Error('Photo metadata is invalid.')
+  }
+
+  if (!Array.isArray(parsedMetadata) || parsedMetadata.length !== fileCount) {
+    throw new Error('Each uploaded photo must have matching metadata.')
+  }
+
+  return parsedMetadata.map((metadata, index) => normalizePhotoMetadata(metadata, index))
+}
+
+function normalizePhotoMetadata(metadata: unknown, index: number): PhotoUploadMetadata {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    throw new Error(`Photo ${index + 1} metadata is invalid.`)
+  }
+
+  const values = metadata as Record<string, unknown>
+  const caption = typeof values.caption === 'string' ? values.caption.trim() : ''
+  const event = typeof values.event === 'string' ? values.event.trim() : ''
+
+  if (caption.length > 500) {
+    throw new Error(`Photo ${index + 1} caption must be 500 characters or fewer.`)
+  }
+
+  if (values.visibility !== 'private' && values.visibility !== 'public') {
+    throw new Error(`Photo ${index + 1} privacy setting is invalid.`)
+  }
+
+  return {
+    caption: caption || undefined,
+    event: event || undefined,
+    visibility: values.visibility,
+  }
 }
 
 function getFile(value: FormDataEntryValue) {

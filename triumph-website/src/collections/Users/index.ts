@@ -1,4 +1,10 @@
-import type { CollectionBeforeChangeHook, CollectionConfig, FieldAccess } from 'payload'
+import type {
+  CollectionBeforeChangeHook,
+  CollectionConfig,
+  FieldAccess,
+  PayloadRequest,
+  Where,
+} from 'payload'
 import { APIError } from 'payload'
 
 import { authenticated } from '../../access/authenticated'
@@ -9,6 +15,7 @@ import {
   generateForgotPasswordEmailHTML,
   generateForgotPasswordEmailSubject,
 } from './forgotPasswordEmail'
+import { sendPasswordResetEmails } from './passwordReset'
 
 const canManageUsers: FieldAccess = ({ req }) => hasBoardRole({ req })
 
@@ -73,6 +80,39 @@ function toDateInputValue(value: string) {
   return date.toISOString().slice(0, 10)
 }
 
+async function getBoardAuthorizationError(req: PayloadRequest) {
+  if (!req.user?.id) {
+    return Response.json({ message: 'Your session has expired. Sign in again.' }, { status: 401 })
+  }
+
+  const authenticatedUser = await req.payload.findByID({
+    collection: 'users',
+    depth: 0,
+    id: req.user.id,
+    overrideAccess: true,
+  })
+
+  if (!isBoardMember(authenticatedUser)) {
+    return Response.json({ message: 'Only board members can manage users.' }, { status: 403 })
+  }
+
+  return null
+}
+
+function getSelectedIDs(value: unknown) {
+  if (!Array.isArray(value)) return []
+
+  return [
+    ...new Set(
+      value.filter((id): id is number | string => typeof id === 'number' || typeof id === 'string'),
+    ),
+  ]
+}
+
+function isWhere(value: unknown): value is Where {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
 export const Users: CollectionConfig = {
   slug: 'users',
   access: {
@@ -96,6 +136,11 @@ export const Users: CollectionConfig = {
           path: '@/components/payload/MembersBeforeList',
         },
       ],
+      listMenuItems: [
+        {
+          path: '@/components/payload/MembersPasswordResetAction',
+        },
+      ],
     },
   },
   auth: {
@@ -109,26 +154,9 @@ export const Users: CollectionConfig = {
       path: '/bulk-upload',
       method: 'post',
       handler: async (req) => {
-        if (!req.user?.id) {
-          return Response.json(
-            { message: 'Your session has expired. Sign in again.' },
-            { status: 401 },
-          )
-        }
+        const authorizationError = await getBoardAuthorizationError(req)
 
-        const authenticatedUser = await req.payload.findByID({
-          collection: 'users',
-          depth: 0,
-          id: req.user.id,
-          overrideAccess: true,
-        })
-
-        if (!isBoardMember(authenticatedUser)) {
-          return Response.json(
-            { message: 'Only board members can bulk upload users.' },
-            { status: 403 },
-          )
-        }
+        if (authorizationError) return authorizationError
 
         if (typeof req.formData !== 'function') {
           return Response.json(
@@ -160,6 +188,71 @@ export const Users: CollectionConfig = {
           result.created.length > 0
             ? `Created ${result.created.length} user${result.created.length === 1 ? '' : 's'}.`
             : 'No users were created.'
+
+        return Response.json({ message, ...result }, { status })
+      },
+    },
+    {
+      path: '/send-password-reset',
+      method: 'post',
+      handler: async (req) => {
+        const authorizationError = await getBoardAuthorizationError(req)
+
+        if (authorizationError) return authorizationError
+
+        if (typeof req.json !== 'function') {
+          return Response.json(
+            { message: 'Password reset selection is unavailable.' },
+            { status: 400 },
+          )
+        }
+
+        let body: unknown
+
+        try {
+          body = await req.json()
+        } catch {
+          return Response.json({ message: 'Invalid password reset selection.' }, { status: 400 })
+        }
+
+        const selection = body as { all?: unknown; ids?: unknown }
+        const selectAll = selection?.all === true
+        const selectedIDs = getSelectedIDs(selection?.ids)
+
+        if (!selectAll && selectedIDs.length === 0) {
+          return Response.json({ message: 'Select at least one user.' }, { status: 400 })
+        }
+
+        const selectedWhere = isWhere(req.query?.where) ? req.query.where : undefined
+        const where: Where = selectAll
+          ? selectedWhere || { id: { not_equals: '' } }
+          : { id: { in: selectedIDs } }
+        const users = await req.payload.find({
+          collection: 'users',
+          depth: 0,
+          limit: 0,
+          overrideAccess: true,
+          pagination: false,
+          select: {
+            email: true,
+          },
+          where,
+        })
+
+        if (users.docs.length === 0) {
+          return Response.json({ message: 'No selected users were found.' }, { status: 400 })
+        }
+
+        const result = await sendPasswordResetEmails({
+          payload: req.payload,
+          req,
+          users: users.docs,
+        })
+        const status = result.sent.length === 0 && result.errors.length > 0 ? 500 : 200
+        const message =
+          result.sent.length > 0
+            ? `Sent ${result.sent.length} password reset email${result.sent.length === 1 ? '' : 's'}.`
+            : 'No password reset emails were sent.'
 
         return Response.json({ message, ...result }, { status })
       },

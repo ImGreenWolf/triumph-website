@@ -27,6 +27,7 @@ import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 }
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { FolderTableCell as FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { FolderField as FolderField_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
+import { default as default_99c39790b6f5920831b6d304b9d0e451 } from '@/components/payload/MembersPasswordResetAction'
 import { default as default_e7c7dcff9dbb592420ccb96a99798d18 } from '@/components/payload/MembersBeforeList'
 import { default as default_3b6ada8c06e88089f8171dd390cec0f5 } from '@/fields/location-selector'
 import { default as default_9211ed5d83bc075a4af2d632fffc50f6 } from '@/components/payload/MeetingCheckInField'
@@ -84,6 +85,7 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/next/rsc#FolderTableCell": FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/next/rsc#FolderField": FolderField_f9c02e79a4aed9a3924487c0cd4cafb1,
+  "@/components/payload/MembersPasswordResetAction#default": default_99c39790b6f5920831b6d304b9d0e451,
   "@/components/payload/MembersBeforeList#default": default_e7c7dcff9dbb592420ccb96a99798d18,
   "@/fields/location-selector#default": default_3b6ada8c06e88089f8171dd390cec0f5,
   "@/components/payload/MeetingCheckInField#default": default_9211ed5d83bc075a4af2d632fffc50f6,
