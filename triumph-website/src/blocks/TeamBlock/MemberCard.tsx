@@ -51,12 +51,12 @@ export default function Card(props: { member: any; small?: boolean; extraSmall?:
             
             <p
               className={cn(
-                'text-primary/60 font-thin text-shadow-xl',
+                'text-primary/60 font-thin text-shadow-xl not-md:mb-1',
                 extraSmall
-                  ? 'text-xs leading-3'
+                  ? 'text-[10px] md:text-xs md:leading-3'
                   : small
-                    ? 'text-sm leading-4'
-                    : 'text-lg leading-6'
+                    ? 'text-xs md:text-sm leading-2 md:leading-4'
+                    : 'text-md md:text-lg leading-4 md:leading-6'
               )}
             >
               {member.role}
@@ -68,8 +68,8 @@ export default function Card(props: { member: any; small?: boolean; extraSmall?:
                 extraSmall
                   ? 'text-xl leading-6'
                   : small
-                    ? 'text-2xl leading-7'
-                    : 'text-3xl sm:text-4xl leading-tighter'
+                    ? 'text-xl md:text-2xl leading-5 md:leading-7'
+                    : 'text-2xl md:text-3xl leading-5 md:leading-7'
               )}
             >
               {member.name}

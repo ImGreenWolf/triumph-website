@@ -136,7 +136,9 @@ interface MasonryProps {
   hoverScale?: number
   blurToFocus?: boolean
   colorShiftOnHover?: boolean
+  colorShift?: string
   columnProps?: number[]
+  displayCaption?: boolean
 }
 
 const Masonry: React.FC<MasonryProps> = ({
@@ -149,7 +151,9 @@ const Masonry: React.FC<MasonryProps> = ({
   hoverScale = 0.95,
   blurToFocus = true,
   colorShiftOnHover = false,
+  colorShift='black',
   columnProps,
+  displayCaption = false,
 }) => {
   const columns = useMedia(
     [
@@ -490,10 +494,12 @@ const Masonry: React.FC<MasonryProps> = ({
             />
 
             {colorShiftOnHover && (
-              <div className="color-overlay absolute inset-0 rounded-[10px] bg-gradient-to-tr from-pink-500/50 to-sky-500/50 opacity-0 pointer-events-none" />
+              <div className="color-overlay absolute inset-0 rounded-[10px]  opacity-0 pointer-events-none" 
+              style={{backgroundImage: `linear-gradient(0.1turn, ${colorShift}, transparent)`}}
+              />
             )}
 
-            {item.caption && (
+            {item.caption && displayCaption && (
               <p className="opacity-0 text-lg text-left bottom-0 p-4 pb-6 absolute w-full bg-black/20 backdrop-blur-xs font-bold">
                 {item.caption}
               </p>

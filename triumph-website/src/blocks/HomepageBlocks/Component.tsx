@@ -10,7 +10,7 @@ import { outlineFont } from '@/app/(frontend)/layout'
 import { GallerySlideshow } from '@/components/Gallery/component'
 import { getPayload } from 'payload'
 import payloadConfig from '@payload-config'
-import { ArrowUpRightIcon } from 'lucide-react'
+import { ArrowUpRightIcon, BanknoteIcon, CurrencyIcon, PersonStandingIcon, UserIcon } from 'lucide-react'
 
 const hasMediaObject = (media: unknown) => typeof media === 'object' && media !== null
 
@@ -89,6 +89,11 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
     collection: 'events',
     limit: 4,
     sort: '-createdAt',
+    joins: {
+      registrations: {
+        count: true
+      }
+    }
   })
   const events = req.docs
   const statsItems = stats || []
@@ -184,9 +189,19 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
                     )}
 
                     <div className="min-w-0 self-center">
-                      <h4 className="line-clamp-2 text-sm font-semibold leading-snug text-card-foreground">
+                      <h4 className="line-clamp-2 text-md font-semibold leading-snug text-card-foreground">
                         {event.name}
                       </h4>
+                      {(event.registrations ) && <p
+                          className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-primary/50 transition hover:text-primary"
+                        >
+                          <UserIcon className="size-3.5 shrink-0" aria-hidden="true" /> {event.registrations.totalDocs} participanți
+                        </p>}
+                        {(event.registrations && typeof event.donation == 'number') && <p
+                          className="my-0.5 flex items-center gap-1.5 text-xs font-semibold text-primary/50 transition hover:text-primary"
+                        >
+                          <BanknoteIcon className="size-3.5 shrink-0" aria-hidden="true" /> +{event.registrations.totalDocs!*(parseInt(event.donation))} RON strânşi
+                        </p>}
                       <a
                         href={eventHref}
                         className="mt-1.5 inline-flex min-h-7 items-center gap-1.5 text-xs font-semibold text-accent transition hover:text-primary"
@@ -194,6 +209,7 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
                         Mai multe
                         <ArrowUpRightIcon className="size-3.5 shrink-0" aria-hidden="true" />
                       </a>
+                      
                     </div>
                   </article>
                 )

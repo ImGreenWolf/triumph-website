@@ -386,9 +386,8 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
             <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {photos.map((photo, index) => (
                 <article
-                  className={`relative overflow-visible rounded-lg border bg-white/[0.04] transition ${
-                    photo.detailsOpen ? 'z-40' : 'z-0'
-                  } ${photo.selected ? 'border-[#00a2e0]' : 'border-white/10'}`}
+                  className={`relative overflow-hidden rounded-lg border bg-white/[0.04] transition 
+                  ${photo.selected ? 'border-[#00a2e0]' : 'border-white/10'}`}
                   key={photo.id}
                 >
                   <div className="relative aspect-square overflow-hidden rounded-t-[7px] bg-white/10">
@@ -482,7 +481,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
 
                   {photo.detailsOpen && (
                     <div
-                      className="absolute inset-x-0 top-[calc(100%-2.75rem)] z-40 mt-1 grid max-h-80 content-start gap-3 overflow-y-auto overscroll-contain rounded-lg border border-white/15 bg-[#0f172c]/95 p-3 shadow-2xl backdrop-blur-xl"
+                      className="absolute bottom-0 top-10 z-30 grid content-start gap-3 text-md overflow-y-auto overscroll-contain rounded-md border border-white/15 bg-sidebar/90 p-3 shadow-2xl backdrop-blur-xl"
                       id={`photo-details-${photo.id}`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -500,20 +499,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
                         </button>
                       </div>
 
-                      <div className="grid gap-1.5">
-                        <Label className="text-xs text-white/75" htmlFor={`caption-${photo.id}`}>
-                          Descriere
-                        </Label>
-                        <Textarea
-                          className="min-h-16 border-white/15 bg-white text-sm text-[#0f172c]"
-                          id={`caption-${photo.id}`}
-                          maxLength={500}
-                          onChange={(event) =>
-                            updatePhoto(photo.id, { caption: event.target.value })
-                          }
-                          value={photo.caption}
-                        />
-                      </div>
+                      
 
                       <div className="grid gap-1.5">
                         <Label className="text-xs text-white/75" htmlFor={`event-${photo.id}`}>
@@ -567,6 +553,20 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
                           </button>
                         </div>
                       </fieldset>
+                      <div className="grid gap-1.5">
+                        <Label className="text-xs text-white/75" htmlFor={`caption-${photo.id}`}>
+                          Descriere
+                        </Label>
+                        <Textarea
+                          className="min-h-16 border-white/15 bg-white text-sm text-[#0f172c]"
+                          id={`caption-${photo.id}`}
+                          maxLength={500}
+                          onChange={(event) =>
+                            updatePhoto(photo.id, { caption: event.target.value })
+                          }
+                          value={photo.caption}
+                        />
+                      </div>
                     </div>
                   )}
                 </article>

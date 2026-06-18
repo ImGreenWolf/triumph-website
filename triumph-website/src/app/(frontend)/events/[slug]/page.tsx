@@ -112,6 +112,9 @@ export default async function Event({ params: paramsPromise }: Args) {
         status: {
           equals: 'approved',
         },
+        visibility: {
+          equals: 'public'
+        }
       },
     }),
   ])
@@ -266,6 +269,7 @@ export default async function Event({ params: paramsPromise }: Args) {
                 defaultMode={photoBoardDefaultMode}
                 galleryItems={galleryItems}
                 inspoboardItems={inspoboardItems}
+                eventRef={event}
               />
             )}
           </div>

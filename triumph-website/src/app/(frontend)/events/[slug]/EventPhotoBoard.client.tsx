@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 
 import Masonry from '@/blocks/Masonry/MasonyComponent'
+import { Event } from '@/payload-types'
 
 export type EventPhotoBoardImage = {
   caption?: string
@@ -24,8 +25,9 @@ export default function EventPhotoBoard(props: {
   defaultMode: EventPhotoBoardMode
   galleryItems: EventPhotoBoardImage[]
   inspoboardItems: EventPhotoBoardImage[]
+  eventRef: Event
 }) {
-  const { defaultMode, galleryItems, inspoboardItems } = props
+  const { defaultMode, galleryItems, inspoboardItems, eventRef } = props
   const [mode, setMode] = useState<EventPhotoBoardMode>(defaultMode)
   const hasGallery = galleryItems.length > 0
   const hasInspoboard = inspoboardItems.length > 0
@@ -61,7 +63,7 @@ export default function EventPhotoBoard(props: {
             <span
               aria-hidden
               className={`absolute bottom-0.5 left-0.5 top-0.5 w-[calc(50%-0.125rem)] rounded-full bg-foreground shadow-sm transition-transform duration-200 ease-out ${
-                activeMode === 'gallery' ? 'translate-x-[calc(100%+0.125rem)]' : 'translate-x-0'
+                activeMode === 'gallery' ? 'translate-x-[calc(100%)]' : 'translate-x-0'
               }`}
             />
             {availableModes.map((option) => (
@@ -85,7 +87,7 @@ export default function EventPhotoBoard(props: {
       </div>
 
       <div className="overflow-hidden rounded-2xl">
-        <Masonry columnProps={[4, 4, 3, 2]} items={activeItems} animateFrom='top'/>
+        <Masonry columnProps={[4, 4, 3, 2]} items={activeItems} duration={0} colorShiftOnHover={eventRef.useColors!} colorShift={eventRef.secondaryColor!}/>
       </div>
     </section>
   )

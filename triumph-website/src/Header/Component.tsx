@@ -40,7 +40,7 @@ async function fetchLinks(
   const customLinks = collection?.config.custom?.links as
     | { value: string; label: string; ariaLabel?: string }[]
     | undefined
-
+  
   if (!customLinks) return fallbackLinks
 
   return customLinks.map((link) => ({
@@ -63,8 +63,11 @@ function getSubItemLinks(subItems: HeaderNavCategory['reference']): CardNavItem[
 function getHref(link: HeaderLink, sectionId?: string | null) {
   const suffix = sectionId ? `#${sectionId}` : ''
 
-  if (link.type === 'custom') return `${link.url || ''}${suffix}`
-
+  if (link.type === 'custom') 
+    if(link.url)
+    return `${!['.','/'].includes(link.url[0]) ? '/' : ''}${link.url || ''}${suffix}`
+  else 
+    return '/'
   if (!link.reference) return ''
 
   if (typeof link.reference.value === 'string') return `${link.reference.value}${suffix}`
@@ -75,6 +78,6 @@ function getHref(link: HeaderLink, sectionId?: string | null) {
     case 'posts':
       return `/posts/${(link.reference.value as Post).slug}${suffix}`
     default:
-      return ''
+      return '/'
   }
 }

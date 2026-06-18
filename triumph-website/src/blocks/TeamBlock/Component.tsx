@@ -51,7 +51,7 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
                     mx-auto grid justify-items-center gap-4
                     perspective-midrange
 
-                    grid-cols-1
+                    not-sm:grid-cols-2!
 
                    
                   `}
