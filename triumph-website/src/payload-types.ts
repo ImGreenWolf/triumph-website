@@ -890,7 +890,10 @@ export interface EventRegistration {
   name: string;
   phone: string;
   questions?: string | null;
-  status?: ('registered' | 'cancelled') | null;
+  donation?: number | null;
+  guests?: number | null;
+  timeOfAriival?: string | null;
+  status?: ('registered' | 'present' | 'absent' | 'cancelled') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2803,6 +2806,9 @@ export interface EventRegistrationsSelect<T extends boolean = true> {
   name?: T;
   phone?: T;
   questions?: T;
+  donation?: T;
+  guests?: T;
+  timeOfAriival?: T;
   status?: T;
   updatedAt?: T;
   createdAt?: T;

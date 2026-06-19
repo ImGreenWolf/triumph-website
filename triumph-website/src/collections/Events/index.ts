@@ -486,16 +486,42 @@ export const EventRegistrations: CollectionConfig = {
       type: 'textarea',
     },
     {
+      type: 'group',
+      fields: [
+        {
+          name: 'donation',
+          type: 'number',
+        },
+        {
+          name: 'guests',
+          type: 'number',
+          defaultValue: 0
+        },
+        {
+          name: 'timeOfAriival',
+          type: 'date',
+        }
+      ]
+    },
+    {
       name: 'status',
       type: 'select',
       defaultValue: 'registered',
       options: [
         {
-          label: 'Registered',
+          label: 'Registrat',
           value: 'registered',
         },
         {
-          label: 'Cancelled',
+          label: 'Present',
+          value: 'present',
+        },
+        {
+          label: 'Absent',
+          value: 'absent',
+        },
+        {
+          label: 'Anulat',
           value: 'cancelled',
         },
       ],
@@ -518,7 +544,7 @@ export const EventRegistrations: CollectionConfig = {
           depth: 0,
         })
 
-        if (event.private) {
+        if (event.private && !req.context.eventRegistrationImport) {
           throw new APIError('Înscrierile pentru acest eveniment sunt private.', 403)
         }
 
@@ -529,6 +555,7 @@ export const EventRegistrations: CollectionConfig = {
         }
 
         if (
+          !req.context.eventRegistrationImport &&
           !isEventSlotRegistrationOpen({
             endTime: slot.endTime,
             eventDate: day.eventDate,

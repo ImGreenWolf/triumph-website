@@ -6,6 +6,7 @@ import payloadConfig from '@payload-config'
 import {
   ArrowRight,
   CalendarDays,
+  ClipboardCheck,
   CheckCircle2,
   Clock3,
   CreditCard,
@@ -90,6 +91,18 @@ export default async function DashboardPage() {
     slug: 'members-dashboard',
   })) as MembersDashboard
 
+  const managedEvents = await payload.find({
+    collection: 'events',
+    depth: 0,
+    limit: 1,
+    overrideAccess: true,
+    where: {
+      coordonators: {
+        contains: member.id,
+      },
+    },
+  })
+
   return (
     <div className="halftone-background min-h-screen bg-background text-foreground">
       <PageClient />
@@ -125,7 +138,7 @@ export default async function DashboardPage() {
           />
         )}
 
-        <MemberSummary member={member} />
+        <MemberSummary hasManagedEvents={managedEvents.totalDocs > 0} member={member} />
 
         <div className="grid gap-6">
           <div className="grid gap-6 lg:auto-rows-fr lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_420px]">
@@ -166,8 +179,8 @@ function Announcement(props: { title?: string | null; message?: string | null })
   )
 }
 
-function MemberSummary(props: { member: User }) {
-  const { member } = props
+function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
+  const { hasManagedEvents, member } = props
 
   return (
     <section>
@@ -185,6 +198,16 @@ function MemberSummary(props: { member: User }) {
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {hasManagedEvents && (
+            <Link
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-3 text-sm font-semibold text-white transition hover:bg-[#008fc6]"
+              href="/members/pm"
+            >
+              <ClipboardCheck className="size-4" />
+              Panou PM
+            </Link>
+          )}
+
           <Link
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-background hover:text-foreground"
             href="/members/profile"
