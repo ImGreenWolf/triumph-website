@@ -90,7 +90,7 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                 {/* Two Column Content */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                   <div className="group/card">
-                    <div className="relative h-full p-6 bg-white backdrop-blur-lg rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
+                    <div className="relative h-full p-6 bg-white  backdrop-blur-lg rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
                       <div className="mb-4">
                         <div className="h-12 mb-3">
                           <img 

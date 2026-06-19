@@ -1,0 +1,17 @@
+.member-cell-metrics {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 10rem 6rem;
+  white-space: nowrap;
+
+  &__label,
+  &__value {
+    display: block;
+    padding-inline: 1rem;
+    white-space: nowrap;
+  }
+
+  &__label {
+    font-weight: 600;
+  }
+}

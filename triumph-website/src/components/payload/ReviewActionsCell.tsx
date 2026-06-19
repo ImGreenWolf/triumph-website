@@ -232,7 +232,7 @@ export default function ReviewActionsCell({ config, rowData }: ReviewActionsCell
                 title="Închide"
                 type="button"
               >
-                <X aria-hidden="true" />
+                <X aria-hidden="true" /> 
               </button>
             </div>
 
@@ -251,16 +251,7 @@ export default function ReviewActionsCell({ config, rowData }: ReviewActionsCell
             {error && <p className="absence-motivation-actions__error">{error}</p>}
 
             <div className="absence-motivation-actions__modalFooter">
-              <button
-                aria-label="Închide"
-                className="absence-motivation-actions__close"
-                disabled={isSubmitting}
-                onClick={closeModal}
-                title="Închide"
-                type="button"
-              >
-                <X aria-hidden="true" />
-              </button>
+              Respinge
               <button
                 aria-label={config.labels.rejectAction}
                 className="absence-motivation-actions__submit absence-motivation-actions__submit--rejected"

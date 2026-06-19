@@ -104,6 +104,13 @@ export const GalleryPhotos: CollectionConfig = {
       type: 'upload',
       relationTo: 'media',
       required: true,
+      admin: {
+        components: {
+          Cell: {
+            path: '@/components/payload/GalleryPhotoPreviewCell',
+          },
+        },
+      },
     },
     {
       name: 'caption',

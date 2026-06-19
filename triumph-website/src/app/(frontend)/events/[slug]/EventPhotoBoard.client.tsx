@@ -87,7 +87,7 @@ export default function EventPhotoBoard(props: {
       </div>
 
       <div className="overflow-hidden rounded-2xl">
-        <Masonry columnProps={[4, 4, 3, 2]} items={activeItems} duration={0} colorShiftOnHover={eventRef.useColors!} colorShift={eventRef.secondaryColor!}/>
+        <Masonry columnProps={[4, 4, 3, 2, 1]} items={activeItems} duration={0} colorShiftOnHover={eventRef.useColors!} colorShift={eventRef.secondaryColor!}/>
       </div>
     </section>
   )

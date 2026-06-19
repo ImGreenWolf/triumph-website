@@ -28,7 +28,12 @@ import {
 } from '@payloadcms/plugin-seo/fields'
 import { APIError, getPayload, slugField } from 'payload'
 import { locationField } from '@/fields/location-selector/field'
-import { findEventSlot, formatEventDayLabel, formatEventSlotLabel, isEventSlotRegistrationOpen } from '@/utilities/eventRegistration'
+import {
+  findEventSlot,
+  formatEventDayLabel,
+  formatEventSlotLabel,
+  isEventSlotRegistrationOpen,
+} from '@/utilities/eventRegistration'
 import payloadConfig from '@payload-config'
 
 class MySpecialError extends APIError {
@@ -37,8 +42,7 @@ class MySpecialError extends APIError {
   }
 }
 
-
-export const Events: CollectionConfig<'posts'> = {
+export const Events: CollectionConfig<'events'> = {
   slug: 'events',
   access: {
     create: authenticated,
@@ -48,11 +52,10 @@ export const Events: CollectionConfig<'posts'> = {
   },
   // This config controls what's populated by default when a post is referenced
   // https://payloadcms.com/docs/queries/select#defaultpopulate-collection-config-property
-  // Type safe if the collection slug generic is passed to `CollectionConfig` - `CollectionConfig<'posts'>
+  // Type safe if the collection slug generic is passed to `CollectionConfig` - `CollectionConfig<'events'>`
   defaultPopulate: {
-    title: true,
+    name: true,
     slug: true,
-    categories: true,
     meta: {
       image: true,
       description: true,
@@ -60,11 +63,10 @@ export const Events: CollectionConfig<'posts'> = {
   },
   custom: {
     // links: [{value: '/picatsso', label: 'Picatsso'}]
-     
   },
   admin: {
     defaultColumns: ['name', 'registrations', 'updatedAt'],
-    group: "Projects",
+    group: 'Projects',
     livePreview: {
       url: ({ data, req }) =>
         generatePreviewPath({
@@ -96,7 +98,6 @@ export const Events: CollectionConfig<'posts'> = {
               name: 'heroImage',
               type: 'upload',
               relationTo: 'media',
-              
             },
             {
               name: 'content',
@@ -124,13 +125,13 @@ export const Events: CollectionConfig<'posts'> = {
                   type: 'checkbox',
                   admin: {
                     position: 'sidebar',
-                  }
+                  },
                 },
                 {
                   type: 'collapsible',
                   label: 'Colors',
                   admin: {
-                    condition: (data, siblingData) => siblingData.useColors
+                    condition: (data, siblingData) => siblingData.useColors,
                   },
                   fields: [
                     {
@@ -138,143 +139,131 @@ export const Events: CollectionConfig<'posts'> = {
                       fields: [
                         colorField({
                           name: 'primaryColor',
-                        
-                          required: false
+
+                          required: false,
                         }),
                         colorField({
                           name: 'secondaryColor',
-                        
-                          required: false
+
+                          required: false,
                         }),
-                      ]
-                    }
-                    
-                  ]
+                      ],
+                    },
+                  ],
                 },
                 {
                   name: 'inspoboard',
                   type: 'upload',
                   relationTo: 'media',
-                  hasMany: true, 
-                  
+                  hasMany: true,
                 },
-                
-                locationField({label: 'Location of Event'}),
-                
-              ]
-            },
-            
-            {
-      type:'collapsible',
-      label: 'Cause Details',
-      fields: [
-        {
-          type: 'relationship',
-          name: 'cause',
-          relationTo: 'causes',
-          admin: {
-            appearance: 'drawer',
-          },
-        },
-        {
-          type: 'text',
-          name: 'donation'
-        }
-      ]
-    },
-    
-    {
-      name: 'days',
-      type: 'array',
-      admin: {
 
-      },
-      fields: [
-        {
-          name: 'eventDate',
-          type: 'date',
-          admin: {
-            date: {
-              pickerAppearance: 'dayOnly',
-            },
-            
-          },
-        },
-        {
-          name: 'slots',
-          type: 'array',
-          fields: [
-            {
-              type: 'row',
-              fields: [
-                
-                    {
-                      name: 'startTime',
-                      type: 'date',
-                      admin: {
-                        date: {
-                          pickerAppearance: 'timeOnly',
-                          overrides: {
-                            timeIntervals: 15,
-                          },
-                        },
-                        components: {
-                          Field: '@/fields/StartTimeField',
-                        },
-                      },
-                    },
-                    {
-                      name: 'endTime',
-                      type: 'date',
-                      admin: {
-                        date: {
-                          pickerAppearance: 'timeOnly',
-                          overrides: {
-                            timeIntervals: 15,
-                          },
-                        },
-                        components: {
-                          Field: '@/fields/EndTimeField',
-                        },
-                      },
-                    },
-                    {
-                      type: 'row',
-                      admin: {
-                        width: '50%'
-                      },
-                      fields: [
-                        {
-                          name: 'capacity',
-                          type: 'number',
-                          admin: {
-                            width: '50%'
-                          },
-                          
-                        },
-                        {
-                          type: 'ui',
-                          name: 'slotRegistrations',
-                          admin: {
-                            components: {
-                              Field: {
-                                path: '@/components/payload/EventSlotRegistrationsField',
-                              },
-                            },
-                          },
-                        }
-                      ]
-                    }
-                    
-                
+                locationField({ label: 'Location of Event' }),
               ],
             },
-             
-          ]
-        },
-       
-      ]
-    },
+
+            {
+              type: 'collapsible',
+              label: 'Cause Details',
+              fields: [
+                {
+                  type: 'relationship',
+                  name: 'cause',
+                  relationTo: 'causes',
+                  admin: {
+                    appearance: 'drawer',
+                  },
+                },
+                {
+                  type: 'text',
+                  name: 'donation',
+                },
+              ],
+            },
+
+            {
+              name: 'days',
+              type: 'array',
+              admin: {},
+              fields: [
+                {
+                  name: 'eventDate',
+                  type: 'date',
+                  admin: {
+                    date: {
+                      pickerAppearance: 'dayOnly',
+                    },
+                  },
+                },
+                {
+                  name: 'slots',
+                  type: 'array',
+                  fields: [
+                    {
+                      type: 'row',
+                      fields: [
+                        {
+                          name: 'startTime',
+                          type: 'date',
+                          admin: {
+                            date: {
+                              pickerAppearance: 'timeOnly',
+                              overrides: {
+                                timeIntervals: 15,
+                              },
+                            },
+                            components: {
+                              Field: '@/fields/StartTimeField',
+                            },
+                          },
+                        },
+                        {
+                          name: 'endTime',
+                          type: 'date',
+                          admin: {
+                            date: {
+                              pickerAppearance: 'timeOnly',
+                              overrides: {
+                                timeIntervals: 15,
+                              },
+                            },
+                            components: {
+                              Field: '@/fields/EndTimeField',
+                            },
+                          },
+                        },
+                        {
+                          type: 'row',
+                          admin: {
+                            width: '50%',
+                          },
+                          fields: [
+                            {
+                              name: 'capacity',
+                              type: 'number',
+                              admin: {
+                                width: '50%',
+                              },
+                            },
+                            {
+                              type: 'ui',
+                              name: 'slotRegistrations',
+                              admin: {
+                                components: {
+                                  Field: {
+                                    path: '@/components/payload/EventSlotRegistrationsField',
+                                  },
+                                },
+                              },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
           ],
           label: 'Content',
         },
@@ -289,9 +278,13 @@ export const Events: CollectionConfig<'posts'> = {
             }),
             MetaImageField({
               relationTo: 'media',
-              overrides: {label: 'Event Image', admin: {description: 'This image is displayed on event cards and on search results.'}}
+              overrides: {
+                label: 'Event Image',
+                admin: {
+                  description: 'This image is displayed on event cards and on search results.',
+                },
+              },
             }),
-            
 
             MetaDescriptionField({}),
             PreviewField({
@@ -306,7 +299,7 @@ export const Events: CollectionConfig<'posts'> = {
         },
       ],
     },
-    
+
     {
       name: 'coordonators',
       type: 'relationship',
@@ -333,19 +326,19 @@ export const Events: CollectionConfig<'posts'> = {
       admin: {
         position: 'sidebar',
       },
-      
+
       hooks: {
         afterRead: [
-          
-            ({siblingData,}) => {
-              if(!siblingData.days )
-                return 0;
-              
-              return (siblingData.days as Array<{slots: {capacity: number}[]}>).reduce((p, v) => p+=v.slots ? v.slots.reduce((p, v) => p+=v.capacity, 0): 0, 0)
-            }
-          
-        ]
-      }
+          ({ siblingData }) => {
+            if (!siblingData.days) return 0
+
+            return (siblingData.days as Array<{ slots: { capacity: number }[] }>).reduce(
+              (p, v) => (p += v.slots ? v.slots.reduce((p, v) => (p += v.capacity), 0) : 0),
+              0,
+            )
+          },
+        ],
+      },
     },
     // This field is only used to populate the user data via the `populateAuthors` hook
     // This is because the `user` collection has access control locked to protect user privacy
@@ -371,38 +364,37 @@ export const Events: CollectionConfig<'posts'> = {
         },
       ],
     },
-    
+
     {
       name: 'registrations',
       type: 'join',
-       collection: 'event-registrations',
-       on: 'event',
-       defaultLimit: 5,
-       admin: {
+      collection: 'event-registrations',
+      on: 'event',
+      defaultLimit: 5,
+      admin: {
         allowCreate: false,
-       components: {
+        components: {
           Cell: {
             path: '@/components/payload/EventRegistrationsCell',
           },
-          beforeInput: [{
-             path: '@/components/payload/EventRegistrationsBeforeInput',
-          }]
+          beforeInput: [
+            {
+              path: '@/components/payload/EventRegistrationsBeforeInput',
+            },
+          ],
         },
         position: 'sidebar',
         defaultColumns: ['email', 'day', 'slot'],
         disableListColumn: false,
         disableRowTypes: true,
-        
-       }
+      },
     },
-    slugField({useAsSlug: 'name'}),
+    slugField({ useAsSlug: 'name' }),
     {
       type: 'ui',
       name: 'display',
-      admin: {
-        
-      }
-    }
+      admin: {},
+    },
   ],
   hooks: {
     afterChange: [revalidatePost],
@@ -420,23 +412,20 @@ export const Events: CollectionConfig<'posts'> = {
   },
 }
 
-
-
-
 export const EventRegistrations: CollectionConfig = {
   slug: 'event-registrations',
 
   admin: {
     useAsTitle: 'email',
     defaultColumns: ['email', 'day', 'slot', 'status', 'updatedAt'],
-    group: "Projects"
+    group: 'Projects',
   },
 
   access: {
     create: () => true, // allow public signup
     read: authenticated,
     delete: authenticated,
-    update: () => false
+    update: () => false,
   },
 
   fields: [
@@ -481,7 +470,7 @@ export const EventRegistrations: CollectionConfig = {
       type: 'email',
       required: true,
     },
-    
+
     {
       name: 'name',
       type: 'text',
@@ -511,115 +500,117 @@ export const EventRegistrations: CollectionConfig = {
         },
       ],
     },
-    
   ],
   hooks: {
-  beforeValidate: [
-    async ({ data, req, operation }) => {
-      if (operation !== 'create') return data
+    beforeValidate: [
+      async ({ data, req, operation }) => {
+        if (operation !== 'create') return data
 
-      if (!data?.event || !data?.day || !data?.slot) {
-        throw new APIError('Selectează o zi și un interval.', 400)
-      }
+        if (!data?.event || !data?.day || !data?.slot) {
+          throw new APIError('Selectează o zi și un interval.', 400)
+        }
 
-      const eventId = typeof data.event === 'string' ? data.event : data.event.id
+        const eventId = typeof data.event === 'string' ? data.event : data.event.id
 
-      const event = await req.payload.findByID({
-        collection: 'events',
-        id: eventId,
-        depth: 0,
-      })
-
-      if (event.private) {
-        throw new APIError('Înscrierile pentru acest eveniment sunt private.', 403)
-      }
-
-      const { day, slot } = findEventSlot(event, data.day, data.slot)
-
-      if (!day?.id || !day.eventDate || !slot?.id) {
-        throw new APIError('Slotul selectat nu mai este disponibil.', 400)
-      }
-
-      if (
-        !isEventSlotRegistrationOpen({
-          endTime: slot.endTime,
-          eventDate: day.eventDate,
-          startTime: slot.startTime,
+        const event = await req.payload.findByID({
+          collection: 'events',
+          id: eventId,
+          depth: 0,
         })
-      ) {
-        throw new APIError(
-          `Înscrierile pentru ${formatEventDayLabel(day.eventDate)}, ${formatEventSlotLabel(slot.startTime, slot.endTime)} s-au închis.`,
-          409,
-        )
-      }
 
-      const existing = await req.payload.find({
-        collection: 'event-registrations',
-        limit: 1,
-        where: {
-          and: [
-            {
-              email: {
-                equals: data.email,
-              },
-            },
-            {
-              event: {
-                equals: eventId,
-              },
-            },
-            {
-              status: {
-                not_equals: 'cancelled',
-              },
-            },
-          ],
-        },
-      })
+        if (event.private) {
+          throw new APIError('Înscrierile pentru acest eveniment sunt private.', 403)
+        }
 
-      if (existing.docs.length > 0) {
-        throw new APIError('Te-ai înscris deja la acest eveniment cu această adresă de email.', 409)
-      }
+        const { day, slot } = findEventSlot(event, data.day, data.slot)
 
-      const existingForSlot = await req.payload.find({
-        collection: 'event-registrations',
-        limit: 0,
-        pagination: false,
-        where: {
-          and: [
-            {
-              event: {
-                equals: eventId,
-              },
-            },
-            {
-              day: {
-                equals: day.id,
-              },
-            },
-            {
-              slot: {
-                equals: slot.id,
-              },
-            },
-            {
-              status: {
-                not_equals: 'cancelled',
-              },
-            },
-          ],
-        },
-      })
+        if (!day?.id || !day.eventDate || !slot?.id) {
+          throw new APIError('Slotul selectat nu mai este disponibil.', 400)
+        }
 
-      if (existingForSlot.docs.length >= (slot.capacity ?? 0)) {
-        throw new APIError(
-          `${formatEventDayLabel(day.eventDate)}, ${formatEventSlotLabel(slot.startTime, slot.endTime)} este complet.`,
-          409,
-        )
-      }
+        if (
+          !isEventSlotRegistrationOpen({
+            endTime: slot.endTime,
+            eventDate: day.eventDate,
+            startTime: slot.startTime,
+          })
+        ) {
+          throw new APIError(
+            `Înscrierile pentru ${formatEventDayLabel(day.eventDate)}, ${formatEventSlotLabel(slot.startTime, slot.endTime)} s-au închis.`,
+            409,
+          )
+        }
 
-      return data
-    },
-  ],
-},
+        const existing = await req.payload.find({
+          collection: 'event-registrations',
+          limit: 1,
+          where: {
+            and: [
+              {
+                email: {
+                  equals: data.email,
+                },
+              },
+              {
+                event: {
+                  equals: eventId,
+                },
+              },
+              {
+                status: {
+                  not_equals: 'cancelled',
+                },
+              },
+            ],
+          },
+        })
+
+        if (existing.docs.length > 0) {
+          throw new APIError(
+            'Te-ai înscris deja la acest eveniment cu această adresă de email.',
+            409,
+          )
+        }
+
+        const existingForSlot = await req.payload.find({
+          collection: 'event-registrations',
+          limit: 0,
+          pagination: false,
+          where: {
+            and: [
+              {
+                event: {
+                  equals: eventId,
+                },
+              },
+              {
+                day: {
+                  equals: day.id,
+                },
+              },
+              {
+                slot: {
+                  equals: slot.id,
+                },
+              },
+              {
+                status: {
+                  not_equals: 'cancelled',
+                },
+              },
+            ],
+          },
+        })
+
+        if (existingForSlot.docs.length >= (slot.capacity ?? 0)) {
+          throw new APIError(
+            `${formatEventDayLabel(day.eventDate)}, ${formatEventSlotLabel(slot.startTime, slot.endTime)} este complet.`,
+            409,
+          )
+        }
+
+        return data
+      },
+    ],
+  },
 }

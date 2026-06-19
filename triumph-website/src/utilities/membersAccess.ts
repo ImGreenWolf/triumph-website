@@ -9,6 +9,7 @@ export const boardRoles = [
   'pr-director',
   'hr-director',
   'tresoursier',
+  'past-president'
 ] as const
 
 export const allRoles = ['aspirer', 'active', ...boardRoles] as const

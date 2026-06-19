@@ -63,9 +63,9 @@ const statusCards: Attendance['status'][] = ['present', 'late', 'motivated', 'ab
 
 const labelByStatus: Record<Attendance['status'], string> = {
   absent: 'Absent',
-  late: 'Late',
-  motivated: 'Motivated',
-  present: 'Present',
+  late: 'Întârziat',
+  motivated: 'Motivat',
+  present: 'Prezent',
 }
 
 const accentByStatus: Record<Attendance['status'], string> = {
@@ -76,8 +76,8 @@ const accentByStatus: Record<Attendance['status'], string> = {
 }
 
 const tabOptions: { key: TabKey; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'graphs', label: 'Graphs' },
+  { key: 'overview', label: 'Prezentare generală' },
+  { key: 'graphs', label: 'Grafice' },
 ]
 
 const createEmptySummary = (): SummaryStats => ({
@@ -113,13 +113,13 @@ const formatShare = (value: number, total: number) => {
 }
 
 const formatMeetingDate = (meetingDate: string | null) => {
-  if (!meetingDate) return 'Unknown meeting date'
+  if (!meetingDate) return 'Data întâlnirii este necunoscută'
 
   const parsed = new Date(meetingDate)
 
-  if (Number.isNaN(parsed.getTime())) return 'Unknown meeting date'
+  if (Number.isNaN(parsed.getTime())) return 'Data întâlnirii este necunoscută'
 
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat('ro-RO', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -157,7 +157,7 @@ const getRotaryYearStart = (date: Date) => {
   return month >= 6 ? year : year - 1
 }
 
-const formatRotaryYearLabel = (startYear: number) => `RY ${startYear}-${startYear + 1}`
+const formatRotaryYearLabel = (startYear: number) => `Anul Rotary ${startYear}-${startYear + 1}`
 
 const getMeetingRotaryYear = (record: AttendanceWithRelations) => {
   if (!isMeeting(record.meeting)) return null
@@ -371,7 +371,7 @@ export default function AttendanceBeforeList() {
         motivated: record.status === 'motivated' ? 1 : 0,
         name: isMember(record.member)
           ? record.member.name || record.member.email
-          : `Member ${memberId}`,
+          : `Membru ${memberId}`,
         present: record.status === 'present' ? 1 : 0,
         total: 1,
       })
@@ -384,9 +384,7 @@ export default function AttendanceBeforeList() {
   }, [filteredDocs])
 
   const sortedMeetings = useMemo(() => {
-    const selectedDateKey = selectedMeetingDate
-      ? getLocalDateKey(selectedMeetingDate)
-      : null
+    const selectedDateKey = selectedMeetingDate ? getLocalDateKey(selectedMeetingDate) : null
 
     const filtered = meetingRows.filter((meeting) => {
       if (!selectedDateKey) return true
@@ -405,7 +403,9 @@ export default function AttendanceBeforeList() {
           return right.total - left.total
         case 'latest':
         default:
-          return new Date(right.meetingDate || 0).getTime() - new Date(left.meetingDate || 0).getTime()
+          return (
+            new Date(right.meetingDate || 0).getTime() - new Date(left.meetingDate || 0).getTime()
+          )
       }
     })
   }, [meetingRows, meetingSort, selectedMeetingDate, selectedMeetingId])
@@ -465,22 +465,28 @@ export default function AttendanceBeforeList() {
     }
   }, [meetingDateMap, selectedMeetingDate, selectedMeetingId])
 
-  const paginatedMeetings = useMemo(() => paginate(sortedMeetings, meetingPage, 6), [sortedMeetings, meetingPage])
-  const paginatedMembers = useMemo(() => paginate(sortedMembers, memberPage, 6), [sortedMembers, memberPage])
+  const paginatedMeetings = useMemo(
+    () => paginate(sortedMeetings, meetingPage, 6),
+    [sortedMeetings, meetingPage],
+  )
+  const paginatedMembers = useMemo(
+    () => paginate(sortedMembers, memberPage, 6),
+    [sortedMembers, memberPage],
+  )
 
   const compactCards: CompactCard[] = [
     {
-      helper: 'Entries in selected range',
-      label: 'Records',
+      helper: 'Înregistrări în intervalul selectat',
+      label: 'Înregistrări',
       value: String(yearStats.total),
     },
     {
-      helper: 'Present + late',
-      label: 'Attendance',
+      helper: 'Prezent + întârziat',
+      label: 'Prezență',
       value: formatPercent(yearStats.attendanceRate),
     },
     ...statusCards.map((status) => ({
-      helper: `${formatShare(yearStats[status], yearStats.total)} of entries`,
+      helper: `${formatShare(yearStats[status], yearStats.total)} din înregistrări`,
       label: labelByStatus[status],
       value: String(yearStats[status]),
       tone: accentByStatus[status],
@@ -488,7 +494,7 @@ export default function AttendanceBeforeList() {
   ]
 
   const selectedYearLabel =
-    selectedRotaryYear === 'all' ? 'All Rotary years' : formatRotaryYearLabel(selectedRotaryYear)
+    selectedRotaryYear === 'all' ? 'Toți anii Rotary' : formatRotaryYearLabel(selectedRotaryYear)
   const selectedDateMeetings = selectedMeetingDate
     ? meetingDateMap.get(getLocalDateKey(selectedMeetingDate)) || []
     : []
@@ -496,7 +502,8 @@ export default function AttendanceBeforeList() {
   const averageMemberAttendance = memberRows.length
     ? memberRows.reduce((sum, member) => sum + member.attendanceRate, 0) / memberRows.length
     : 0
-  const selectedGraphMember = sortedMembers.find((member) => member.id === selectedGraphMemberId) || null
+  const selectedGraphMember =
+    sortedMembers.find((member) => member.id === selectedGraphMemberId) || null
 
   const rotaryYearTrend = useMemo<LineChartPoint[]>(() => {
     const meetings = [...meetingRows].sort(
@@ -509,7 +516,7 @@ export default function AttendanceBeforeList() {
       cumulativeAttendance += meeting.attendanceRate
 
       return {
-        detail: `${formatPercent(meeting.attendanceRate)} meeting attendance`,
+        detail: `${formatPercent(meeting.attendanceRate)} prezență la întâlnire`,
         label: meeting.label,
         value: cumulativeAttendance / (index + 1),
       }
@@ -567,18 +574,23 @@ export default function AttendanceBeforeList() {
   return (
     <div className="attendance-before-list">
       <div style={{ marginBottom: '0.75rem' }}>
-        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Attendance overview</h3>
+        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Prezentare generală a prezenței</h3>
         <p style={{ margin: '0.35rem 0 0', color: 'var(--theme-text-dim)' }}>
-          Rotary-year-first attendance analytics with searchable details and trend graphs.
+          Analiza prezenței pe ani Rotary, cu detalii care pot fi căutate și grafice de evoluție.
         </p>
       </div>
 
       {isLoading ? (
-        <p style={{ margin: 0 }}>Loading attendance stats…</p>
+        <p style={{ margin: 0 }}>Se încarcă statisticile de prezență…</p>
       ) : isError ? (
-        <p style={{ margin: 0, color: 'var(--theme-error-500)' }}>Could not load attendance stats.</p>
+        <p style={{ margin: 0, color: 'var(--theme-error-500)' }}>
+          Statisticile de prezență nu au putut fi încărcate.
+        </p>
       ) : yearStats.total === 0 ? (
-        <p style={{ margin: 0 }}>No attendance records yet. Add entries to start tracking club trends.</p>
+        <p style={{ margin: 0 }}>
+          Nu există încă înregistrări de prezență. Adăugați înregistrări pentru a urmări evoluția
+          clubului.
+        </p>
       ) : (
         <>
           <div className="attendance-before-list__tabs">
@@ -598,8 +610,11 @@ export default function AttendanceBeforeList() {
 
           <div className="attendance-before-list__toolbar">
             <div>
-              <label htmlFor="rotary-year-select" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}>
-                Rotary year
+              <label
+                htmlFor="rotary-year-select"
+                style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}
+              >
+                An Rotary
               </label>
               <select
                 id="rotary-year-select"
@@ -612,7 +627,7 @@ export default function AttendanceBeforeList() {
                   setMemberPage(1)
                 }}
               >
-                <option value="all">All years</option>
+                <option value="all">Toți anii</option>
                 {rotaryYears.map((year) => (
                   <option key={year} value={year}>
                     {formatRotaryYearLabel(year)}
@@ -629,7 +644,7 @@ export default function AttendanceBeforeList() {
                 minHeight: '100%',
               }}
             >
-              {selectedYearLabel} · Rotary years run from 1 July to 30 June
+              {selectedYearLabel} · Anii Rotary sunt cuprinși între 1 iulie și 30 iunie
             </div>
           </div>
 
@@ -642,27 +657,35 @@ export default function AttendanceBeforeList() {
                     className="attendance-before-list__card"
                     style={card.tone ? { borderLeft: `4px solid ${card.tone}` } : undefined}
                   >
-                    <div style={{ fontSize: '0.78rem', color: 'var(--theme-text-dim)', marginBottom: '0.2rem' }}>
+                    <div
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--theme-text-dim)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
                       {card.label}
                     </div>
                     <div style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.15rem' }}>
                       {card.value}
                     </div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--theme-text-dim)' }}>{card.helper}</div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--theme-text-dim)' }}>
+                      {card.helper}
+                    </div>
                   </div>
                 ))}
               </div>
 
-              <DropdownPanel
+              {/* <DropdownPanel
                 isOpen={openPanels.meetings}
-                title="Meeting attendance"
-                subtitle={`${sortedMeetings.length} meetings found`}
+                title="Prezența la întâlniri"
+                subtitle={`${sortedMeetings.length} întâlniri găsite`}
                 onToggle={() => togglePanel('meetings')}
               >
                 <div className="attendance-before-list__controls">
                   <div>
                     <label htmlFor="meeting-calendar" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}>
-                      Meeting calendar
+                      Calendarul întâlnirilor
                     </label>
                     <div className="attendance-before-list__calendarWrap">
                       <DatePicker
@@ -673,7 +696,7 @@ export default function AttendanceBeforeList() {
                         }}
                         pickerAppearance="dayOnly"
                         value={selectedMeetingDate}
-                        placeholder="Choose a meeting date"
+                        placeholder="Alegeți data unei întâlniri"
                         overrides={{
                           dayClassName: (date: Date) => {
                             const key = getLocalDateKey(date)
@@ -683,12 +706,12 @@ export default function AttendanceBeforeList() {
                       />
                     </div>
                     <div className="attendance-before-list__hint">
-                      Dates with meetings are marked. Pick a date, then choose a meeting circle below.
+                      Datele cu întâlniri sunt marcate. Alegeți o dată, apoi selectați mai jos cercul unei întâlniri.
                     </div>
                   </div>
                   <div>
                     <label htmlFor="meeting-sort" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}>
-                      Sort meetings
+                      Sortați întâlnirile
                     </label>
                     <select
                       id="meeting-sort"
@@ -699,9 +722,9 @@ export default function AttendanceBeforeList() {
                         setMeetingPage(1)
                       }}
                     >
-                      <option value="latest">Latest first</option>
-                      <option value="attendance">Attendance rate</option>
-                      <option value="records">Most records</option>
+                      <option value="latest">Cele mai recente mai întâi</option>
+                      <option value="attendance">Rata de prezență</option>
+                      <option value="records">Cele mai multe înregistrări</option>
                     </select>
                     {selectedMeetingDate && selectedDateMeetings.length > 1 ? (
                       <>
@@ -727,32 +750,32 @@ export default function AttendanceBeforeList() {
                         </div>
                         <div className="attendance-before-list__hint">
                           {selectedMeetingId
-                            ? 'Showing the selected meeting.'
-                            : 'Select a meeting circle to focus on a specific meeting.'}
+                            ? 'Este afișată întâlnirea selectată.'
+                            : 'Selectați cercul unei întâlniri pentru a afișa o anumită întâlnire.'}
                         </div>
                       </>
                     ) : selectedMeetingDate ? (
                       <div className="attendance-before-list__hint">
-                        Only one meeting exists on this date, so it is selected automatically.
+                        La această dată există o singură întâlnire, așa că este selectată automat.
                       </div>
                     ) : (
                       <div className="attendance-before-list__hint">
-                        No date selected. All meetings in the Rotary year are shown.
+                        Nu este selectată nicio dată. Sunt afișate toate întâlnirile din anul Rotary.
                       </div>
                     )}
                   </div>
                 </div>
 
                 <SimpleTable
-                  headers={['Meeting', 'Records', 'Attendance', 'Present', 'Absent']}
+                  headers={['Întâlnire', 'Înregistrări', 'Prezență', 'Prezent', 'Absent']}
                   rows={paginatedMeetings.items.map((meeting) => [
                     meeting.label,
                     String(meeting.total),
                     formatPercent(meeting.attendanceRate),
-                    `${meeting.present} + ${meeting.late} late`,
+                    `${meeting.present} + ${meeting.late} întârziați`,
                     String(meeting.absent),
                   ])}
-                  emptyMessage="No meetings match the current filters."
+                  emptyMessage="Nicio întâlnire nu corespunde filtrelor actuale."
                 />
 
                 <Pager
@@ -761,18 +784,18 @@ export default function AttendanceBeforeList() {
                   onPrevious={() => setMeetingPage((page) => Math.max(1, page - 1))}
                   onNext={() => setMeetingPage((page) => Math.min(paginatedMeetings.totalPages, page + 1))}
                 />
-              </DropdownPanel>
+              </DropdownPanel> */}
 
-              <DropdownPanel
+              {/* <DropdownPanel
                 isOpen={openPanels.members}
-                title="Member attendance"
-                subtitle={`${sortedMembers.length} members found`}
+                title="Prezența membrilor"
+                subtitle={`${sortedMembers.length} membri găsiți`}
                 onToggle={() => togglePanel('members')}
               >
                 <div className="attendance-before-list__controls">
                   <div>
                     <label htmlFor="member-search" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}>
-                      Search members
+                      Căutați membri
                     </label>
                     <input
                       id="member-search"
@@ -782,12 +805,12 @@ export default function AttendanceBeforeList() {
                         setMemberSearch(event.target.value)
                         setMemberPage(1)
                       }}
-                      placeholder="Search by name or email"
+                      placeholder="Căutați după nume sau e-mail"
                     />
                   </div>
                   <div>
                     <label htmlFor="member-sort" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}>
-                      Sort members
+                      Sortați membrii
                     </label>
                     <select
                       id="member-sort"
@@ -798,23 +821,23 @@ export default function AttendanceBeforeList() {
                         setMemberPage(1)
                       }}
                     >
-                      <option value="attendance">Attendance rate</option>
-                      <option value="records">Most records</option>
-                      <option value="name">Name A-Z</option>
+                      <option value="attendance">Rata de prezență</option>
+                      <option value="records">Cele mai multe înregistrări</option>
+                      <option value="name">Nume A-Z</option>
                     </select>
                   </div>
                 </div>
 
                 <SimpleTable
-                  headers={['Member', 'Entries', 'Attendance', 'Present', 'Motivated']}
+                  headers={['Membru', 'Înregistrări', 'Prezență', 'Prezent', 'Motivat']}
                   rows={paginatedMembers.items.map((member) => [
                     member.name,
                     String(member.total),
                     formatPercent(member.attendanceRate),
-                    `${member.present} + ${member.late} late`,
+                    `${member.present} + ${member.late} întârzieri`,
                     String(member.motivated),
                   ])}
-                  emptyMessage="No members match the current filters."
+                  emptyMessage="Niciun membru nu corespunde filtrelor actuale."
                 />
 
                 <Pager
@@ -823,60 +846,81 @@ export default function AttendanceBeforeList() {
                   onPrevious={() => setMemberPage((page) => Math.max(1, page - 1))}
                   onNext={() => setMemberPage((page) => Math.min(paginatedMembers.totalPages, page + 1))}
                 />
-              </DropdownPanel>
+              </DropdownPanel> */}
             </>
           ) : (
             <div className="attendance-before-list__graphGrid">
               <GraphCard
-                title="Rotary year average attendance"
-                subtitle={`${rotaryYearTrend.length} meetings contribute to the running average in ${selectedYearLabel.toLowerCase()}`}
+                title="Prezența medie în anul Rotary"
+                subtitle={`${rotaryYearTrend.length} întâlniri contribuie la media cumulată din ${selectedYearLabel.toLowerCase()}`}
               >
                 <LineChart
                   points={rotaryYearTrend}
-                  emptyMessage="No meeting attendance data for this Rotary year."
+                  emptyMessage="Nu există date de prezență la întâlniri pentru acest an Rotary."
                   lineColor="#16a34a"
                 />
 
                 <div className="attendance-before-list__summaryStrip">
                   <div className="attendance-before-list__summaryItem">
-                    <div style={{ fontSize: '0.78rem', color: 'var(--theme-text-dim)', marginBottom: '0.2rem' }}>
-                      Meetings tracked
+                    <div
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--theme-text-dim)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Întâlniri monitorizate
                     </div>
                     <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>{meetingRows.length}</div>
                   </div>
                   <div className="attendance-before-list__summaryItem">
-                    <div style={{ fontSize: '0.78rem', color: 'var(--theme-text-dim)', marginBottom: '0.2rem' }}>
-                      Rotary year average
+                    <div
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--theme-text-dim)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Media anului Rotary
                     </div>
                     <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
                       {formatPercent(yearStats.attendanceRate)}
                     </div>
                   </div>
                   <div className="attendance-before-list__summaryItem">
-                    <div style={{ fontSize: '0.78rem', color: 'var(--theme-text-dim)', marginBottom: '0.2rem' }}>
-                      Latest meeting
+                    <div
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--theme-text-dim)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Cea mai recentă întâlnire
                     </div>
                     <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
                       {meetingRows[0]
                         ? `${meetingRows[0].label} · ${formatPercent(meetingRows[0].attendanceRate)}`
-                        : 'No data'}
+                        : 'Nu există date'}
                     </div>
                   </div>
                 </div>
               </GraphCard>
 
               <GraphCard
-                title="Individual member attendance"
+                title="Prezența individuală a membrului"
                 subtitle={
                   selectedGraphMember
-                    ? `${selectedGraphMember.name} · running attendance across ${memberTrend.length} meetings in ${selectedYearLabel.toLowerCase()}`
-                    : `Choose a member to view their attendance in ${selectedYearLabel.toLowerCase()}`
+                    ? `${selectedGraphMember.name} · prezență cumulată la ${memberTrend.length} întâlniri din ${selectedYearLabel.toLowerCase()}`
+                    : `Alegeți un membru pentru a-i vedea prezența în ${selectedYearLabel.toLowerCase()}`
                 }
               >
                 <div className="attendance-before-list__graphHeader">
                   <div>
-                    <label htmlFor="member-graph-select" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}>
-                      Member
+                    <label
+                      htmlFor="member-graph-select"
+                      style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}
+                    >
+                      Membru
                     </label>
                     <select
                       id="member-graph-select"
@@ -891,34 +935,55 @@ export default function AttendanceBeforeList() {
                       ))}
                     </select>
                   </div>
-                  <div style={{ color: 'var(--theme-text-dim)', fontSize: '0.9rem', display: 'flex', alignItems: 'end' }}>
+                  <div
+                    style={{
+                      color: 'var(--theme-text-dim)',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'end',
+                    }}
+                  >
                     {selectedGraphMember
-                      ? `${formatPercent(selectedGraphMember.attendanceRate)} attendance · ${selectedGraphMember.total} total entries`
-                      : 'No member selected'}
+                      ? `${formatPercent(selectedGraphMember.attendanceRate)} prezență · ${selectedGraphMember.total} înregistrări în total`
+                      : 'Niciun membru selectat'}
                   </div>
                 </div>
 
                 <LineChart
                   points={memberTrend}
-                  emptyMessage="No attendance history for this member in the selected Rotary year."
+                  emptyMessage="Nu există un istoric al prezenței pentru acest membru în anul Rotary selectat."
                   lineColor="#2563eb"
                 />
 
                 <div className="attendance-before-list__summaryStrip">
                   <div className="attendance-before-list__summaryItem">
-                    <div style={{ fontSize: '0.78rem', color: 'var(--theme-text-dim)', marginBottom: '0.2rem' }}>
-                      Member attendance
+                    <div
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--theme-text-dim)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Prezența membrului
                     </div>
                     <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-                      {selectedGraphMember ? formatPercent(selectedGraphMember.attendanceRate) : 'No data'}
+                      {selectedGraphMember
+                        ? formatPercent(selectedGraphMember.attendanceRate)
+                        : 'Nu există date'}
                     </div>
                   </div>
                   <div className="attendance-before-list__summaryItem">
-                    <div style={{ fontSize: '0.78rem', color: 'var(--theme-text-dim)', marginBottom: '0.2rem' }}>
-                      Latest status
+                    <div
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--theme-text-dim)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Cel mai recent statut
                     </div>
                     <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-                      {latestMemberPoint?.detail || 'No data'}
+                      {latestMemberPoint?.detail || 'Nu există date'}
                     </div>
                   </div>
                 </div>
@@ -926,14 +991,17 @@ export default function AttendanceBeforeList() {
 
               <DropdownPanel
                 isOpen={openPanels.memberGraphPicker}
-                title="Member graph filters"
-                subtitle={`${sortedMembers.length} members found`}
+                title="Filtrele graficului membrilor"
+                subtitle={`${sortedMembers.length} membri găsiți`}
                 onToggle={() => togglePanel('memberGraphPicker')}
               >
                 <div className="attendance-before-list__controls">
                   <div>
-                    <label htmlFor="member-search-graph" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}>
-                      Search members
+                    <label
+                      htmlFor="member-search-graph"
+                      style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}
+                    >
+                      Căutați membri
                     </label>
                     <input
                       id="member-search-graph"
@@ -943,12 +1011,15 @@ export default function AttendanceBeforeList() {
                         setMemberSearch(event.target.value)
                         setMemberPage(1)
                       }}
-                      placeholder="Search by name or email"
+                      placeholder="Căutați după nume sau e-mail"
                     />
                   </div>
                   <div>
-                    <label htmlFor="member-sort-graph" style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}>
-                      Sort members
+                    <label
+                      htmlFor="member-sort-graph"
+                      style={{ display: 'block', marginBottom: '0.35rem', fontWeight: 600 }}
+                    >
+                      Sortați membrii
                     </label>
                     <select
                       id="member-sort-graph"
@@ -959,22 +1030,22 @@ export default function AttendanceBeforeList() {
                         setMemberPage(1)
                       }}
                     >
-                      <option value="attendance">Attendance rate</option>
-                      <option value="records">Most records</option>
-                      <option value="name">Name A-Z</option>
+                      <option value="attendance">Rata de prezență</option>
+                      <option value="records">Cele mai multe înregistrări</option>
+                      <option value="name">Nume A-Z</option>
                     </select>
                   </div>
                 </div>
 
                 <SimpleTable
-                  headers={['Member', 'Entries', 'Attendance', 'Select']}
+                  headers={['Membru', 'Înregistrări', 'Prezență', 'Selectare']}
                   rows={paginatedMembers.items.map((member) => [
                     member.name,
                     String(member.total),
                     formatPercent(member.attendanceRate),
-                    member.id === selectedGraphMemberId ? 'Selected' : 'View',
+                    member.id === selectedGraphMemberId ? 'Selectat' : 'Vizualizare',
                   ])}
-                  emptyMessage="No members match the current filters."
+                  emptyMessage="Niciun membru nu corespunde filtrelor actuale."
                   onRowClick={(rowIndex) => {
                     const member = paginatedMembers.items[rowIndex]
                     if (member) setSelectedGraphMemberId(member.id)
@@ -988,7 +1059,9 @@ export default function AttendanceBeforeList() {
                   currentPage={paginatedMembers.page}
                   totalPages={paginatedMembers.totalPages}
                   onPrevious={() => setMemberPage((page) => Math.max(1, page - 1))}
-                  onNext={() => setMemberPage((page) => Math.min(paginatedMembers.totalPages, page + 1))}
+                  onNext={() =>
+                    setMemberPage((page) => Math.min(paginatedMembers.totalPages, page + 1))
+                  }
                 />
               </DropdownPanel>
             </div>
@@ -1098,7 +1171,7 @@ function LineChart({
         viewBox={`0 0 ${width} ${height}`}
         className="attendance-before-list__lineChart"
         role="img"
-        aria-label="Attendance line chart"
+        aria-label="Grafic liniar al prezenței"
       >
         <rect
           x={padding.left}
@@ -1231,11 +1304,16 @@ function Pager({
   return (
     <div className="attendance-before-list__pager">
       <span style={{ color: 'var(--theme-text-dim)', fontSize: '0.85rem' }}>
-        Page {currentPage} of {totalPages}
+        Pagina {currentPage} din {totalPages}
       </span>
       <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button type="button" className="btn btn--size-small btn--style-secondary" onClick={onPrevious} disabled={currentPage <= 1}>
-          Previous
+        <button
+          type="button"
+          className="btn btn--size-small btn--style-secondary"
+          onClick={onPrevious}
+          disabled={currentPage <= 1}
+        >
+          Anterior
         </button>
         <button
           type="button"
@@ -1243,7 +1321,7 @@ function Pager({
           onClick={onNext}
           disabled={currentPage >= totalPages}
         >
-          Next
+          Următor
         </button>
       </div>
     </div>

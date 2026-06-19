@@ -127,7 +127,7 @@ export const Users: CollectionConfig = {
     },
   },
   admin: {
-    defaultColumns: ['name', 'email', 'joinedAt'],
+    defaultColumns: ['name', 'email', 'joinedAt','attendance', 'payments'],
     useAsTitle: 'name',
     group: 'Club Administration',
     components: {
@@ -304,8 +304,16 @@ export const Users: CollectionConfig = {
           value: 'active',
         },
         {
+          label: 'Membru Pasiv',
+          value: 'passive',
+        },
+        {
           label: 'Presedinte',
           value: 'president',
+        },
+        {
+          label: 'Past President',
+          value: 'past-president',
         },
         {
           label: 'Vice Presedinte',
@@ -396,22 +404,42 @@ export const Users: CollectionConfig = {
       fields: [
         {
           name: 'payments',
+          label: 'Member payments',
           type: 'join',
           collection: 'payments',
           on: 'member',
           virtual: true,
           admin: {
             defaultColumns: ['month', 'amount', 'type'],
+            components: {
+              Cell: {
+                path: '@/components/MembersCell/MemberPaymentsCell.tsx'
+              },
+              Label: {
+                path: '@/components/MembersCell/MemberPaymentsLabel.tsx'
+              }
+            }
           },
+          
         },
         {
           name: 'attendance',
+          label: 'Member attendance',
           type: 'join',
           collection: 'attendance',
           on: 'member',
           virtual: true,
           admin: {
             defaultColumns: ['meeting', 'status'],
+            
+            components: {
+              Cell: {
+                path: '@/components/MembersCell/MemberAttendenceCell.tsx'
+              },
+              Label: {
+                path: '@/components/MembersCell/MemberAttendenceLabel.tsx'
+              }
+            }
           },
         },
         {

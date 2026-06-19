@@ -27,9 +27,15 @@ import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 }
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { FolderTableCell as FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { FolderField as FolderField_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
+import { default as default_ce33421b4dae798c0f59d5edefd71fff } from '@/components/MembersCell/MemberPaymentsLabel.tsx'
+import { default as default_251fbffc0cb53d83775d2f42e8f71847 } from '@/components/MembersCell/MemberPaymentsCell.tsx'
+import { default as default_87573459ce2453ff62980426a37f1681 } from '@/components/MembersCell/MemberAttendenceLabel.tsx'
+import { default as default_e28b7edd5cc1aae64071db42abf827f0 } from '@/components/MembersCell/MemberAttendenceCell.tsx'
 import { default as default_99c39790b6f5920831b6d304b9d0e451 } from '@/components/payload/MembersPasswordResetAction'
 import { default as default_e7c7dcff9dbb592420ccb96a99798d18 } from '@/components/payload/MembersBeforeList'
 import { default as default_3b6ada8c06e88089f8171dd390cec0f5 } from '@/fields/location-selector'
+import { default as default_8637c8c4329278e6366b8e88248c3489 } from '@/components/MembersCell/MeetingAttendenceLabel.tsx'
+import { default as default_d1196f6b805b3014f5a6ec690096f65b } from '@/components/MembersCell/MeetingAttendenceCell.tsx'
 import { default as default_9211ed5d83bc075a4af2d632fffc50f6 } from '@/components/payload/MeetingCheckInField'
 import { default as default_00ddf2cc02ad67d8179dbcd1c6ff7a26 } from '@/components/payload/AttendanceBeforeList'
 import { default as default_3f651eb36aa5ec1af9c701d63e974a55 } from '@/components/payload/AbsenceMotivationActionsCell'
@@ -44,6 +50,7 @@ import { default as default_764d56fa79a8e57b96829d107217e3a1 } from '@/component
 import { default as default_923473d35ecfea1ace55fd37042df162 } from '@/components/payload/EventRegistrationDayField'
 import { default as default_20e56f8d6db69941c54a95d796bf142a } from '@/components/payload/EventRegistrationSlotCell'
 import { default as default_3a99439fbda5ecc88f67008642c89963 } from '@/components/payload/EventRegistrationSlotField'
+import { default as default_6204a84feec590daed0cede85685c96a } from '@/components/payload/GalleryPhotoPreviewCell'
 import { default as default_dae9f94e0fc78ea7c1925f9ebeb669ef } from '@/components/payload/GalleryPhotoActionsCell'
 import { LinkToDoc as LinkToDoc_aead06e4cbf6b2620c5c51c9ab283634 } from '@payloadcms/plugin-search/client'
 import { ReindexButton as ReindexButton_aead06e4cbf6b2620c5c51c9ab283634 } from '@payloadcms/plugin-search/client'
@@ -85,9 +92,15 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/next/rsc#FolderTableCell": FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/next/rsc#FolderField": FolderField_f9c02e79a4aed9a3924487c0cd4cafb1,
+  "@/components/MembersCell/MemberPaymentsLabel.tsx#default": default_ce33421b4dae798c0f59d5edefd71fff,
+  "@/components/MembersCell/MemberPaymentsCell.tsx#default": default_251fbffc0cb53d83775d2f42e8f71847,
+  "@/components/MembersCell/MemberAttendenceLabel.tsx#default": default_87573459ce2453ff62980426a37f1681,
+  "@/components/MembersCell/MemberAttendenceCell.tsx#default": default_e28b7edd5cc1aae64071db42abf827f0,
   "@/components/payload/MembersPasswordResetAction#default": default_99c39790b6f5920831b6d304b9d0e451,
   "@/components/payload/MembersBeforeList#default": default_e7c7dcff9dbb592420ccb96a99798d18,
   "@/fields/location-selector#default": default_3b6ada8c06e88089f8171dd390cec0f5,
+  "@/components/MembersCell/MeetingAttendenceLabel.tsx#default": default_8637c8c4329278e6366b8e88248c3489,
+  "@/components/MembersCell/MeetingAttendenceCell.tsx#default": default_d1196f6b805b3014f5a6ec690096f65b,
   "@/components/payload/MeetingCheckInField#default": default_9211ed5d83bc075a4af2d632fffc50f6,
   "@/components/payload/AttendanceBeforeList#default": default_00ddf2cc02ad67d8179dbcd1c6ff7a26,
   "@/components/payload/AbsenceMotivationActionsCell#default": default_3f651eb36aa5ec1af9c701d63e974a55,
@@ -102,6 +115,7 @@ export const importMap = {
   "@/components/payload/EventRegistrationDayField#default": default_923473d35ecfea1ace55fd37042df162,
   "@/components/payload/EventRegistrationSlotCell#default": default_20e56f8d6db69941c54a95d796bf142a,
   "@/components/payload/EventRegistrationSlotField#default": default_3a99439fbda5ecc88f67008642c89963,
+  "@/components/payload/GalleryPhotoPreviewCell#default": default_6204a84feec590daed0cede85685c96a,
   "@/components/payload/GalleryPhotoActionsCell#default": default_dae9f94e0fc78ea7c1925f9ebeb669ef,
   "@payloadcms/plugin-search/client#LinkToDoc": LinkToDoc_aead06e4cbf6b2620c5c51c9ab283634,
   "@payloadcms/plugin-search/client#ReindexButton": ReindexButton_aead06e4cbf6b2620c5c51c9ab283634,

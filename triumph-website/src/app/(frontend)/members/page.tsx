@@ -29,11 +29,11 @@ import {
   Media,
   Meeting,
   MembersDashboard,
-  Payment,
   User,
 } from '@/payload-types'
 import { getMediaUrl } from '@/utilities/getMediaUrl'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
+import { getMemberDuesSummary, MONTHLY_DUE } from '@/utilities/memberDues'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 import { cn } from '@/utilities/ui'
 
@@ -41,9 +41,6 @@ import PageClient from './page.client'
 import TimelineDots from './TimelineDots'
 import { CMSLink } from '@/components/Link'
 
-const MONTHLY_DUE = 21
-const OVERDUE_DUE = 41
-const OVERDUE_GRACE_MONTHS = 4
 const DEFAULT_DUES_INFO_TEXT =
   'Luna curentă este marcată printr-un chip gol și nu este considerată restantă. Restanțele păstrează regula existentă: primele 4 luni sunt evaluate la 21 lei, apoi la 41 lei.'
 const boardMemberRoles = new Set<string>([
@@ -62,6 +59,8 @@ const roleLabels: Record<User['role'], string> = {
   'hr-director': 'HR Director',
   secretary: 'Secretar',
   tresoursier: 'Trezorier',
+  "past-president": 'Past President',
+  passive: 'Membru Pasiv'
 }
 
 export default async function DashboardPage() {
@@ -326,57 +325,10 @@ async function Dues(props: { duesInfoText?: string | null; member: User }) {
     config: payloadConfig,
   })
 
-  const paymentsDocs = await payload.find({
-    collection: 'payments',
-    where: {
-      member: {
-        equals: member.id,
-      },
-    },
-    sort: 'month',
-  })
-
-  const payments = paymentsDocs.docs as Payment[]
-  const expectedMonths = getExpectedMonths(member.joinedAt)
-  const paymentsByMonth = new Map(
-    payments.map((payment) => {
-      const month = new Date(payment.month)
-
-      return [getMonthKey(month), payment]
-    }),
+  const { coveredCount, dues, overdueCount, totalOwed, waivedCount } = await getMemberDuesSummary(
+    payload,
+    member,
   )
-
-  let overdueMonthsSeen = 0
-  const dues = expectedMonths.map((month) => {
-    const key = getMonthKey(month)
-    const payment = paymentsByMonth.get(key)
-    const isCurrentMonth = key === getMonthKey(new Date())
-    let amountDue = 0
-
-    if (!payment) {
-      if (isCurrentMonth) {
-        amountDue = MONTHLY_DUE
-      } else {
-        overdueMonthsSeen += 1
-        amountDue = overdueMonthsSeen <= OVERDUE_GRACE_MONTHS ? MONTHLY_DUE : OVERDUE_DUE
-      }
-    }
-
-    return {
-      amountDue,
-      month,
-      paid: Boolean(payment),
-      payment,
-      isCurrentMonth,
-      waived: payment?.type === 'waived',
-    }
-  })
-
-  const paidCount = dues.filter((due) => due.paid && !due.waived).length
-  const waivedCount = dues.filter((due) => due.waived).length
-  const coveredCount = paidCount + waivedCount
-  const overdueCount = dues.filter((due) => !due.paid && !due.isCurrentMonth).length
-  const totalOwed = dues.reduce((total, due) => total + due.amountDue, 0)
 
   return (
     <DashboardPanel className="relative flex h-full flex-col">
@@ -748,24 +700,6 @@ function EmptyState(props: { label: string }) {
       {props.label}
     </div>
   )
-}
-
-function getExpectedMonths(joinedAt: string) {
-  const joinedAtDate = new Date(joinedAt)
-  const now = new Date()
-  const expectedMonths: Date[] = []
-  const start = new Date(joinedAtDate.getFullYear(), joinedAtDate.getMonth(), 1)
-  const end = new Date(now.getFullYear(), now.getMonth(), 1)
-
-  for (let date = new Date(start); date <= end; date.setMonth(date.getMonth() + 1)) {
-    expectedMonths.push(new Date(date))
-  }
-
-  return expectedMonths
-}
-
-function getMonthKey(month: Date) {
-  return `${month.getFullYear()}-${month.getMonth()}`
 }
 
 function getDaysRemaining(from: Date, to: Date) {

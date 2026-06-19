@@ -1,7 +1,15 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type DragEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 
 import {
   CalendarDays,
@@ -115,7 +123,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
     }
   }, [])
 
-  function addPhotos(files: FileList | File[]) {
+  const addPhotos = useCallback((files: FileList | File[]) => {
     setState(null)
 
     const selectedFiles = Array.from(files)
@@ -150,7 +158,34 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
         visibility: 'public' as const,
       })),
     ])
-  }
+  }, [])
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const clipboardData = event.clipboardData
+      if (!clipboardData) return
+
+      const itemImages = Array.from(clipboardData.items).flatMap((item, index) => {
+        if (item.kind !== 'file' || !item.type.startsWith('image/')) return []
+
+        const file = item.getAsFile()
+        return file ? [ensureClipboardFileName(file, index)] : []
+      })
+      const pastedImages = itemImages.length
+        ? itemImages
+        : Array.from(clipboardData.files)
+            .filter((file) => file.type.startsWith('image/') || isSupportedImage(file))
+            .map(ensureClipboardFileName)
+
+      if (!pastedImages.length) return
+
+      event.preventDefault()
+      addPhotos(pastedImages)
+    }
+
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [addPhotos])
 
   function updatePhoto(photoID: string, updates: Partial<EditablePhotoFields>) {
     setPhotos((current) =>
@@ -481,7 +516,7 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
 
                   {photo.detailsOpen && (
                     <div
-                      className="absolute bottom-0 top-10 z-30 grid content-start gap-3 text-md overflow-y-auto overscroll-contain rounded-md border border-white/15 bg-sidebar/90 p-3 shadow-2xl backdrop-blur-xl"
+                      className="absolute bottom-0 top-10 z-30 grid content-start gap-3 overflow-y-auto overscroll-contain rounded-md border border-white/15 bg-sidebar/90 p-3 shadow-2xl backdrop-blur-xl"
                       id={`photo-details-${photo.id}`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -498,8 +533,6 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
                           <X className="size-4" />
                         </button>
                       </div>
-
-                      
 
                       <div className="grid gap-1.5">
                         <Label className="text-xs text-white/75" htmlFor={`event-${photo.id}`}>
@@ -613,6 +646,27 @@ function createPhotoID() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random()}`
+}
+
+function ensureClipboardFileName(file: File, index: number) {
+  if (file.name.trim()) return file
+
+  const extensionsByMimeType: Record<string, string> = {
+    'image/avif': 'avif',
+    'image/gif': 'gif',
+    'image/heic': 'heic',
+    'image/heif': 'heif',
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/tiff': 'tiff',
+    'image/webp': 'webp',
+  }
+  const extension = extensionsByMimeType[file.type] || 'png'
+
+  return new File([file], `pasted-image-${Date.now()}-${index + 1}.${extension}`, {
+    lastModified: file.lastModified || Date.now(),
+    type: file.type || 'image/png',
+  })
 }
 
 function isSupportedImage(file: File) {

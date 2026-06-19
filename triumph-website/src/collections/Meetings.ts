@@ -2,7 +2,6 @@ import { authenticated } from '@/access/authenticated'
 import { locationField } from '@/fields/location-selector/field'
 import type { CollectionConfig } from 'payload'
 
-
 export const Meetings: CollectionConfig = {
   slug: 'meetings',
 
@@ -17,7 +16,7 @@ export const Meetings: CollectionConfig = {
 
   admin: {
     useAsTitle: 'meetingDate',
-    defaultColumns: ['meetingDate'],
+    defaultColumns: ['meetingDate', 'attendance'],
     group: 'Club Administration',
   },
 
@@ -40,13 +39,22 @@ export const Meetings: CollectionConfig = {
     },
     {
         name: 'attendance',
+        label: 'Meeting attendance',
         type: 'join',
         virtual: true,
         collection: 'attendance',
         on: 'meeting',
         admin: {
             defaultColumns: ['member', 'status'],
-            position: 'sidebar'
+            position: 'sidebar',
+            components: {
+              Cell: {
+                path: '@/components/MembersCell/MeetingAttendenceCell.tsx',
+              },
+              Label: {
+                path: '@/components/MembersCell/MeetingAttendenceLabel.tsx',
+              }
+            }
         }
     },
     {

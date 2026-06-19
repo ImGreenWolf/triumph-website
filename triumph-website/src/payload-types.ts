@@ -482,7 +482,16 @@ export interface User {
    * Photo shown on the member profile page.
    */
   profilePicture?: (string | null) | Media;
-  role: 'aspirer' | 'active' | 'president' | 'pr-director' | 'hr-director' | 'secretary' | 'tresoursier';
+  role:
+    | 'aspirer'
+    | 'active'
+    | 'passive'
+    | 'president'
+    | 'past-president'
+    | 'pr-director'
+    | 'hr-director'
+    | 'secretary'
+    | 'tresoursier';
   joinedAt: string;
   /**
    * Members can set this once from their profile page.

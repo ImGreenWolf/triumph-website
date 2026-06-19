@@ -5,12 +5,12 @@ import payloadConfig from '@payload-config'
 import { Camera, Upload } from 'lucide-react'
 import { getPayload } from 'payload'
 
+import { LightboxProvider } from '@/components/ui/LightboxComponent'
 import type { Event, GalleryPhoto, Media, User } from '@/payload-types'
 import { getMediaUrl } from '@/utilities/getMediaUrl'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
-import GalleryPageClient, { type GalleryPhotoCard } from './page.client'
-import { LightboxProvider } from '@/components/ui/LightboxComponent'
+import GalleryPageClient, { type GalleryEventOption, type GalleryPhotoCard } from './page.client'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +29,22 @@ export default async function GalleryPage() {
   })
 
   const user = auth?.user as User | undefined
+  const events = await payload.find({
+    collection: 'events',
+    depth: 1,
+    limit: 200,
+    overrideAccess: false,
+    sort: '-createdAt',
+    user,
+    select: {
+      heroImage: true,
+      name: true,
+      primaryColor: true,
+      secondaryColor: true,
+      useColors: true,
+    },
+  })
+
   const galleryPhotos = await payload.find({
     collection: 'gallery-photos',
     depth: 2,
@@ -42,18 +58,22 @@ export default async function GalleryPage() {
       },
     },
   })
-
+  const eventsById = new Map((events.docs as Event[]).map((event) => [event.id, event]))
   const photos = (galleryPhotos.docs as GalleryPhoto[]).flatMap((photo) => {
     const media = photo.photo
     if (!media || typeof media !== 'object') return []
 
-    const event = photo.event && typeof photo.event === 'object' ? (photo.event as Event) : null
+    const populatedEvent =
+      photo.event && typeof photo.event === 'object' ? (photo.event as Event) : null
+    const eventId = populatedEvent?.id || (typeof photo.event === 'string' ? photo.event : '')
+    const event = eventsById.get(eventId) || populatedEvent
     const uploader =
       photo.uploadedBy && typeof photo.uploadedBy === 'object' ? (photo.uploadedBy as User) : null
 
     return [
       {
         caption: photo.caption || '',
+        eventId,
         eventName: event?.name || '',
         id: photo.id,
         imageAlt: (media as Media).alt || photo.caption || '',
@@ -66,34 +86,50 @@ export default async function GalleryPage() {
       },
     ]
   })
+  const eventOptions: GalleryEventOption[] = events.docs.map((event) => {
+    const heroImage =
+      event.heroImage && typeof event.heroImage === 'object' ? (event.heroImage as Media) : null
+
+    return {
+      imageUrl: heroImage ? getEventImageUrl(heroImage) : '',
+      label: event.name,
+      value: event.id,
+      primaryColor: event.useColors ? event.primaryColor : null,
+      secondaryColor: event.useColors ? event.secondaryColor : null,
+    }
+  })
 
   return (
     <LightboxProvider>
-    <main className="halftone-background min-h-screen bg-background pb-24 pt-32 text-foreground">
-      <section className="container relative pb-12 md:pb-16">
-        <div className="max-w-3xl">
-          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-sm font-semibold text-accent">
-            <Camera aria-hidden className="size-4" />
-            Galeria Triumph
-          </p>
-          <h1 className="text-4xl font-bold tracking-tight md:text-6xl">Pozele Clubului</h1>
-        </div>
+      <main className="halftone-background min-h-screen bg-background pb-24 pt-32 text-foreground">
+        <section className="container relative pb-12 md:pb-16">
+          <div className="max-w-3xl">
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-sm font-semibold text-accent">
+              <Camera aria-hidden className="size-4" />
+              Galeria Triumph
+            </p>
+            <h1 className="text-4xl font-bold tracking-tight md:text-6xl">Pozele Clubului</h1>
+          </div>
 
-        {user && (
-          <Link
-            className="mt-8 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-foreground px-4 text-sm font-semibold text-background transition hover:bg-foreground/90"
-            href="/members/gallery/upload"
-          >
-            <Upload className="size-4" />
-            Trimite Poze
-          </Link>
-        )}
-      </section>
+          {user && (
+            <Link
+              className="mt-8 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-foreground px-4 text-sm font-semibold text-background transition hover:bg-foreground/90"
+              href="/members/gallery/upload"
+            >
+              <Upload className="size-4" />
+              Trimite Poze
+            </Link>
+          )}
+        </section>
 
-      <section className="container">
-        <GalleryPageClient canViewPrivate={Boolean(user)} photos={photos as GalleryPhotoCard[]} />
-      </section>
-    </main>
+        <section className="container">
+          <GalleryPageClient
+            canViewPrivate={Boolean(user)}
+            events={eventOptions}
+            photos={photos as GalleryPhotoCard[]}
+          />
+        </section>
+      </main>
     </LightboxProvider>
   )
 }
@@ -101,6 +137,13 @@ export default async function GalleryPage() {
 function getGalleryImageUrl(media: Media) {
   return getMediaUrl(
     media.sizes?.large?.url || media.sizes?.medium?.url || media.url,
+    media.updatedAt,
+  )
+}
+
+function getEventImageUrl(media: Media) {
+  return getMediaUrl(
+    media.sizes?.thumbnail?.url || media.sizes?.small?.url || media.url,
     media.updatedAt,
   )
 }
