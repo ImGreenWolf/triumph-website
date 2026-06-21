@@ -7,6 +7,7 @@ export const colorField = (options?: ColorPickerArgs): TextField => {
     name: options?.name || 'color',
     type: 'text',
     required: options?.required || false,
+    defaultValue: options?.defaultValue,
     admin: {
       description: options?.description,
       components: {

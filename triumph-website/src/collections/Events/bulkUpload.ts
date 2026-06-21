@@ -127,8 +127,10 @@ export function parseParticipantsCSV(
 
     const data: RegistrationCreateData = {
       day: day.id,
+      donation: 0,
       email,
       event: event.id,
+      guests: 0,
       name,
       phone,
       slot: matchingSlots[0].id,

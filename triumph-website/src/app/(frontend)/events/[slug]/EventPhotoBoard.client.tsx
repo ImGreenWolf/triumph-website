@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 
 import Masonry from '@/blocks/Masonry/MasonyComponent'
 import { Event } from '@/payload-types'
+import { getContrastTextColor } from '@/utilities/eventDisplay'
 
 export type EventPhotoBoardImage = {
   caption?: string
@@ -43,7 +44,9 @@ export default function EventPhotoBoard(props: {
   if (!activeMode || activeItems.length === 0) return null
 
   return (
-    <section>
+    <section
+    style={{color: getContrastTextColor(eventRef.primaryColor)}}
+    >
       <div className="mb-6 mt-12 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--event-accent)]">
@@ -57,7 +60,9 @@ export default function EventPhotoBoard(props: {
         {showToggle && (
           <div
             aria-label="Alege setul de fotografii"
-            className="relative grid h-8 w-36 grid-cols-2 rounded-full border border-border/70 bg-card/70 p-0.5 shadow-inner shadow-black/10 backdrop-blur"
+            className="relative grid h-8 w-36 grid-cols-2 rounded-full border p-0.5 shadow-inner shadow-black/10 backdrop-blur"
+            style={{borderColor: eventRef.secondaryColor!, color: getContrastTextColor(eventRef.secondaryColor)}}
+
             role="tablist"
           >
             <span
@@ -65,18 +70,22 @@ export default function EventPhotoBoard(props: {
               className={`absolute bottom-0.5 left-0.5 top-0.5 w-[calc(50%-0.125rem)] rounded-full bg-foreground shadow-sm transition-transform duration-200 ease-out ${
                 activeMode === 'gallery' ? 'translate-x-[calc(100%)]' : 'translate-x-0'
               }`}
+              style={{backgroundColor: eventRef.cardColor!, color: getContrastTextColor(eventRef.cardColor)}}
+
             />
             {availableModes.map((option) => (
               <button
                 aria-selected={activeMode === option}
                 className={`relative z-10 rounded-full px-2 text-xs font-semibold transition ${
                   activeMode === option
-                    ? 'text-background'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? ''
+                    : 'opacity-50 hover:opacity-100'
                 }`}
                 key={option}
                 onClick={() => setMode(option)}
                 role="tab"
+                style={{color: activeMode === option ? getContrastTextColor(eventRef.cardColor) : getContrastTextColor(eventRef.primaryColor)}}
+
                 type="button"
               >
                 {modeLabels[option]}

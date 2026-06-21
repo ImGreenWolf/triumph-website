@@ -126,7 +126,8 @@ export default async function Event({ params: paramsPromise }: Args) {
     (registration) => registration.status !== 'cancelled',
   ).length
   const accentColor = event.useColors && event.secondaryColor ? event.secondaryColor : '#00a2e0'
-  const backgroundColor = event.useColors && event.primaryColor ? event.primaryColor : undefined
+  const cardColor = event.useColors && event.cardColor ? event.cardColor : '#141e34'
+  const backgroundColor = event.useColors && event.primaryColor ? event.primaryColor : '#141e34'
   const eventDays = event.days?.filter((day) => day.eventDate) ?? []
   const compactProgram = eventDays.length > 3
   const location = getEventLocation(event.location)
@@ -170,8 +171,8 @@ export default async function Event({ params: paramsPromise }: Args) {
         >
           <div className="min-w-0 space-y-4">
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.72fr)]">
-              <DetailCard accentColor={accentColor} icon={CalendarDays} label="Program">
-                <div className={compactProgram ? 'grid grid-cols-2 gap-2' : 'space-y-3'}>
+              <DetailCard accentColor={accentColor}  cardColor={cardColor} icon={CalendarDays} label="Program">
+                <div className={compactProgram ? 'grid grid-cols-2 gap-2' : 'space-y-3 '}>
                   {eventDays.map((day) =>
                     day.eventDate ? (
                       <div
@@ -190,13 +191,13 @@ export default async function Event({ params: paramsPromise }: Args) {
                             : formatEventDayLabel(day.eventDate)}
                         </p>
                         {compactProgram ? (
-                          <p className="mt-0.5 text-[11px] leading-4 text-card-foreground/60">
+                          <p className="mt-0.5 text-[11px] leading-4 opacity-60">
                             {formatSlotCount(day.slots?.length ?? 0)}
                           </p>
                         ) : (
                           day.slots &&
                           day.slots.length > 0 && (
-                            <p className="mt-1 text-xs leading-5 text-card-foreground/60">
+                            <p className="mt-1 text-xs leading-5 opacity-60">
                               {day.slots
                                 .map((slot) => formatEventSlotLabel(slot.startTime, slot.endTime))
                                 .join(' · ')}
@@ -210,16 +211,16 @@ export default async function Event({ params: paramsPromise }: Args) {
               </DetailCard>
 
               {location && (
-                <DetailCard accentColor={accentColor} icon={MapPin} label="Locație">
+                <DetailCard accentColor={accentColor} icon={MapPin}  cardColor={cardColor} label="Locație">
                   <p className="font-bold">{location.name}</p>
                   {location.formattedAddress && (
-                    <p className="mt-1 text-sm leading-5 text-card-foreground/60">
+                    <p className="mt-1 text-sm leading-5 opacity-60">
                       {location.formattedAddress}
                     </p>
                   )}
                   {googleMapsURL && (
                     <a
-                      className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--event-accent)] transition hover:opacity-75"
+                      className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--event-accent)] transition hover:opacity-50"
                       href={googleMapsURL}
                       rel="noreferrer"
                       target="_blank"
@@ -234,6 +235,7 @@ export default async function Event({ params: paramsPromise }: Args) {
               {event.cause && typeof event.cause === 'object' && (
                 <DetailCard
                   accentColor={accentColor}
+                  cardColor={cardColor}
                   compact
                   icon={HeartHandshake}
                   label="Cauza susținută"
@@ -252,13 +254,16 @@ export default async function Event({ params: paramsPromise }: Args) {
               )}
             </section>
 
-            <section className="rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg shadow-black/10 md:p-8">
+            <section className="rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg shadow-black/10 md:p-8"
+            style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor) }}
+            >
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--event-accent)]">
                 Povestea proiectului
               </p>
               <h2 className="text-3xl font-bold tracking-tight">Despre eveniment</h2>
               <RichText
-                className="mt-5 max-w-none text-card-foreground/80 [&_p]:leading-7"
+                className="mt-5 max-w-none  [&_p]:leading-7"
+                enableProse={false}
                 data={event.content}
                 enableGutter={false}
               />
@@ -277,13 +282,15 @@ export default async function Event({ params: paramsPromise }: Args) {
           {!event.private && (
             <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-28">
               {event.donation && (
-                <DetailCard accentColor={accentColor} icon={HandHelping} label="Donație minimă">
-                  {typeof event.donation === 'number' ? <p className="text-2xl font-bold">{event.donation} lei</p> :
+                <DetailCard accentColor={accentColor}  cardColor={cardColor} icon={HandHelping} label="Donație minimă">
+                  {!isNaN(parseInt(event.donation)) ? <p className="text-2xl font-bold">{event.donation} RON</p> :
                   <p className="text-2xl font-bold">{event.donation}</p>}
                 </DetailCard>
               )}
               <SignupForm
                 accentColor={accentColor}
+                backgroundColor={backgroundColor}
+                cardColor={cardColor}
                 event={{
                   capacity: event.capacity,
                   days: event.days,
@@ -352,12 +359,14 @@ function getMediaPhotoItem(
 
 function DetailCard({
   accentColor,
+  cardColor,
   children,
   compact = false,
   icon: Icon,
   label,
 }: {
   accentColor: string
+  cardColor: string
   children: ReactNode
   compact?: boolean
   icon: LucideIcon
@@ -365,9 +374,10 @@ function DetailCard({
 }) {
   return (
     <section
-      className={`rounded-2xl border border-border bg-card text-card-foreground shadow-lg shadow-black/10 ${compact ? 'p-4' : 'p-5'}`}
+      className={`rounded-2xl bg-card text-card-foreground shadow-lg shadow-black/10 ${compact ? 'p-4' : 'p-5'}`}
+      style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor)}}
     >
-      <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-card-foreground/55">
+      <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] opacity-55">
         <Icon aria-hidden className="size-4" style={{ color: accentColor }} />
         {label}
       </p>

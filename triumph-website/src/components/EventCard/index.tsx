@@ -2,11 +2,7 @@
 
 import { Media } from '@/components/Media'
 import type { Event } from '@/payload-types'
-import {
-  formatEventDateRange,
-  getEventLocation,
-  getEventStatus,
-} from '@/utilities/eventDisplay'
+import { formatEventDateRange, getEventLocation, getEventStatus } from '@/utilities/eventDisplay'
 import { cn } from '@/utilities/ui'
 import useClickableCard from '@/utilities/useClickableCard'
 import { ArrowUpRight, CalendarDays, MapPin } from 'lucide-react'
@@ -26,7 +22,7 @@ export const EventCard: React.FC<{
   const { description, image: metaImage } = meta || {}
   const href = `/events/${slug}`
   const eventLocation = getEventLocation(location)
-  const status = getEventStatus({ days })
+  const status = getEventStatus({ days: days ?? [] })
 
   return (
     <article
@@ -37,7 +33,12 @@ export const EventCard: React.FC<{
       )}
       ref={card.ref}
     >
-      <div className={cn('relative overflow-hidden bg-background/10', small ? 'aspect-[4/3]' : 'aspect-[5/4]')}>
+      <div
+        className={cn(
+          'relative overflow-hidden bg-background/10',
+          small ? 'aspect-[4/3]' : 'aspect-[5/4]',
+        )}
+      >
         {metaImage && typeof metaImage !== 'string' ? (
           <Media
             alt={name || ''}
@@ -56,7 +57,7 @@ export const EventCard: React.FC<{
 
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3">
           <span className="rounded-full bg-card/85 px-3 py-1 text-xs font-semibold text-card-foreground shadow-sm backdrop-blur-md">
-            {formatEventDateRange({ days })}
+            {formatEventDateRange({ days: days ?? [] })}
           </span>
           <span
             className={cn(
@@ -86,7 +87,9 @@ export const EventCard: React.FC<{
         )}
 
         {description && showDescription && (
-          <p className="mt-4 line-clamp-3 text-sm leading-6 text-card-foreground/70">{description}</p>
+          <p className="mt-4 line-clamp-3 text-sm leading-6 text-card-foreground/70">
+            {description}
+          </p>
         )}
 
         {!small && (

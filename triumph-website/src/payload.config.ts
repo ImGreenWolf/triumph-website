@@ -30,6 +30,24 @@ import { GalleryPhotos } from './collections/GalleryPhotos'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+const serverURL = new URL(getServerSideURL()).origin
+
+const configuredOrigins = (process.env.PAYLOAD_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+
+const allowedOrigins = Array.from(
+  new Set(
+    [
+      serverURL,
+      ...configuredOrigins,
+      ...(process.env.NODE_ENV === 'development'
+        ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+        : []),
+    ].map((origin) => new URL(origin).origin),
+  ),
+)
 
 export default buildConfig({
   admin: {
@@ -105,7 +123,9 @@ export default buildConfig({
     Payments,
     GalleryPhotos,
   ],
-  cors: [getServerSideURL()].filter(Boolean),
+  cors: allowedOrigins,
+  // Payload appends serverURL automatically during config sanitization.
+  csrf: allowedOrigins.filter((origin) => origin !== serverURL),
   globals: [Header, Footer, MembersDashboard],
   plugins,
   secret: process.env.PAYLOAD_SECRET,
@@ -113,7 +133,7 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  serverURL: process.env.NEXT_PUBLIC_SERVER_URL,
+  serverURL,
   email: nodemailerAdapter({
     defaultFromAddress: 'hello@interact-triumph.org',
     defaultFromName: 'Interact Bucureşti Triumph',

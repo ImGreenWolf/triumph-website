@@ -3,18 +3,24 @@ import { getPayload } from 'payload'
 
 import { importParticipantsFromCSV } from '@/collections/Events/bulkUpload'
 import type { Event, User } from '@/payload-types'
-import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
 const MAX_CSV_SIZE = 5 * 1024 * 1024
 
 export async function POST(request: Request) {
-  const origin = request.headers.get('origin')
-  if (origin && origin !== new URL(request.url).origin) {
+  if (request.headers.get('sec-fetch-site') === 'cross-site') {
     return Response.json({ message: 'Cerere nepermisă.' }, { status: 403 })
   }
 
   const payload = await getPayload({ config: payloadConfig })
-  const auth = await payload.auth({ headers: await getPayloadAuthHeaders() })
+  const authHeaders = new Headers(request.headers)
+  // The browser Origin can differ from Payload's configured public serverURL in local
+  // development or behind a proxy. Cross-site requests were rejected above, so let
+  // Payload validate the cookie using the browser-controlled Sec-Fetch-Site header.
+  authHeaders.delete('origin')
+  if (!authHeaders.has('sec-fetch-site')) {
+    authHeaders.set('sec-fetch-site', 'same-origin')
+  }
+  const auth = await payload.auth({ headers: authHeaders })
 
   if (!auth.user) {
     return Response.json(

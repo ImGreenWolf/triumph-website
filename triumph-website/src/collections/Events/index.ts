@@ -147,6 +147,12 @@ export const Events: CollectionConfig<'events'> = {
 
                           required: false,
                         }),
+                         colorField({
+                          name: 'cardColor',
+                          defaultValue: '#141e34',
+                          required: false,
+                        }),
+                        
                       ],
                     },
                   ],
@@ -184,11 +190,13 @@ export const Events: CollectionConfig<'events'> = {
             {
               name: 'days',
               type: 'array',
+              required: true,
               admin: {},
               fields: [
                 {
                   name: 'eventDate',
                   type: 'date',
+                  required: true,
                   admin: {
                     date: {
                       pickerAppearance: 'dayOnly',
@@ -198,6 +206,7 @@ export const Events: CollectionConfig<'events'> = {
                 {
                   name: 'slots',
                   type: 'array',
+                  required: true,
                   fields: [
                     {
                       type: 'row',
@@ -491,14 +500,17 @@ export const EventRegistrations: CollectionConfig = {
         {
           name: 'donation',
           type: 'number',
+          required: true,
+          defaultValue: 0
         },
         {
           name: 'guests',
           type: 'number',
-          defaultValue: 0
+          defaultValue: 0,
+           required: true,
         },
         {
-          name: 'timeOfAriival',
+          name: 'timeOfArrival',
           type: 'date',
         }
       ]
@@ -507,6 +519,7 @@ export const EventRegistrations: CollectionConfig = {
       name: 'status',
       type: 'select',
       defaultValue: 'registered',
+      required: true,
       options: [
         {
           label: 'Registrat',

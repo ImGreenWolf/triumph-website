@@ -11,13 +11,15 @@ type SignupFormProps = {
   accentColor: string
   event: SignupEvent
   slotAvailability: EventSlotAvailability[]
+  cardColor: string
+  backgroundColor: string
 }
 
 type SignupEvent = Pick<Event, 'capacity' | 'days' | 'id' | 'private'> & {
   participantsCount: number
 }
 
-export default function SignupForm({ accentColor, event, slotAvailability }: SignupFormProps) {
+export default function SignupForm({ accentColor, backgroundColor, event, slotAvailability, cardColor }: SignupFormProps) {
   const dialogTitleId = useId()
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -108,7 +110,9 @@ export default function SignupForm({ accentColor, event, slotAvailability }: Sig
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-xl shadow-black/15">
+    <section className="rounded-2xl border border-border p-5 text-card-foreground shadow-xl shadow-black/15"
+    style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor) }}
+    >
       <div className="flex items-start gap-3">
         <div
           className="flex size-10 shrink-0 items-center justify-center rounded-xl"
@@ -118,13 +122,13 @@ export default function SignupForm({ accentColor, event, slotAvailability }: Sig
         </div>
         <div>
           <p className="text-lg font-bold">Participă la eveniment</p>
-          <p className="mt-1 text-sm leading-5 text-card-foreground/60">
+          <p className="mt-1 text-sm leading-5 opacity-60">
             Alege ziua și intervalul potrivit direct din formular.
           </p>
         </div>
       </div>
 
-      <Participants accentColor={accentColor} event={event} participantsCount={participantsCount} />
+      <Participants accentColor={accentColor} backgroundColor={backgroundColor} event={event} participantsCount={participantsCount} />
 
       <Button
         className="mt-4 w-full"
@@ -407,10 +411,12 @@ async function register(args: {
 
 function Participants({
   accentColor,
+  backgroundColor,
   event,
   participantsCount,
 }: {
   accentColor: string
+  backgroundColor: string
   event: SignupEvent
   participantsCount: number
 }) {
@@ -418,9 +424,11 @@ function Participants({
   const percentage = capacity > 0 ? Math.min((participantsCount / capacity) * 100, 100) : 0
 
   return (
-    <div className="mt-5 rounded-xl bg-background/10 p-4">
+    <div className="mt-5 rounded-xl p-4"
+    style={{backgroundColor: backgroundColor, color: getContrastTextColor(backgroundColor)}}
+    >
       <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="flex items-center gap-2 text-card-foreground/65">
+        <span className="flex items-center gap-2 opacity-80">
           <Users aria-hidden className="size-4" />
           Participanți
         </span>

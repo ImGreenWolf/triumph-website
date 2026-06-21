@@ -806,6 +806,7 @@ export interface Event {
   useColors?: boolean | null;
   primaryColor?: string | null;
   secondaryColor?: string | null;
+  cardColor?: string | null;
   inspoboard?: (string | Media)[] | null;
   location?:
     | {
@@ -818,20 +819,16 @@ export interface Event {
     | null;
   cause?: (string | null) | Cause;
   donation?: string | null;
-  days?:
-    | {
-        eventDate?: string | null;
-        slots?:
-          | {
-              startTime?: string | null;
-              endTime?: string | null;
-              capacity?: number | null;
-              id?: string | null;
-            }[]
-          | null;
-        id?: string | null;
-      }[]
-    | null;
+  days: {
+    eventDate: string;
+    slots: {
+      startTime?: string | null;
+      endTime?: string | null;
+      capacity?: number | null;
+      id?: string | null;
+    }[];
+    id?: string | null;
+  }[];
   meta?: {
     /**
      * This image is displayed on event cards and on search results.
@@ -890,10 +887,10 @@ export interface EventRegistration {
   name: string;
   phone: string;
   questions?: string | null;
-  donation?: number | null;
-  guests?: number | null;
-  timeOfAriival?: string | null;
-  status?: ('registered' | 'present' | 'absent' | 'cancelled') | null;
+  donation: number;
+  guests: number;
+  timeOfArrival?: string | null;
+  status: 'registered' | 'present' | 'absent' | 'cancelled';
   updatedAt: string;
   createdAt: string;
 }
@@ -2754,6 +2751,7 @@ export interface EventsSelect<T extends boolean = true> {
   useColors?: T;
   primaryColor?: T;
   secondaryColor?: T;
+  cardColor?: T;
   inspoboard?: T;
   location?: T;
   cause?: T;
@@ -2808,7 +2806,7 @@ export interface EventRegistrationsSelect<T extends boolean = true> {
   questions?: T;
   donation?: T;
   guests?: T;
-  timeOfAriival?: T;
+  timeOfArrival?: T;
   status?: T;
   updatedAt?: T;
   createdAt?: T;

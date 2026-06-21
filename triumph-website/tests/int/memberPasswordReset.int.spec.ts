@@ -1,9 +1,22 @@
 import type { Payload, PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
+import { generateForgotPasswordEmailHTML } from '@/collections/Users/forgotPasswordEmail'
 import { sendPasswordResetEmails } from '@/collections/Users/passwordReset'
 
 describe('member password reset emails', () => {
+  it('links to the frontend password reset flow', () => {
+    const html = generateForgotPasswordEmailHTML({
+      req: {
+        origin: 'https://triumph.example',
+      } as PayloadRequest,
+      token: 'token/with spaces',
+    })
+
+    expect(html).toContain('https://triumph.example/members/password-reset/token%2Fwith%20spaces')
+    expect(html).not.toContain('/admin/reset/')
+  })
+
   it('continues sending when one selected user fails', async () => {
     const forgotPassword = vi
       .fn()

@@ -2,18 +2,24 @@ import payloadConfig from '@payload-config'
 import { getPayload } from 'payload'
 
 import type { Event, EventRegistration, User } from '@/payload-types'
-import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
 const allowedStatuses = new Set(['registered', 'present', 'absent'])
 
 export async function PATCH(request: Request) {
-  const origin = request.headers.get('origin')
-  if (origin && origin !== new URL(request.url).origin) {
+  if (request.headers.get('sec-fetch-site') === 'cross-site') {
     return Response.json({ message: 'Cerere nepermisă.' }, { status: 403 })
   }
 
   const payload = await getPayload({ config: payloadConfig })
-  const auth = await payload.auth({ headers: await getPayloadAuthHeaders() })
+  const authHeaders = new Headers(request.headers)
+  // The browser Origin can differ from Payload's configured public serverURL in local
+  // development or behind a proxy. Cross-site requests were rejected above, so let
+  // Payload validate the cookie using the browser-controlled Sec-Fetch-Site header.
+  authHeaders.delete('origin')
+  if (!authHeaders.has('sec-fetch-site')) {
+    authHeaders.set('sec-fetch-site', 'same-origin')
+  }
+  const auth = await payload.auth({ headers: authHeaders })
 
   if (!auth.user) {
     return Response.json(
@@ -93,14 +99,24 @@ export async function PATCH(request: Request) {
     )
   }
 
+  const minimumDonation = normalizeDonation(event.donation)
+  if (status === 'present' && donation < minimumDonation) {
+    return Response.json(
+      { message: `Donația minimă pentru acest eveniment este de ${minimumDonation} RON.` },
+      { status: 400 },
+    )
+  }
+
   const updated = (await payload.update({
     collection: 'event-registrations',
     data: {
       donation,
       guests,
+      name: registration.name?.trim() || registration.email || 'Participant fără nume',
+      phone: registration.phone?.trim() || 'Nespecificat',
       status: status as 'registered' | 'present' | 'absent',
-      timeOfAriival:
-        status === 'present' ? registration.timeOfAriival || new Date().toISOString() : null,
+      timeOfArrival:
+        status === 'present' ? registration.timeOfArrival || new Date().toISOString() : null,
     },
     id: registrationID,
     overrideAccess: true,
@@ -112,11 +128,16 @@ export async function PATCH(request: Request) {
       guests: updated.guests ?? 0,
       id: updated.id,
       status: updated.status ?? 'registered',
-      timeOfArrival: updated.timeOfAriival ?? null,
+      timeOfArrival: updated.timeOfArrival ?? null,
     },
   })
 }
 
 function getRelationshipID(value: string | { id: string }) {
   return typeof value === 'string' ? value : value.id
+}
+
+function normalizeDonation(value: Event['donation']) {
+  const donation = Number(value)
+  return Number.isFinite(donation) ? Math.max(donation, 0) : 0
 }

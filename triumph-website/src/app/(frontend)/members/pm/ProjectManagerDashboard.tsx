@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion'
+import { Fragment, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   ArrowLeft,
   BarChart3,
@@ -33,53 +34,82 @@ import {
 } from 'lucide-react'
 
 import { useHeaderTheme } from '@/providers/HeaderTheme'
+import type { Event, EventRegistration } from '@/payload-types'
+import { Media } from '@/components/Media'
+import Counter from '@/components/ui/counter'
+import { getEventTheme } from '@/utilities/eventTheme'
 
-type RegistrationStatus = 'registered' | 'present' | 'absent' | 'cancelled'
+type PayloadEventDay = NonNullable<Event['days']>[number]
+type PayloadEventSlot = NonNullable<NonNullable<PayloadEventDay['slots']>>[number]
 
-type ManagedRegistration = {
-  createdAt: string
-  day: string
-  donation: number
-  email: string
-  guests: number
-  id: string
-  name: string
-  phone: string
-  questions: string | null
-  slot: string
-  status: RegistrationStatus
+export type ManagedRegistration = Pick<
+  EventRegistration,
+  | 'createdAt'
+  | 'day'
+  | 'donation'
+  | 'email'
+  | 'guests'
+  | 'id'
+  | 'name'
+  | 'phone'
+  | 'questions'
+  | 'slot'
+  | 'status'
+> & {
   timeOfArrival: string | null
 }
 
-export type ManagedEvent = {
-  days: Array<{
-    date: string
-    id: string
-    label: string
-    slots: Array<{
-      capacity: number
-      endTime: string | null
-      id: string
-      label: string
-      startTime: string | null
-    }>
-  }>
-  endDate: string
-  id: string
+export type ManagedEventSlot = {
+  capacity: NonNullable<PayloadEventSlot['capacity']>
+  endTime: Exclude<PayloadEventSlot['endTime'], undefined>
+  id: NonNullable<PayloadEventSlot['id']>
+  label: string
+  startTime: Exclude<PayloadEventSlot['startTime'], undefined>
+}
+
+export type ManagedEventDay = {
+  eventDate: PayloadEventDay['eventDate']
+  id: NonNullable<PayloadEventDay['id']>
+  label: string
+  slots: ManagedEventSlot[]
+}
+
+export type ManagedEvent = Pick<
+  Event,
+  | 'cardColor'
+  | 'heroImage'
+  | 'id'
+  | 'name'
+  | 'primaryColor'
+  | 'secondaryColor'
+  | 'slug'
+  | 'useColors'
+> & {
+  days: ManagedEventDay[]
+  endTime: string | null
   location: string | null
-  name: string
   registrations: ManagedRegistration[]
-  slug: string
-  startDate: string
+  startTime: string | null
+  donation: number
 }
 
 type Tab = 'overview' | 'check-in' | 'report'
+type CounterTab = Exclude<Tab, 'check-in'>
 
 const tabs: Array<{ icon: typeof LayoutDashboard; label: string; value: Tab }> = [
   { icon: LayoutDashboard, label: 'Overview', value: 'overview' },
   { icon: UserCheck, label: 'Check-in', value: 'check-in' },
   { icon: BarChart3, label: 'Raport final', value: 'report' },
 ]
+
+const panelVariants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: {
+    opacity: 1,
+    transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
+    y: 0,
+  },
+} satisfies Variants
 
 export default function ProjectManagerDashboard(props: {
   events: ManagedEvent[]
@@ -90,7 +120,12 @@ export default function ProjectManagerDashboard(props: {
   const [events, setEvents] = useState(initialEvents)
   const [selectedEventID, setSelectedEventID] = useState(() => getInitialEventID(initialEvents))
   const [tab, setTab] = useState<Tab>('overview')
+  const [openedCounterTabs, setOpenedCounterTabs] = useState<Record<CounterTab, boolean>>({
+    overview: true,
+    report: false,
+  })
   const [showPersonalData, setShowPersonalData] = useState(false)
+  const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
     setHeaderTheme('light')
@@ -118,35 +153,89 @@ export default function ProjectManagerDashboard(props: {
     )
   }
 
+  function openTab(nextTab: Tab) {
+    if (nextTab !== 'check-in') {
+      setOpenedCounterTabs((current) =>
+        current[nextTab] ? current : { ...current, [nextTab]: true },
+      )
+    }
+    setTab(nextTab)
+  }
+
   if (!event || !metrics) {
     return <EmptyState userName={userName} />
   }
 
   const phase = getEventPhase(event)
+  const theme = getEventTheme(event, {
+    accent: '#00a2e0',
+    background: '#f4f6f8',
+    card: '#ffffff',
+  })
+  const themeStyle = {
+    '--accent': 'var(--pm-accent)',
+    '--accent-foreground': 'var(--pm-accent-foreground)',
+    '--background': 'var(--pm-background)',
+    '--border': 'color-mix(in srgb, var(--pm-card-foreground) 16%, var(--pm-card))',
+    '--card': 'var(--pm-card)',
+    '--card-foreground': 'var(--pm-card-foreground)',
+    '--foreground': 'var(--pm-background-foreground)',
+    '--pm-accent': theme.accent,
+    '--pm-accent-foreground': theme.accentForeground,
+    '--pm-background': theme.background,
+    '--pm-background-foreground': theme.backgroundForeground,
+    '--pm-card': theme.card,
+    '--pm-card-foreground': theme.cardForeground,
+    '--halftone-color': 'var(--pm-accent)',
+    backgroundColor: 'var(--pm-background)',
+    color: 'var(--pm-background-foreground)',
+  } as CSSProperties
+  const mainVariants = {
+    exit: {
+      opacity: 0,
+      transition: { duration: 0.18, ease: [0.4, 0, 1, 1] },
+      y: -8,
+    },
+    hidden: { opacity: 0, y: 12 },
+    visible: {
+      opacity: 1,
+      transition: {
+        delayChildren: 0.04,
+        duration: 0.28,
+        ease: [0.22, 1, 0.36, 1],
+        staggerChildren: 0.075,
+      },
+      y: 0,
+    },
+  } satisfies Variants
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] text-[#152039]">
-      <section className="relative overflow-hidden bg-[#101a31] px-4 pb-8 pt-28 text-white sm:px-6 lg:px-8">
-        <div className="pointer-events-none absolute -right-32 -top-48 size-[34rem] rounded-full bg-[#00a2e0]/10 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 left-1/3 h-px w-1/2 bg-gradient-to-r from-transparent via-[#00a2e0] to-transparent" />
+    <div
+      className="pm-dashboard min-h-screen"
+      data-reduce-motion={prefersReducedMotion ? 'true' : undefined}
+      style={themeStyle}
+    >
+      <section className="relative overflow-hidden px-4 pb-8 pt-28 sm:px-6 lg:px-8 bg-[#141e34] halftone-background text-primary">
+        <div className="pointer-events-none absolute -right-32 -top-48 size-[34rem] rounded-full bg-accent/10 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/3 h-px w-1/2 bg-gradient-to-r from-transparent via-accent to-transparent" />
         <div className="relative mx-auto max-w-[1440px]">
           <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
             <Link
-              className="inline-flex items-center gap-2 text-sm font-medium text-white/65 transition hover:text-white"
+              className="inline-flex items-center gap-2 text-sm font-medium opacity-65 transition hover:opacity-100"
               href="/members"
             >
               <ArrowLeft className="size-4" />
               Dashboard membri
             </Link>
-            <p className="text-sm text-white/55">
-              Conectat ca <span className="font-semibold text-white/85">{userName}</span>
+            <p className="text-sm opacity-55">
+              Conectat ca <span className="font-semibold">{userName}</span>
             </p>
           </div>
 
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="mb-4 flex items-center gap-2">
-                <span className="rounded-full border border-[#00a2e0]/30 bg-[#00a2e0]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#56c9f5]">
+                <span className="rounded-full border border-accent bg-accent/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent">
                   Project manager
                 </span>
                 <PhaseBadge phase={phase} />
@@ -154,14 +243,14 @@ export default function ProjectManagerDashboard(props: {
               <h1 className="max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
                 {event.name}
               </h1>
-              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/60">
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm opacity-70">
                 <span className="inline-flex items-center gap-2">
-                  <CalendarDays className="size-4 text-[#56c9f5]" />
+                  <CalendarDays className="size-4 text-accent" />
                   {formatEventDateRange(event)}
                 </span>
                 {event.location && (
                   <span className="inline-flex items-center gap-2">
-                    <MapPin className="size-4 text-[#56c9f5]" />
+                    <MapPin className="size-4 text-accent" />
                     {event.location}
                   </span>
                 )}
@@ -169,34 +258,61 @@ export default function ProjectManagerDashboard(props: {
             </div>
 
             <div className="relative min-w-0 sm:min-w-80">
-              <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-white/45">
+              <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] opacity-50">
                 Eveniment gestionat
               </label>
-              <select
-                className="h-12 w-full appearance-none rounded-lg border border-white/15 bg-white/[0.08] px-4 pr-10 text-sm font-semibold text-white outline-none transition focus:border-[#00a2e0]"
-                onChange={(changeEvent) => setSelectedEventID(changeEvent.target.value)}
-                value={event.id}
-              >
-                {events.map((option) => (
-                  <option className="bg-[#101a31]" key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute bottom-4 right-4 size-4 text-white/55" />
+              {events.length > 4 ? (
+                <div>
+                  <select
+                    className="h-12 w-full appearance-none rounded-lg border border-current/15 bg-white/[0.08] px-4 pr-10 text-sm font-semibold outline-none transition focus:border-accent"
+                    onChange={(changeEvent) => setSelectedEventID(changeEvent.target.value)}
+                    value={event.id}
+                  >
+                    {events.map((option) => (
+                      <option
+                        className="bg-background text-foreground"
+                        key={option.id}
+                        value={option.id}
+                      >
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute bottom-4 right-4 size-4 opacity-55" />
+                </div>
+              ) : (
+                <div className="inline-flex">
+                  {events.map((option) => (
+                    <div
+                      className={`relative bg-[#101a31] rounded-lg overflow-hidden border-2 mx-2 ${selectedEventID == option.id ? 'border-accent' : 'border-border'}`}
+                      key={option.id}
+                      onClick={() => setSelectedEventID(option.id)}
+                    >
+                      <Media
+                        resource={option.heroImage}
+                        className="object-cover aspect-4/5"
+                        imgClassName="w-40 aspect-4/5 object-cover"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-linear-to-t from-black to-transparent flex items-end">
+                        <h4 className="leading-5 m-2">{option.name}</h4>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          <nav className="mt-8 flex gap-1 overflow-x-auto border-b border-white/10">
+          <nav className="mt-8 flex gap-1 overflow-x-auto border-b border-current/10">
             {tabs.map((item) => {
               const Icon = item.icon
               return (
                 <button
                   className={`relative inline-flex h-12 shrink-0 items-center gap-2 px-4 text-sm font-semibold transition ${
-                    tab === item.value ? 'text-white' : 'text-white/50 hover:text-white/80'
+                    tab === item.value ? 'opacity-100' : 'opacity-50 hover:opacity-80'
                   }`}
                   key={item.value}
-                  onClick={() => setTab(item.value)}
+                  onClick={() => openTab(item.value)}
                   type="button"
                 >
                   <Icon className="size-4" />
@@ -207,7 +323,7 @@ export default function ProjectManagerDashboard(props: {
                     </span>
                   )}
                   {tab === item.value && (
-                    <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#00a2e0]" />
+                    <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />
                   )}
                 </button>
               )
@@ -216,26 +332,41 @@ export default function ProjectManagerDashboard(props: {
         </div>
       </section>
 
-      <main className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
-        {tab === 'overview' && (
-          <Overview
-            event={event}
-            metrics={metrics}
-            onOpenCheckIn={() => setTab('check-in')}
-            onTogglePersonalData={() => setShowPersonalData((current) => !current)}
-            showPersonalData={showPersonalData}
-          />
-        )}
-        {tab === 'check-in' && (
-          <CheckIn
-            event={event}
-            onRegistrationUpdate={updateRegistration}
-            onTogglePersonalData={() => setShowPersonalData((current) => !current)}
-            showPersonalData={showPersonalData}
-          />
-        )}
-        {tab === 'report' && <FinalReport event={event} metrics={metrics} />}
-      </main>
+      <AnimatePresence initial={false} mode="wait">
+        <motion.main
+          animate="visible"
+          className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8 lg:py-9"
+          exit={prefersReducedMotion ? undefined : 'exit'}
+          initial={prefersReducedMotion ? false : 'hidden'}
+          key={event.id}
+          variants={mainVariants}
+        >
+          {openedCounterTabs.overview && (
+            <div hidden={tab !== 'overview'}>
+              <Overview
+                event={event}
+                metrics={metrics}
+                onOpenCheckIn={() => openTab('check-in')}
+                onTogglePersonalData={() => setShowPersonalData((current) => !current)}
+                showPersonalData={showPersonalData}
+              />
+            </div>
+          )}
+          {tab === 'check-in' && (
+            <CheckIn
+              event={event}
+              onRegistrationUpdate={updateRegistration}
+              onTogglePersonalData={() => setShowPersonalData((current) => !current)}
+              showPersonalData={showPersonalData}
+            />
+          )}
+          {openedCounterTabs.report && (
+            <div hidden={tab !== 'report'}>
+              <FinalReport event={event} metrics={metrics} />
+            </div>
+          )}
+        </motion.main>
+      </AnimatePresence>
     </div>
   )
 }
@@ -261,6 +392,7 @@ function Overview(props: {
           detail={`${metrics.remainingCapacity} locuri disponibile`}
           icon={UsersRound}
           label="Înscrieri active"
+          numberValue={metrics.active.length}
           value={String(metrics.active.length)}
         />
         <MetricCard
@@ -275,6 +407,7 @@ function Overview(props: {
           detail={`${metrics.checkInProgress}% din listă procesată`}
           icon={UserCheck}
           label="Prezenți confirmați"
+          numberValue={metrics.present.length}
           value={String(metrics.present.length)}
         />
         <MetricCard
@@ -282,6 +415,8 @@ function Overview(props: {
           detail={`${formatCurrency(metrics.averageDonation)} donație medie`}
           icon={CircleDollarSign}
           label="Fonduri înregistrate"
+          numberValue={metrics.funds}
+          numberUnit="RON"
           value={formatCurrency(metrics.funds)}
         />
       </section>
@@ -296,7 +431,7 @@ function Overview(props: {
             {event.days.map((day) => (
               <div key={day.id}>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-bold capitalize text-[#152039]">{day.label}</h3>
+                  <h3 className="text-sm font-bold capitalize">{day.label}</h3>
                   <span className="text-xs font-medium text-[#7a8497]">
                     {sumDayRegistrations(event, day.id)} înscrieri
                   </span>
@@ -304,33 +439,45 @@ function Overview(props: {
                 <div className="grid gap-3 md:grid-cols-2">
                   {day.slots.map((slot) => {
                     const registrations = activeRegistrationsForSlot(event, day.id, slot.id).length
+                    const presence = activeRegistrationsForSlot(event, day.id, slot.id).filter(
+                      (reg) => reg.status == 'present',
+                    ).length
                     const percentage = percentageOf(registrations, slot.capacity)
+                    const presencePercentage = percentageOf(presence, slot.capacity)
                     return (
                       <div
-                        className="rounded-xl border border-[#e3e8ef] bg-[#f8fafc] p-4"
+                        className="rounded-xl border border-current/10 bg-white/5 p-4"
                         key={slot.id}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="flex items-center gap-1.5 text-xs font-semibold text-[#667085]">
+                            <p className="flex items-center gap-1.5 text-xs font-semibold opacity-65">
                               <Clock3 className="size-3.5" />
-                              {slot.label}
+                              {formatSlotTimeRange(slot)}
                             </p>
-                            <p className="mt-2 text-lg font-bold text-[#152039]">
+                            <p className="mt-2 text-lg font-bold">
                               {registrations}
-                              <span className="text-sm font-medium text-[#99a1b1]">
+                              <span className="text-sm font-medium opacity-55">
                                 {' '}
                                 / {slot.capacity}
                               </span>
                             </p>
                           </div>
-                          <span
-                            className={`rounded-md px-2 py-1 text-xs font-bold ${getFillBadgeClass(percentage)}`}
-                          >
-                            {percentage}%
-                          </span>
+                          <div className="inline-flex align-bottom items-end">
+                            <span className={`rounded-md px-2 py-1 text-xs `}>
+                              {presencePercentage}%
+                            </span>
+                            <span
+                              className={`rounded-md px-3 py-1 text-md font-bold ${getFillBadgeClass(percentage)}`}
+                            >
+                              {percentage}%
+                            </span>
+                          </div>
                         </div>
-                        <ProgressBar percentage={percentage} />
+                        <ProgressBar
+                          percentage={percentage}
+                          secondaryPercentage={presencePercentage}
+                        />
                       </div>
                     )
                   })}
@@ -354,10 +501,10 @@ function Overview(props: {
               <div className="flex items-center gap-3 py-3.5" key={registration.id}>
                 <Avatar name={registration.name} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-[#1d2939]">
+                  <p className="truncate text-sm font-bold">
                     {showPersonalData ? registration.name : maskName(registration.name)}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-[#8a94a6]">
+                  <p className="mt-0.5 truncate text-xs opacity-55">
                     {showPersonalData ? registration.email : 'Date personale ascunse'}
                   </p>
                 </div>
@@ -367,7 +514,7 @@ function Overview(props: {
             {recentRegistrations.length === 0 && <InlineEmpty text="Nu există încă înscrieri." />}
           </div>
           <button
-            className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#101a31] text-sm font-bold text-white transition hover:bg-[#1a294b]"
+            className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent text-sm font-bold text-accent-foreground transition hover:opacity-90"
             onClick={onOpenCheckIn}
             type="button"
           >
@@ -413,6 +560,15 @@ function CheckIn(props: {
     registration: ManagedRegistration
     status: 'registered' | 'present' | 'absent'
   }) {
+    if (args.status === 'present' && args.donation < event.donation) {
+      setNotice({
+        kind: 'error',
+        message: `Înscrierea nu se poate face deoarece donația minimă este de ${event.donation} RON.`,
+      })
+      setEditing(null)
+      return
+    }
+
     setSavingID(args.registration.id)
     setNotice(null)
 
@@ -456,14 +612,14 @@ function CheckIn(props: {
     <div className="grid gap-5">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[#152039]">Lista de check-in</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Lista de check-in</h2>
           <p className="mt-1 text-sm text-[#748094]">
             Confirmă sosirea, donația totală și persoanele care împart donația.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#101a31] px-4 text-xs font-bold text-white transition hover:bg-[#1a294b]"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-xs font-bold text-accent-foreground transition hover:opacity-90"
             onClick={() => setImportOpen(true)}
             type="button"
           >
@@ -491,12 +647,12 @@ function CheckIn(props: {
         </div>
       )}
 
-      <Panel className="overflow-hidden p-0">
+      <Panel className="overflow-hidden p-0" stagger={false}>
         <div className="grid gap-3 border-b border-[#e5e9ef] p-4 md:grid-cols-[minmax(220px,1fr)_220px_180px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a94a6]" />
             <input
-              className="h-11 w-full rounded-lg border border-[#dce2ea] bg-white pl-10 pr-3 text-sm outline-none transition placeholder:text-[#a4abba] focus:border-[#00a2e0] focus:ring-2 focus:ring-[#00a2e0]/10"
+              className="h-11 w-full rounded-lg border border-[#dce2ea] bg-white pl-10 pr-3 text-sm text-[#152039] outline-none transition placeholder:text-[#a4abba] focus:border-accent focus:ring-2 focus:ring-accent/10"
               onChange={(inputEvent) => setQuery(inputEvent.target.value)}
               placeholder="Caută nume, email sau telefon"
               type="search"
@@ -504,7 +660,7 @@ function CheckIn(props: {
             />
           </div>
           <select
-            className="h-11 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-medium outline-none focus:border-[#00a2e0]"
+            className="h-11 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-medium text-[#152039] outline-none focus:border-accent"
             onChange={(selectEvent) => setShift(selectEvent.target.value)}
             value={shift}
           >
@@ -512,13 +668,13 @@ function CheckIn(props: {
             {event.days.flatMap((day) =>
               day.slots.map((slot) => (
                 <option key={`${day.id}:${slot.id}`} value={`${day.id}:${slot.id}`}>
-                  {compactDay(day.date)} · {slot.label}
+                  {compactDay(day.eventDate)} · {slot.label}
                 </option>
               )),
             )}
           </select>
           <select
-            className="h-11 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-medium outline-none focus:border-[#00a2e0]"
+            className="h-11 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-medium text-[#152039] outline-none focus:border-accent"
             onChange={(selectEvent) => setStatus(selectEvent.target.value)}
             value={status}
           >
@@ -532,7 +688,7 @@ function CheckIn(props: {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-left">
             <thead>
-              <tr className="border-b border-[#e5e9ef] bg-[#f8fafc] text-[11px] font-bold uppercase tracking-[0.09em] text-[#7a8497]">
+              <tr className="border-b border-current/10 bg-card text-[11px] font-bold uppercase tracking-[0.09em] opacity-70">
                 <th className="px-5 py-3.5">Participant</th>
                 <th className="px-4 py-3.5">Tură</th>
                 <th className="px-4 py-3.5">Status</th>
@@ -545,15 +701,15 @@ function CheckIn(props: {
               {filtered.map((registration) => {
                 const slotInfo = getSlotInfo(event, registration.day, registration.slot)
                 return (
-                  <tr className="bg-white transition hover:bg-[#fbfcfd]" key={registration.id}>
+                  <tr className="bg-card transition hover:opacity-90" key={registration.id}>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <Avatar name={registration.name} />
                         <div className="min-w-0">
-                          <p className="max-w-60 truncate text-sm font-bold text-[#1d2939]">
+                          <p className="max-w-60 truncate text-sm font-bold">
                             {showPersonalData ? registration.name : maskName(registration.name)}
                           </p>
-                          <p className="mt-0.5 max-w-60 truncate text-xs text-[#8a94a6]">
+                          <p className="mt-0.5 max-w-60 truncate text-xs opacity-55">
                             {showPersonalData
                               ? `${registration.email} · ${registration.phone}`
                               : 'Date personale ascunse'}
@@ -562,20 +718,20 @@ function CheckIn(props: {
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <p className="text-sm font-semibold text-[#344054]">
-                        {slotInfo?.slot.label ?? '—'}
+                      <p className="text-sm font-semibold">
+                        {slotInfo ? formatSlotTimeRange(slotInfo.slot) : '—'}
                       </p>
-                      <p className="mt-0.5 text-xs capitalize text-[#8a94a6]">
-                        {slotInfo ? compactDay(slotInfo.day.date) : 'Tură indisponibilă'}
+                      <p className="mt-0.5 text-xs capitalize opacity-55">
+                        {slotInfo ? compactDay(slotInfo.day.eventDate) : 'Tură indisponibilă'}
                       </p>
                     </td>
                     <td className="px-4 py-4">
                       <StatusBadge status={registration.status} />
                     </td>
-                    <td className="px-4 py-4 text-sm font-semibold text-[#344054]">
+                    <td className="px-4 py-4 text-sm font-semibold">
                       {1 + registration.guests} pers.
                     </td>
-                    <td className="px-4 py-4 text-sm font-bold text-[#152039]">
+                    <td className="px-4 py-4 text-sm font-bold">
                       {registration.donation > 0 ? formatCurrency(registration.donation) : '—'}
                     </td>
                     <td className="px-5 py-4">
@@ -600,15 +756,15 @@ function CheckIn(props: {
                             Editează
                           </button>
                         )}
-                        {registration.status !== 'absent' && (
+                        {registration.status === 'registered' && (
                           <button
                             aria-label="Marchează absent"
-                            className="inline-flex size-9 items-center justify-center rounded-lg border border-[#e0e4ea] text-[#8b95a7] transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                            className="inline-flex size-9 items-center justify-center rounded-lg border border-red-500 text-red-300 bg-red-100 transition hover:border-red-400 hover:bg-red-200 hover:text-red-500 disabled:opacity-60"
                             disabled={savingID === registration.id}
                             onClick={() =>
                               saveRegistration({
-                                donation: registration.donation,
-                                guests: registration.guests,
+                                donation: registration.donation || 0,
+                                guests: registration.guests || 0,
                                 registration,
                                 status: 'absent',
                               })
@@ -628,7 +784,7 @@ function CheckIn(props: {
           </table>
           {filtered.length === 0 && <InlineEmpty text="Nicio înscriere nu corespunde filtrelor." />}
         </div>
-        <div className="flex items-center justify-between border-t border-[#e5e9ef] bg-[#f8fafc] px-5 py-3 text-xs font-medium text-[#7a8497]">
+        <div className="flex items-center justify-between border-t border-current/10 bg-card px-5 py-3 text-xs font-medium opacity-65">
           <span>{filtered.length} rezultate</span>
           <span>
             {event.registrations.filter((item) => item.status !== 'cancelled').length} înscrieri
@@ -646,6 +802,7 @@ function CheckIn(props: {
           registration={editing}
           saving={savingID === editing.id}
           showPersonalData={showPersonalData}
+          managedEvent={event}
         />
       )}
       {importOpen && <ParticipantImportDialog event={event} onClose={() => setImportOpen(false)} />}
@@ -659,9 +816,10 @@ function CheckInDialog(props: {
   registration: ManagedRegistration
   saving: boolean
   showPersonalData: boolean
+  managedEvent: ManagedEvent
 }) {
-  const { onClose, onSave, registration, saving, showPersonalData } = props
-  const [donation, setDonation] = useState(String(registration.donation || ''))
+  const { onClose, onSave, registration, saving, showPersonalData, managedEvent } = props
+  const [donation, setDonation] = useState(String(registration.donation || managedEvent.donation))
   const [guests, setGuests] = useState(String(registration.guests || 0))
   const parsedDonation = Number(donation || 0)
   const parsedGuests = Number(guests || 0)
@@ -725,14 +883,17 @@ function CheckInDialog(props: {
               Donație totală <span className="font-medium text-[#8a94a6]">(lei)</span>
             </label>
             <div className="relative">
-              <HandCoins className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-[#00a2e0]" />
+              <HandCoins className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-accent" />
               <input
                 autoFocus
-                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-[#00a2e0] focus:ring-2 focus:ring-[#00a2e0]/10"
+                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10"
                 id="checkin-donation"
-                min="0"
+                min={managedEvent.donation.toString() || '0'}
                 onChange={(event) => setDonation(event.target.value)}
-                placeholder="0"
+                onKeyDown={(ev) => {
+                  if (ev.key == 'Enter') onSave({ donation: parsedDonation, guests: parsedGuests })
+                }}
+                placeholder="suma donatǎ"
                 step="1"
                 type="number"
                 value={donation}
@@ -750,7 +911,7 @@ function CheckInDialog(props: {
             <div className="relative">
               <Users className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-[#7b61d1]" />
               <input
-                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-[#00a2e0] focus:ring-2 focus:ring-[#00a2e0]/10"
+                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10"
                 id="checkin-guests"
                 max="50"
                 min="0"
@@ -794,6 +955,7 @@ function CheckInDialog(props: {
               parsedGuests < 0
             }
             onClick={() => onSave({ donation: parsedDonation, guests: parsedGuests })}
+            onSubmit={() => onSave({ donation: parsedDonation, guests: parsedGuests })}
             type="button"
           >
             <CheckCircle2 className="size-4" />
@@ -875,7 +1037,7 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
       <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
         <div className="flex items-start justify-between border-b border-[#e7ebf0] px-6 py-5">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#0096cf]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
               Import participanți
             </p>
             <h2 className="mt-1.5 text-xl font-bold text-[#152039]">{event.name}</h2>
@@ -897,7 +1059,7 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
           <div className="space-y-5 px-6 py-6">
             <div className="rounded-xl border border-[#dceaf1] bg-[#f3f9fc] p-4">
               <div className="flex items-start gap-3">
-                <FileSpreadsheet className="mt-0.5 size-5 shrink-0 text-[#0096cf]" />
+                <FileSpreadsheet className="mt-0.5 size-5 shrink-0 text-accent" />
                 <div>
                   <p className="text-sm font-bold text-[#152039]">Coloanele CSV</p>
                   <p className="mt-1 text-xs leading-5 text-[#657286]">
@@ -908,7 +1070,7 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
                 </div>
               </div>
               <button
-                className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg border border-[#cbdde6] bg-white px-3 text-xs font-bold text-[#26738f] transition hover:bg-[#f9fcfd]"
+                className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg border border-accent/30 bg-white px-3 text-xs font-bold text-accent transition hover:bg-[#f9fcfd]"
                 onClick={() => downloadParticipantTemplate(event)}
                 type="button"
               >
@@ -918,10 +1080,10 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
             </div>
 
             <label
-              className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#cfd8e3] bg-[#fafbfc] px-5 py-8 text-center transition hover:border-[#00a2e0] hover:bg-[#f6fbfd]"
+              className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#cfd8e3] bg-[#fafbfc] px-5 py-8 text-center transition hover:border-accent hover:bg-[#f6fbfd]"
               htmlFor="participant-csv"
             >
-              <Upload className="size-7 text-[#00a2e0]" />
+              <Upload className="size-7 text-accent" />
               <span className="mt-3 text-sm font-bold text-[#344054]">
                 {file ? file.name : 'Alege fișierul CSV'}
               </span>
@@ -987,7 +1149,7 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
               Închide
             </button>
             <button
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-[#00a2e0] px-5 text-sm font-bold text-white transition hover:bg-[#008fc6] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-bold text-accent-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
               disabled={!file || isUploading}
               type="submit"
             >
@@ -1006,10 +1168,10 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
   const reportDays = event.days.map((day) => {
     const records = metrics.present.filter((registration) => registration.day === day.id)
     return {
-      attendees: records.reduce((sum, registration) => sum + 1 + registration.guests, 0),
-      funds: records.reduce((sum, registration) => sum + registration.donation, 0),
+      attendees: records.reduce((sum, registration) => sum + 1 + (registration.guests || 0), 0),
+      funds: records.reduce((sum, registration) => sum + (registration.donation || 0), 0),
       id: day.id,
-      label: compactDay(day.date),
+      label: compactDay(day.eventDate),
     }
   })
   const maxDayFunds = Math.max(...reportDays.map((day) => day.funds), 1)
@@ -1018,12 +1180,10 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
     <div className="grid gap-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#00a2e0]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
             Impact & rezultate
           </p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#152039]">
-            Raportul evenimentului
-          </h2>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight">Raportul evenimentului</h2>
           <p className="mt-1 text-sm text-[#748094]">
             Metricile se actualizează imediat după fiecare check-in.
           </p>
@@ -1044,6 +1204,8 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
           detail="donații confirmate"
           icon={WalletCards}
           label="Fonduri strânse"
+          numberUnit="RON"
+          numberValue={metrics.funds}
           value={formatCurrency(metrics.funds)}
         />
         <MetricCard
@@ -1051,6 +1213,7 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
           detail={`${metrics.companions} însoțitori`}
           icon={Users}
           label="Persoane prezente"
+          numberValue={metrics.peoplePresent}
           value={String(metrics.peoplePresent)}
         />
         <MetricCard
@@ -1058,6 +1221,8 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
           detail="per înscriere prezentă"
           icon={HandCoins}
           label="Donație medie"
+          numberValue={metrics.averageDonation}
+          numberUnit="RON"
           value={formatCurrency(metrics.averageDonation)}
         />
         <MetricCard
@@ -1105,18 +1270,16 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
               <div key={day.id}>
                 <div className="mb-2.5 flex items-end justify-between gap-3">
                   <div>
-                    <p className="text-sm font-bold capitalize text-[#344054]">{day.label}</p>
+                    <p className="text-sm font-bold capitalize">{day.label}</p>
                     <p className="mt-0.5 text-xs text-[#8a94a6]">
                       {day.attendees} persoane prezente
                     </p>
                   </div>
-                  <span className="text-sm font-bold text-[#152039]">
-                    {formatCurrency(day.funds)}
-                  </span>
+                  <span className="text-sm font-bold">{formatCurrency(day.funds)}</span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-[#edf0f4]">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#00a2e0] to-[#56c9f5] transition-all"
+                    className="h-full rounded-full bg-accent transition-all"
                     style={{ width: `${percentageOf(day.funds, maxDayFunds)}%` }}
                   />
                 </div>
@@ -1187,21 +1350,25 @@ function EmptyState({ userName }: { userName: string }) {
   )
 }
 
-function Panel(props: { children: ReactNode; className?: string }) {
+function Panel(props: { children: ReactNode; className?: string; stagger?: boolean }) {
+  const stagger = props.stagger !== false
+
   return (
-    <section
-      className={`rounded-2xl border border-[#e1e6ed] bg-white p-5 shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-6 ${props.className ?? ''}`}
+    <motion.section
+      className={`pm-dashboard-card rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-6 ${props.className ?? ''}`}
+      initial={stagger ? undefined : false}
+      variants={stagger ? panelVariants : undefined}
     >
       {props.children}
-    </section>
+    </motion.section>
   )
 }
 
 function PanelHeader(props: { description: string; title: string }) {
   return (
     <div>
-      <h2 className="text-lg font-bold text-[#152039]">{props.title}</h2>
-      <p className="mt-1 text-sm text-[#7a8497]">{props.description}</p>
+      <h2 className="text-lg font-bold">{props.title}</h2>
+      <p className="mt-1 text-sm opacity-60">{props.description}</p>
     </div>
   )
 }
@@ -1212,24 +1379,44 @@ function MetricCard(props: {
   icon: typeof Users
   label: string
   value: string
+  numberValue?: number
+  numberUnit?: string
 }) {
   const Icon = props.icon
   const colors = {
     amber: 'bg-amber-50 text-amber-600',
-    blue: 'bg-sky-50 text-[#0096cf]',
+    blue: 'bg-accent/15 text-accent',
     green: 'bg-emerald-50 text-emerald-600',
     violet: 'bg-violet-50 text-violet-600',
   }
 
   return (
-    <article className="rounded-2xl border border-[#e1e6ed] bg-white p-5 shadow-[0_8px_30px_rgba(22,34,57,0.04)]">
+    <motion.article
+      className="pm-dashboard-card rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)]"
+      variants={panelVariants}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.08em] text-[#8791a3]">
-            {props.label}
-          </p>
-          <p className="mt-3 text-3xl font-bold tracking-tight text-[#152039]">{props.value}</p>
-          <p className="mt-1.5 text-xs font-medium text-[#8d96a7]">{props.detail}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] opacity-60">{props.label}</p>
+          {props.numberValue == undefined && (
+            <p className="mt-3 text-3xl font-bold tracking-tight">{props.value}</p>
+          )}
+          {props.numberValue != undefined && (
+            <span className="inline-flex align-bottom items-bottom mt-3 ">
+              <Counter
+                animateChanges={false}
+                animateOnMount
+                value={Math.round(props.numberValue)}
+                fontSize={42}
+                className="text-3xl font-bold"
+                gap={0}
+                topGradientStyle={{}}
+                bottomGradientStyle={{}}
+              />
+              <p className="pb-1 text-3xl font-bold tracking-tight">{props.numberUnit}</p>
+            </span>
+          )}
+          <p className="mt-1.5 text-xs font-medium opacity-60">{props.detail}</p>
         </div>
         <div
           className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${colors[props.accent]}`}
@@ -1237,35 +1424,48 @@ function MetricCard(props: {
           <Icon className="size-5" />
         </div>
       </div>
-    </article>
+    </motion.article>
   )
 }
 
 function InsightCard(props: { detail: string; icon: typeof Users; label: string; value: string }) {
   const Icon = props.icon
   return (
-    <article className="rounded-xl border border-[#e1e6ed] bg-white p-5">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-[#edf8fc] text-[#0096cf]">
+    <motion.article
+      className="pm-dashboard-card rounded-xl border border-border bg-card p-5 text-card-foreground"
+      variants={panelVariants}
+    >
+      <div className="flex size-9 items-center justify-center rounded-lg bg-accent/15 text-accent">
         <Icon className="size-4.5" />
       </div>
-      <p className="mt-4 text-xs font-bold uppercase tracking-[0.07em] text-[#8791a3]">
-        {props.label}
-      </p>
-      <p className="mt-1.5 truncate text-xl font-bold text-[#152039]" title={props.value}>
+      <p className="mt-4 text-xs font-bold uppercase tracking-[0.07em] opacity-60">{props.label}</p>
+      <p className="mt-1.5 truncate text-xl font-bold" title={props.value}>
         {props.value}
       </p>
-      <p className="mt-1 text-xs leading-5 text-[#8d96a7]">{props.detail}</p>
-    </article>
+      <p className="mt-1 text-xs leading-5 opacity-60">{props.detail}</p>
+    </motion.article>
   )
 }
 
-function ProgressBar({ percentage }: { percentage: number }) {
+function ProgressBar({
+  percentage,
+  secondaryPercentage,
+}: {
+  percentage: number
+  secondaryPercentage?: number
+}) {
   return (
-    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e6ebf1]">
+    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e6ebf1] relative">
       <div
-        className={`h-full rounded-full ${percentage >= 90 ? 'bg-[#f7a81b]' : 'bg-[#00a2e0]'}`}
+        className={`h-full rounded-full relative ${getFillBadgeClass(percentage, false)}`}
         style={{ width: `${Math.min(percentage, 100)}%` }}
       />
+      {secondaryPercentage && (
+        <div
+          className={`h-full rounded-full absolute left-0 top-0 bottom-0  ${getFillBadgeClass(percentage, true)}`}
+          style={{ width: `${Math.min(secondaryPercentage, 100)}%` }}
+        />
+      )}
     </div>
   )
 }
@@ -1293,13 +1493,13 @@ function Avatar({ name }: { name?: string | null }) {
     .join('')
 
   return (
-    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e8f5fa] text-xs font-bold text-[#007fad]">
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">
       {initials || <UserRound className="size-4" />}
     </div>
   )
 }
 
-function StatusBadge({ status }: { status: RegistrationStatus }) {
+function StatusBadge({ status }: { status: EventRegistration['status'] }) {
   const config = {
     absent: { className: 'bg-red-50 text-red-700 ring-red-100', label: 'Absent' },
     cancelled: { className: 'bg-slate-100 text-slate-500 ring-slate-200', label: 'Anulat' },
@@ -1340,14 +1540,14 @@ function Legend(props: { color: string; label: string; value: number }) {
   return (
     <div className="flex items-center gap-3 rounded-lg border border-[#edf0f4] px-3 py-2.5">
       <span className={`size-2.5 rounded-full ${props.color}`} />
-      <span className="flex-1 text-sm font-medium text-[#667085]">{props.label}</span>
-      <span className="text-sm font-bold text-[#152039]">{props.value}</span>
+      <span className="flex-1 text-sm font-medium opacity-65">{props.label}</span>
+      <span className="text-sm font-bold">{props.value}</span>
     </div>
   )
 }
 
 function InlineEmpty({ text }: { text: string }) {
-  return <div className="py-10 text-center text-sm font-medium text-[#8a94a6]">{text}</div>
+  return <div className="py-10 text-center text-sm font-medium opacity-60">{text}</div>
 }
 
 function calculateMetrics(event: ManagedEvent) {
@@ -1359,15 +1559,15 @@ function calculateMetrics(event: ManagedEvent) {
     (daySum, day) => daySum + day.slots.reduce((slotSum, slot) => slotSum + slot.capacity, 0),
     0,
   )
-  const funds = present.reduce((sum, registration) => sum + registration.donation, 0)
-  const companions = present.reduce((sum, registration) => sum + registration.guests, 0)
+  const funds = present.reduce((sum, registration) => sum + (registration.donation || 0), 0)
+  const companions = present.reduce((sum, registration) => sum + (registration.guests || 0), 0)
   const peoplePresent = present.length + companions
   const processed = present.length + absent.length
   const slotAttendance = new Map<string, number>()
 
   for (const registration of present) {
     const key = `${registration.day}:${registration.slot}`
-    slotAttendance.set(key, (slotAttendance.get(key) ?? 0) + 1 + registration.guests)
+    slotAttendance.set(key, (slotAttendance.get(key) ?? 0) + 1 + (registration.guests || 0))
   }
   const topSlot = [...slotAttendance.entries()].sort((left, right) => right[1] - left[1])[0]
   const [topDayID, topSlotID] = topSlot?.[0].split(':') ?? []
@@ -1391,7 +1591,7 @@ function calculateMetrics(event: ManagedEvent) {
     present,
     remainingCapacity: Math.max(capacity - active.length, 0),
     topSlotLabel: topSlotInfo
-      ? `${compactDay(topSlotInfo.day.date)}, ${topSlotInfo.slot.label}`
+      ? `${compactDay(topSlotInfo.day.eventDate)}, ${topSlotInfo.slot.label}`
       : '—',
     unprocessed,
   }
@@ -1406,15 +1606,21 @@ function getInitialEventID(events: ManagedEvent[]) {
   )
 }
 
+export function getStartDate(event: ManagedEvent) {
+  return parseDate(event.startTime)
+}
+
+export function getEndDate(event: ManagedEvent) {
+  return parseDate(event.endTime)
+}
+
 function getEventPhase(event: ManagedEvent): 'ended' | 'live' | 'upcoming' {
   const now = Date.now()
-  const start = new Date(event.startDate).getTime()
-  const endDate = new Date(event.endDate)
-  endDate.setHours(23, 59, 59, 999)
-  const end = endDate.getTime()
+  const start = getStartDate(event)?.getTime()
+  const end = getEndDate(event)?.getTime()
 
-  if (Number.isFinite(start) && now < start) return 'upcoming'
-  if (Number.isFinite(end) && now > end) return 'ended'
+  if (start !== undefined && now < start) return 'upcoming'
+  if (end !== undefined && now > end) return 'ended'
   return 'live'
 }
 
@@ -1440,18 +1646,65 @@ function sumDayRegistrations(event: ManagedEvent, dayID: string) {
 }
 
 function formatEventDateRange(event: ManagedEvent) {
-  const start = new Date(event.startDate)
-  const end = new Date(event.endDate)
-  if (Number.isNaN(start.getTime())) return 'Dată neconfigurată'
-  if (Number.isNaN(end.getTime()) || start.toDateString() === end.toDateString()) {
-    return new Intl.DateTimeFormat('ro-RO', {
+  const start = getStartDate(event)
+  const end = getEndDate(event)
+
+  if (!start) return 'Dată neconfigurată'
+  if (!end || isSameCalendarDay(start, end)) {
+    const dateLabel = new Intl.DateTimeFormat('ro-RO', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     }).format(start)
+    const startTime = formatTime(start)
+    const endTime = end ? formatTime(end) : null
+
+    return endTime ? `${dateLabel}, ${startTime} – ${endTime}` : `${dateLabel}, ${startTime}`
   }
 
-  return `${new Intl.DateTimeFormat('ro-RO', { day: 'numeric', month: 'short' }).format(start)} – ${new Intl.DateTimeFormat('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' }).format(end)}`
+  return `${formatDateAndTime(start, false)} – ${formatDateAndTime(end, true)}`
+}
+
+function formatSlotTimeRange(slot: Pick<ManagedEventSlot, 'endTime' | 'label' | 'startTime'>) {
+  const start = parseDate(slot.startTime)
+  const end = parseDate(slot.endTime)
+
+  if (start && end) return `${formatTime(start)} – ${formatTime(end)}`
+  if (start) return formatTime(start)
+  if (end) return formatTime(end)
+  return slot.label
+}
+
+function parseDate(value: string | null) {
+  if (!value) return null
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function isSameCalendarDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
+}
+
+function formatDateAndTime(value: Date, includeYear: boolean) {
+  return new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+    ...(includeYear ? { year: 'numeric' as const } : {}),
+  }).format(value)
+}
+
+function formatTime(value: Date) {
+  return new Intl.DateTimeFormat('ro-RO', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(value)
 }
 
 function compactDay(date: string) {
@@ -1475,10 +1728,12 @@ function percentageOf(value: number, total: number) {
   return Math.round((value / total) * 100)
 }
 
-function getFillBadgeClass(percentage: number) {
-  if (percentage >= 100) return 'bg-red-50 text-red-700'
-  if (percentage >= 80) return 'bg-amber-50 text-amber-700'
-  return 'bg-sky-50 text-sky-700'
+function getFillBadgeClass(percentage: number, invert: boolean = false) {
+  if (percentage >= 100)
+    return invert ? 'bg-green-700 text-green-100' : 'bg-green-100 text-green-700'
+  if (percentage >= 50)
+    return invert ? 'bg-amber-500 text-amber-100' : 'bg-amber-100 text-amber-500'
+  return invert ? 'bg-red-700 text-red-100' : 'bg-red-100 text-red-700'
 }
 
 function maskName(name?: string | null) {
@@ -1501,7 +1756,7 @@ function downloadParticipantTemplate(event: ManagedEvent) {
       'Ana Popescu',
       'ana@example.com',
       '0712345678',
-      firstDay ? formatCSVDate(firstDay.date) : 'YYYY-MM-DD',
+      firstDay ? formatCSVDate(firstDay.eventDate) : 'YYYY-MM-DD',
       firstSlot?.label ?? '10:00-12:00',
       'Opțional: alergii sau alte observații',
     ],
@@ -1548,7 +1803,7 @@ function exportReport(event: ManagedEvent) {
       registration.name,
       registration.email,
       registration.phone,
-      slot ? compactDay(slot.day.date) : '',
+      slot ? compactDay(slot.day.eventDate) : '',
       slot?.slot.label ?? '',
       registration.status,
       registration.donation,

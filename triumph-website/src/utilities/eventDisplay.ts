@@ -2,6 +2,7 @@ import type { Event } from '@/payload-types'
 import type { LocationValue } from '@/fields/location-selector'
 
 type EventDay = NonNullable<Event['days']>[number]
+type EventSlot = NonNullable<EventDay['slots']>[number]
 
 const longDateFormatter = new Intl.DateTimeFormat('ro-RO', {
   day: 'numeric',
@@ -23,14 +24,30 @@ export function getEventDays(event: Pick<Event, 'days'>) {
 }
 
 export function getEventStartDate(event: Pick<Event, 'days'>) {
-  const firstDay = getEventDays(event)[0]
-  return firstDay ? toDayBoundary(firstDay.eventDate, false) : null
+  const starts = getEventDays(event).flatMap((day) => {
+    const slotStarts = day.slots.flatMap((slot) => {
+      const start = getEventSlotDateRange(day.eventDate, slot).start
+      return start ? [start] : []
+    })
+
+    return slotStarts.length > 0 ? slotStarts : compactDate(toDayBoundary(day.eventDate, false))
+  })
+
+  return getDateBoundary(starts, 'earliest')
 }
 
 export function getEventEndDate(event: Pick<Event, 'days'>) {
-  const days = getEventDays(event)
-  const lastDay = days[days.length - 1]
-  return lastDay ? toDayBoundary(lastDay.eventDate, true) : null
+  const ends = getEventDays(event).flatMap((day) => {
+    const slotEnds = day.slots.flatMap((slot) => {
+      const range = getEventSlotDateRange(day.eventDate, slot)
+      const end = range.end ?? range.start
+      return end ? [end] : []
+    })
+
+    return slotEnds.length > 0 ? slotEnds : compactDate(toDayBoundary(day.eventDate, true))
+  })
+
+  return getDateBoundary(ends, 'latest')
 }
 
 export function isEventCompleted(event: Pick<Event, 'days'>, now = new Date()) {
@@ -41,7 +58,9 @@ export function isEventCompleted(event: Pick<Event, 'days'>, now = new Date()) {
 export function formatEventDateRange(event: Pick<Event, 'days'>) {
   const days = getEventDays(event)
   const firstDate = days[0] ? toDayBoundary(days[0].eventDate, false) : null
-  const lastDate = days[days.length - 1] ? toDayBoundary(days[days.length - 1].eventDate, false) : null
+  const lastDate = days[days.length - 1]
+    ? toDayBoundary(days[days.length - 1].eventDate, false)
+    : null
 
   if (!firstDate || !lastDate) return 'Data va fi anunțată'
   if (days.length === 1) return longDateFormatter.format(firstDate)
@@ -94,7 +113,9 @@ export function getGoogleMapsURL(location?: LocationValue | null) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}&query_place_id=${location.placeId}`
   }
 
-  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null
+  return query
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+    : null
 }
 
 export function getContrastTextColor(hexColor?: string | null) {
@@ -130,6 +151,20 @@ export function combineEventDateAndTime(eventDate: string, time?: string | null)
   return combinedDate
 }
 
+export function getEventSlotDateRange(
+  eventDate: string,
+  slot: Pick<EventSlot, 'endTime' | 'startTime'>,
+) {
+  const start = slot.startTime ? combineEventDateAndTime(eventDate, slot.startTime) : null
+  const end = slot.endTime ? combineEventDateAndTime(eventDate, slot.endTime) : null
+
+  if (start && end && end.getTime() < start.getTime()) {
+    end.setDate(end.getDate() + 1)
+  }
+
+  return { end, start }
+}
+
 export function isEventSlotUpcoming(eventDate: string, time?: string | null, now = new Date()) {
   const slotDate = combineEventDateAndTime(eventDate, time)
   return slotDate ? slotDate.getTime() >= now.getTime() : false
@@ -143,4 +178,20 @@ function toDayBoundary(value: string, endOfDay: boolean) {
   else date.setHours(0, 0, 0, 0)
 
   return date
+}
+
+function compactDate(value: Date | null) {
+  return value ? [value] : []
+}
+
+function getDateBoundary(values: Date[], boundary: 'earliest' | 'latest') {
+  if (values.length === 0) return null
+
+  const timestamps = values
+    .map((value) => value.getTime())
+    .filter((value) => Number.isFinite(value))
+  if (timestamps.length === 0) return null
+
+  const timestamp = boundary === 'earliest' ? Math.min(...timestamps) : Math.max(...timestamps)
+  return new Date(timestamp)
 }

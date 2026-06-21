@@ -5,10 +5,15 @@ import payloadConfig from '@payload-config'
 import { getPayload } from 'payload'
 
 import type { Event, EventRegistration, User } from '@/payload-types'
+import { getEventSlotDateRange } from '@/utilities/eventDisplay'
 import { formatEventDayLabel, formatEventSlotLabel } from '@/utilities/eventRegistration'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
-import ProjectManagerDashboard, { type ManagedEvent } from './ProjectManagerDashboard'
+import ProjectManagerDashboard, {
+  type ManagedEvent,
+  type ManagedEventDay,
+  type ManagedEventSlot,
+} from './ProjectManagerDashboard'
 
 export const metadata: Metadata = {
   description: 'Înscrieri, check-in și rapoarte pentru evenimentele coordonate.',
@@ -24,11 +29,12 @@ export default async function ProjectManagerPage() {
   const user = auth.user as User
   const eventResult = await payload.find({
     collection: 'events',
-    depth: 0,
+    depth: 1,
     limit: 0,
     overrideAccess: true,
     pagination: false,
     sort: '-updatedAt',
+
     where: {
       coordonators: {
         contains: user.id,
@@ -56,34 +62,33 @@ export default async function ProjectManagerPage() {
 
   const managedEvents: ManagedEvent[] = events
     .map((event) => serializeEvent(event, registrations))
-    .sort((left, right) => left.startDate.localeCompare(right.startDate))
+    .sort((left, right) => compareNullableDates(left.startTime, right.startTime))
 
   return <ProjectManagerDashboard events={managedEvents} userName={user.name || user.email} />
 }
 
 function serializeEvent(event: Event, registrations: EventRegistration[]): ManagedEvent {
-  const days = (event.days ?? [])
+  const days: ManagedEventDay[] = (event.days ?? [])
     .filter((day): day is NonNullable<Event['days']>[number] & { eventDate: string; id: string } =>
       Boolean(day?.eventDate && day.id),
     )
-    .map((day) => ({
-      date: day.eventDate,
-      id: day.id,
-      label: formatEventDayLabel(day.eventDate),
-      slots: (day.slots ?? [])
+    .map((day) => {
+      const slots: ManagedEventSlot[] = (day.slots ?? [])
         .filter(
           (slot): slot is NonNullable<NonNullable<typeof day.slots>[number]> & { id: string } =>
             Boolean(slot?.id),
         )
-        .map((slot) => ({
-          capacity: slot.capacity ?? 0,
-          endTime: slot.endTime ?? null,
-          id: slot.id,
-          label: formatEventSlotLabel(slot.startTime, slot.endTime),
-          startTime: slot.startTime ?? null,
-        })),
-    }))
-    .sort((left, right) => left.date.localeCompare(right.date))
+        .map((slot) => serializeSlot(day.eventDate, slot))
+        .sort((left, right) => compareNullableDates(left.startTime, right.startTime))
+
+      return {
+        eventDate: day.eventDate,
+        id: day.id,
+        label: formatEventDayLabel(day.eventDate),
+        slots,
+      }
+    })
+    .sort((left, right) => left.eventDate.localeCompare(right.eventDate))
   const eventRegistrations = registrations
     .filter((registration) => getRelationshipID(registration.event) === event.id)
     .map((registration) => {
@@ -102,21 +107,85 @@ function serializeEvent(event: Event, registrations: EventRegistration[]): Manag
         questions: normalizeText(registration.questions) || null,
         slot: normalizeText(registration.slot),
         status: registration.status ?? 'registered',
-        timeOfArrival: registration.timeOfAriival ?? null,
+        timeOfArrival: registration.timeOfArrival ?? null,
       }
     })
-  const dateValues = days.map((day) => day.date)
+  const slotStartTimes = days.flatMap((day) =>
+    day.slots.flatMap((slot) => (slot.startTime ? [slot.startTime] : [])),
+  )
+  const slotEndTimes = days.flatMap((day) =>
+    day.slots.flatMap((slot) => {
+      const endTime = slot.endTime ?? slot.startTime
+      return endTime ? [endTime] : []
+    }),
+  )
+  const firstEventDay = days[0]?.eventDate ?? null
+  const lastEventDay = days.at(-1)?.eventDate ?? null
 
   return {
     days,
-    endDate: dateValues.at(-1) ?? event.updatedAt,
+    cardColor: event.cardColor,
+    endTime: getBoundaryTime(slotEndTimes, 'latest') ?? getDayBoundary(lastEventDay, true),
     id: event.id,
     location: getLocationName(event.location),
     name: event.name,
+    primaryColor: event.primaryColor,
     registrations: eventRegistrations,
+    secondaryColor: event.secondaryColor,
     slug: event.slug,
-    startDate: dateValues[0] ?? event.createdAt,
+    startTime: getBoundaryTime(slotStartTimes, 'earliest') ?? getDayBoundary(firstEventDay, false),
+    donation: normalizeDonation(event.donation),
+    heroImage: event.meta?.image,
+    useColors: event.useColors,
   }
+}
+
+type PayloadEventDay = NonNullable<Event['days']>[number]
+type PayloadEventSlot = NonNullable<NonNullable<PayloadEventDay['slots']>>[number]
+
+function serializeSlot(
+  eventDate: string,
+  slot: PayloadEventSlot & { id: string },
+): ManagedEventSlot {
+  const { end, start } = getEventSlotDateRange(eventDate, slot)
+
+  return {
+    capacity: slot.capacity ?? 0,
+    endTime: end?.toISOString() ?? null,
+    id: slot.id,
+    label: formatEventSlotLabel(slot.startTime, slot.endTime),
+    startTime: start?.toISOString() ?? null,
+  }
+}
+
+function compareNullableDates(left: string | null, right: string | null) {
+  if (!left && !right) return 0
+  if (!left) return 1
+  if (!right) return -1
+  return new Date(left).getTime() - new Date(right).getTime()
+}
+
+function getBoundaryTime(values: string[], boundary: 'earliest' | 'latest') {
+  const timestamps = values
+    .map((value) => new Date(value).getTime())
+    .filter((value) => Number.isFinite(value))
+
+  if (timestamps.length === 0) return null
+
+  const timestamp = boundary === 'earliest' ? Math.min(...timestamps) : Math.max(...timestamps)
+  return new Date(timestamp).toISOString()
+}
+
+function getDayBoundary(value: string | null, endOfDay: boolean) {
+  if (!value) return null
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+
+  if (endOfDay) date.setHours(23, 59, 59, 999)
+  else date.setHours(0, 0, 0, 0)
+
+  return date.toISOString()
 }
 
 function getRelationshipID(value: string | { id: string }) {
@@ -129,6 +198,11 @@ function normalizeText(value: unknown) {
 
 function normalizeNonNegativeNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(value, 0) : 0
+}
+
+function normalizeDonation(value: Event['donation']) {
+  const donation = Number(value)
+  return Number.isFinite(donation) ? Math.max(donation, 0) : 0
 }
 
 function getLocationName(value: Event['location']) {

@@ -136,7 +136,7 @@
   --popover-foreground: oklch(98.5% 0 0deg);
   --primary: oklch(98.5% 0 0deg);
   --primary-foreground: oklch(20.5% 0 0deg);
-  --secondary: oklch(26.9% 0 0deg); 
+  --secondary: oklch(26.9% 0 0deg);
   --secondary-foreground: oklch(98.5% 0 0deg);
   --muted: oklch(26.9% 0 0deg);
   --muted-foreground: oklch(70.8% 0 0deg);
@@ -215,29 +215,28 @@
     @apply bg-background text-foreground min-h-[100vh] flex flex-col;
   }
   .h0 {
-    @apply  text-3xl font-bold md:text-5xl;
+    @apply text-3xl font-bold md:text-5xl;
   }
-  
+
   h1,
   .h1 {
-    @apply  text-2xl font-bold md:text-4xl text-xl;
+    @apply text-2xl font-bold md:text-4xl text-xl;
   }
-  
+
   h2,
   .h2 {
-    @apply  text-xl font-bold md:text-3xl;
+    @apply text-xl font-bold md:text-3xl;
   }
-  
+
   h3,
   .h3 {
-    @apply  text-lg font-bold md:text-2xl;
+    @apply text-lg font-bold md:text-2xl;
   }
-  
+
   h4,
   .h4 {
     @apply text-base font-bold md:text-lg;
   }
-
 }
 
 html {
@@ -276,9 +275,59 @@ html[data-theme='light'] {
 } */
 
 @theme {
-  --ease-in-circ: cubic-bezier(0.85, 0.09, 0.15, 0.91)
+  --ease-in-circ: cubic-bezier(0.85, 0.09, 0.15, 0.91);
 }
 
 @utility text-outline {
   -webkit-text-stroke: 0.01em var(--primary);
+}
+
+@property --pm-background {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f4f6f8;
+}
+
+@property --pm-background-foreground {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #152039;
+}
+
+@property --pm-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #00a2e0;
+}
+
+@property --pm-accent-foreground {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --pm-card {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --pm-card-foreground {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #152039;
+}
+
+.pm-dashboard {
+  transition:
+    --pm-background 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    --pm-background-foreground 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    --pm-accent 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    --pm-accent-foreground 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    --pm-card 450ms cubic-bezier(0.22, 1, 0.36, 1),
+    --pm-card-foreground 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pm-dashboard[data-reduce-motion='true'] {
+  transition: none;
 }

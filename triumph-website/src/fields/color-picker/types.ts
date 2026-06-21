@@ -11,6 +11,8 @@ export type ColorPickerArgs = {
    * @default false
    */
   required?: boolean
+
+  defaultValue?: string
   /**
    * An array of color presets to choose from.
    */

@@ -1,7 +1,7 @@
 'use client'
 import { MotionValue, motion, useSpring, useTransform } from 'framer-motion';
 import type React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 type PlaceValue = number | '.';
 
@@ -48,10 +48,12 @@ interface DigitProps {
   place: PlaceValue;
   value: number;
   height: number;
+  animateChanges?: boolean;
+  animateOnMount?: boolean;
   digitStyle?: React.CSSProperties;
 }
 
-function Digit({ place, value, height, digitStyle }: DigitProps) {
+function Digit({ animateChanges, animateOnMount, digitStyle, height, place, value }: DigitProps) {
   // Decimal point digit
   if (place === '.') {
     return (
@@ -66,11 +68,26 @@ function Digit({ place, value, height, digitStyle }: DigitProps) {
 
   // Numeric digit
   const valueRoundedToPlace = getValueRoundedToPlace(value, place);
-  const animatedValue = useSpring(valueRoundedToPlace);
+  const animatedValue = useSpring(animateOnMount ? 0 : valueRoundedToPlace);
+  const previousValue = useRef(valueRoundedToPlace);
+  const hasMounted = useRef(false);
 
   useEffect(() => {
-    animatedValue.set(valueRoundedToPlace);
-  }, [animatedValue, valueRoundedToPlace]);
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      animatedValue.set(valueRoundedToPlace);
+      return;
+    }
+
+    if (previousValue.current === valueRoundedToPlace) return;
+    previousValue.current = valueRoundedToPlace;
+
+    if (animateChanges) {
+      animatedValue.set(valueRoundedToPlace);
+    } else {
+      animatedValue.jump(valueRoundedToPlace);
+    }
+  }, [animateChanges, animatedValue, valueRoundedToPlace]);
 
   const defaultStyle: React.CSSProperties = {
     height,
@@ -90,6 +107,8 @@ function Digit({ place, value, height, digitStyle }: DigitProps) {
 
 interface CounterProps {
   value: number;
+  animateChanges?: boolean;
+  animateOnMount?: boolean;
   fontSize?: number;
   padding?: number;
   /**
@@ -112,10 +131,13 @@ interface CounterProps {
   gradientTo?: string;
   topGradientStyle?: React.CSSProperties;
   bottomGradientStyle?: React.CSSProperties;
+  className: string
 }
 
 export default function Counter({
   value,
+  animateChanges = true,
+  animateOnMount = false,
   fontSize = 100,
   padding = 0,
   places = [...value.toString()].map((ch, i, a) => {
@@ -142,9 +164,16 @@ export default function Counter({
   gradientFrom = 'black',
   gradientTo = 'transparent',
   topGradientStyle,
-  bottomGradientStyle
+  bottomGradientStyle,
+  className
 }: CounterProps) {
   const height = fontSize + padding;
+  const hasMounted = useRef(false);
+  const shouldAnimateMount = animateOnMount && !hasMounted.current;
+
+  useEffect(() => {
+    hasMounted.current = true;
+  }, []);
 
   const defaultContainerStyle: React.CSSProperties = {
     position: 'relative',
@@ -185,10 +214,18 @@ export default function Counter({
   };
 
   return (
-    <span style={{ ...defaultContainerStyle, ...containerStyle }}>
+    <span style={{ ...defaultContainerStyle, ...containerStyle }} className={className}>
       <span style={{ ...defaultCounterStyle, ...counterStyle }}>
         {places.map(place => (
-          <Digit key={place} place={place} value={value} height={height} digitStyle={digitStyle} />
+          <Digit
+            animateChanges={animateChanges}
+            animateOnMount={shouldAnimateMount}
+            digitStyle={digitStyle}
+            height={height}
+            key={place}
+            place={place}
+            value={value}
+          />
         ))}
       </span>
       <span style={gradientContainerStyle}>
