@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Upload,
   UserCheck,
+  UserPlus,
   UserRound,
   Users,
   UsersRound,
@@ -42,21 +43,36 @@ import { getEventTheme } from '@/utilities/eventTheme'
 type PayloadEventDay = NonNullable<Event['days']>[number]
 type PayloadEventSlot = NonNullable<NonNullable<PayloadEventDay['slots']>>[number]
 
-export type ManagedRegistration = Pick<
-  EventRegistration,
-  | 'createdAt'
-  | 'day'
-  | 'donation'
-  | 'email'
-  | 'guests'
-  | 'id'
-  | 'name'
-  | 'phone'
-  | 'questions'
-  | 'slot'
-  | 'status'
+export type ManagedRegistration = Omit<
+  Pick<
+    EventRegistration,
+    | 'createdAt'
+    | 'day'
+    | 'donation'
+    | 'email'
+    | 'guests'
+    | 'id'
+    | 'name'
+    | 'phone'
+    | 'questions'
+    | 'slot'
+    | 'status'
+  >,
+  'email' | 'phone'
 > & {
+  email: string
+  phone: string
   timeOfArrival: string | null
+}
+
+type WalkInParticipantInput = {
+  dayId: string
+  donation: number
+  email: string
+  guests: number
+  name: string
+  phone: string
+  slotId: string
 }
 
 export type ManagedEventSlot = {
@@ -149,6 +165,16 @@ export default function ProjectManagerDashboard(props: {
                 registration.id === updated.id ? { ...registration, ...updated } : registration,
               ),
             },
+      ),
+    )
+  }
+
+  function addRegistration(registration: ManagedRegistration) {
+    setEvents((current) =>
+      current.map((candidate) =>
+        candidate.id === event?.id
+          ? { ...candidate, registrations: [registration, ...candidate.registrations] }
+          : candidate,
       ),
     )
   }
@@ -355,6 +381,7 @@ export default function ProjectManagerDashboard(props: {
           {tab === 'check-in' && (
             <CheckIn
               event={event}
+              onRegistrationCreate={addRegistration}
               onRegistrationUpdate={updateRegistration}
               onTogglePersonalData={() => setShowPersonalData((current) => !current)}
               showPersonalData={showPersonalData}
@@ -505,7 +532,9 @@ function Overview(props: {
                     {showPersonalData ? registration.name : maskName(registration.name)}
                   </p>
                   <p className="mt-0.5 truncate text-xs opacity-55">
-                    {showPersonalData ? registration.email : 'Date personale ascunse'}
+                    {showPersonalData
+                      ? formatParticipantContact(registration)
+                      : 'Date personale ascunse'}
                   </p>
                 </div>
                 <StatusBadge status={registration.status} />
@@ -529,16 +558,25 @@ function Overview(props: {
 
 function CheckIn(props: {
   event: ManagedEvent
+  onRegistrationCreate: (registration: ManagedRegistration) => void
   onRegistrationUpdate: (registration: Partial<ManagedRegistration> & { id: string }) => void
   onTogglePersonalData: () => void
   showPersonalData: boolean
 }) {
-  const { event, onRegistrationUpdate, onTogglePersonalData, showPersonalData } = props
+  const {
+    event,
+    onRegistrationCreate,
+    onRegistrationUpdate,
+    onTogglePersonalData,
+    showPersonalData,
+  } = props
   const [query, setQuery] = useState('')
   const [shift, setShift] = useState('all')
   const [status, setStatus] = useState('all')
   const [editing, setEditing] = useState<ManagedRegistration | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [walkInOpen, setWalkInOpen] = useState(false)
+  const [creatingWalkIn, setCreatingWalkIn] = useState(false)
   const [savingID, setSavingID] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null)
 
@@ -573,7 +611,7 @@ function CheckIn(props: {
     setNotice(null)
 
     try {
-      const response = await fetch('/members/pm/check-in', {
+      const response = await fetch('/members/projects/check-in', {
         body: JSON.stringify({
           donation: args.donation,
           guests: args.guests,
@@ -608,6 +646,39 @@ function CheckIn(props: {
     }
   }
 
+  async function createWalkInParticipant(values: WalkInParticipantInput) {
+    setCreatingWalkIn(true)
+    setNotice(null)
+
+    try {
+      const response = await fetch('/members/projects/check-in', {
+        body: JSON.stringify({ ...values, eventId: event.id }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      })
+      const result = (await response.json()) as {
+        message?: string
+        registration?: ManagedRegistration
+      }
+
+      if (!response.ok || !result.registration) {
+        throw new Error(result.message || 'Participantul nu a putut fi adăugat.')
+      }
+
+      onRegistrationCreate(result.registration)
+      setWalkInOpen(false)
+      setNotice({ kind: 'success', message: 'Participant adăugat și marcat prezent.' })
+    } catch (error) {
+      setNotice({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Participantul nu a putut fi adăugat.',
+      })
+      throw error
+    } finally {
+      setCreatingWalkIn(false)
+    }
+  }
+
   return (
     <div className="grid gap-5">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -618,6 +689,14 @@ function CheckIn(props: {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-xs font-bold text-white transition hover:bg-emerald-700"
+            onClick={() => setWalkInOpen(true)}
+            type="button"
+          >
+            <UserPlus className="size-3.5" />
+            Adaugă participant
+          </button>
           <button
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-xs font-bold text-accent-foreground transition hover:opacity-90"
             onClick={() => setImportOpen(true)}
@@ -711,7 +790,7 @@ function CheckIn(props: {
                           </p>
                           <p className="mt-0.5 max-w-60 truncate text-xs opacity-55">
                             {showPersonalData
-                              ? `${registration.email} · ${registration.phone}`
+                              ? formatParticipantContact(registration)
                               : 'Date personale ascunse'}
                           </p>
                         </div>
@@ -805,7 +884,237 @@ function CheckIn(props: {
           managedEvent={event}
         />
       )}
+      {walkInOpen && (
+        <WalkInParticipantDialog
+          event={event}
+          onClose={() => setWalkInOpen(false)}
+          onSave={createWalkInParticipant}
+          saving={creatingWalkIn}
+        />
+      )}
       {importOpen && <ParticipantImportDialog event={event} onClose={() => setImportOpen(false)} />}
+    </div>
+  )
+}
+
+function WalkInParticipantDialog(props: {
+  event: ManagedEvent
+  onClose: () => void
+  onSave: (values: WalkInParticipantInput) => Promise<void>
+  saving: boolean
+}) {
+  const { event, onClose, onSave, saving } = props
+  const shiftOptions = event.days.flatMap((day) =>
+    day.slots.map((slot) => ({
+      dayId: day.id,
+      label: `${compactDay(day.eventDate)} · ${slot.label}`,
+      slotId: slot.id,
+      value: `${day.id}:${slot.id}`,
+    })),
+  )
+  const [shift, setShift] = useState(shiftOptions[0]?.value ?? '')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [donation, setDonation] = useState('')
+  const [guests, setGuests] = useState('0')
+  const [error, setError] = useState<string | null>(null)
+  const selectedShift = shiftOptions.find((option) => option.value === shift)
+  const parsedDonation = Number(donation)
+  const parsedGuests = Number(guests)
+  const canSubmit = Boolean(
+    selectedShift &&
+    name.trim() &&
+    donation.trim() &&
+    Number.isFinite(parsedDonation) &&
+    parsedDonation >= event.donation &&
+    Number.isInteger(parsedGuests) &&
+    parsedGuests >= 0 &&
+    parsedGuests <= 50,
+  )
+
+  useEffect(() => {
+    function closeOnEscape(keyboardEvent: KeyboardEvent) {
+      if (keyboardEvent.key === 'Escape' && !saving) onClose()
+    }
+
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose, saving])
+
+  async function submit(formEvent: React.FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault()
+    if (!canSubmit || !selectedShift) return
+
+    setError(null)
+
+    try {
+      await onSave({
+        dayId: selectedShift.dayId,
+        donation: parsedDonation,
+        email: email.trim(),
+        guests: parsedGuests,
+        name: name.trim(),
+        phone: phone.trim(),
+        slotId: selectedShift.slotId,
+      })
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error ? saveError.message : 'Participantul nu a putut fi adăugat.',
+      )
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-[#09101f]/65 p-0 backdrop-blur-sm sm:items-center sm:p-5"
+      onMouseDown={(mouseEvent) => {
+        if (mouseEvent.target === mouseEvent.currentTarget && !saving) onClose()
+      }}
+    >
+      <form
+        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white text-[#152039] shadow-2xl sm:rounded-2xl"
+        onSubmit={submit}
+      >
+        <div className="flex items-start justify-between border-b border-[#e7ebf0] px-6 py-5">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-600">
+              Participant neînregistrat
+            </p>
+            <h2 className="mt-1.5 text-xl font-bold">Adaugă participant la eveniment</h2>
+            <p className="mt-1 text-xs text-[#7a8497]">
+              Va fi înregistrat direct ca prezent, cu ora sosirii curentă.
+            </p>
+          </div>
+          <button
+            aria-label="Închide"
+            className="flex size-9 items-center justify-center rounded-lg text-[#7a8497] transition hover:bg-[#f2f4f7]"
+            disabled={saving}
+            onClick={onClose}
+            type="button"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="grid gap-5 px-6 py-6 sm:grid-cols-2">
+          <label className="flex flex-col gap-2 sm:col-span-2">
+            <span className="text-sm font-bold">Zi și tură</span>
+            <select
+              className="h-11 rounded-lg border border-[#d7dde6] bg-white px-3 text-sm outline-none focus:border-accent"
+              disabled={saving || shiftOptions.length === 0}
+              onChange={(selectEvent) => setShift(selectEvent.target.value)}
+              required
+              value={shift}
+            >
+              {shiftOptions.length === 0 && <option value="">Nu există ture configurate</option>}
+              {shiftOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-2 sm:col-span-2">
+            <span className="text-sm font-bold">Nume *</span>
+            <input
+              autoFocus
+              className="h-11 rounded-lg border border-[#d7dde6] px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/10"
+              disabled={saving}
+              maxLength={160}
+              onChange={(inputEvent) => setName(inputEvent.target.value)}
+              placeholder="Nume complet"
+              required
+              type="text"
+              value={name}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold">
+              Email <span className="font-medium text-[#8a94a6]">(opțional)</span>
+            </span>
+            <input
+              className="h-11 rounded-lg border border-[#d7dde6] px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/10"
+              disabled={saving}
+              onChange={(inputEvent) => setEmail(inputEvent.target.value)}
+              placeholder="nume@exemplu.com"
+              type="email"
+              value={email}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold">
+              Telefon <span className="font-medium text-[#8a94a6]">(opțional)</span>
+            </span>
+            <input
+              className="h-11 rounded-lg border border-[#d7dde6] px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/10"
+              disabled={saving}
+              maxLength={50}
+              onChange={(inputEvent) => setPhone(inputEvent.target.value)}
+              placeholder="+40 700 000 000"
+              type="tel"
+              value={phone}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold">Donație totală (RON) *</span>
+            <input
+              className="h-11 rounded-lg border border-[#d7dde6] px-3 text-sm font-bold outline-none focus:border-accent focus:ring-2 focus:ring-accent/10"
+              disabled={saving}
+              min={event.donation}
+              onChange={(inputEvent) => setDonation(inputEvent.target.value)}
+              placeholder={`Minim ${event.donation} RON`}
+              required
+              step="0.01"
+              type="number"
+              value={donation}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold">Persoane însoțitoare</span>
+            <input
+              className="h-11 rounded-lg border border-[#d7dde6] px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/10"
+              disabled={saving}
+              max="50"
+              min="0"
+              onChange={(inputEvent) => setGuests(inputEvent.target.value)}
+              step="1"
+              type="number"
+              value={guests}
+            />
+          </label>
+
+          {error && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 sm:col-span-2">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-6 py-4 sm:justify-end">
+          <button
+            className="h-11 flex-1 rounded-lg border border-[#d7dde6] bg-white px-5 text-sm font-bold text-[#536071] sm:flex-none"
+            disabled={saving}
+            onClick={onClose}
+            type="button"
+          >
+            Anulează
+          </button>
+          <button
+            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+            disabled={saving || !canSubmit}
+            type="submit"
+          >
+            <UserPlus className="size-4" />
+            {saving ? 'Se adaugă…' : 'Adaugă și marchează prezent'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
@@ -851,7 +1160,7 @@ function CheckInDialog(props: {
             </h2>
             {showPersonalData && (
               <p className="mt-1 text-xs text-[#7a8497]">
-                {registration.email} · {registration.phone}
+                {formatParticipantContact(registration)}
               </p>
             )}
           </div>
@@ -1007,7 +1316,7 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
     setResult(null)
 
     try {
-      const response = await fetch('/members/pm/import', {
+      const response = await fetch('/members/projects/import', {
         body: formData,
         credentials: 'include',
         method: 'POST',
@@ -1662,7 +1971,7 @@ function formatEventDateRange(event: ManagedEvent) {
     return endTime ? `${dateLabel}, ${startTime} – ${endTime}` : `${dateLabel}, ${startTime}`
   }
 
-  return `${formatDateAndTime(start, false)} – ${formatDateAndTime(end, true)}`
+  return `${formatDateAndTime(start)} – ${formatDateAndTime(end)}`
 }
 
 function formatSlotTimeRange(slot: Pick<ManagedEventSlot, 'endTime' | 'label' | 'startTime'>) {
@@ -1690,13 +1999,13 @@ function isSameCalendarDay(left: Date, right: Date) {
   )
 }
 
-function formatDateAndTime(value: Date, includeYear: boolean) {
+function formatDateAndTime(value: Date) {
   return new Intl.DateTimeFormat('ro-RO', {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     month: 'short',
-    ...(includeYear ? { year: 'numeric' as const } : {}),
+    year: 'numeric',
   }).format(value)
 }
 
@@ -1712,6 +2021,7 @@ function compactDay(date: string) {
     day: 'numeric',
     month: 'short',
     weekday: 'short',
+    year: 'numeric',
   }).format(new Date(date))
 }
 
@@ -1745,6 +2055,12 @@ function maskName(name?: string | null) {
     .filter(Boolean)
     .map((part) => `${part[0] ?? ''}${'•'.repeat(Math.max(Math.min(part.length - 1, 5), 1))}`)
     .join(' ')
+}
+
+function formatParticipantContact(registration: Pick<ManagedRegistration, 'email' | 'phone'>) {
+  return (
+    [registration.email, registration.phone].filter(Boolean).join(' · ') || 'Fără date de contact'
+  )
 }
 
 function downloadParticipantTemplate(event: ManagedEvent) {

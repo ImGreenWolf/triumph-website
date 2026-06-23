@@ -17,7 +17,16 @@ import localFont from 'next/font/local'
 
 import './globals.css'
 import { getServerSideURL } from '@/utilities/getURL'
-import Logo from '@/components/Logo'
+import { getCachedGlobal } from '@/utilities/getGlobals'
+import type { Media } from '@/payload-types'
+
+
+import ReactGA from "react-ga4";
+
+
+const getMediaURL = (media?: Media | string | null) =>
+  typeof media === 'string' ? media : media?.url
+
 const mainFont = 
 // localFont({src: [
 //   {path: '../../../public/fonts/fonnts.com-Mont_ExtraLight_DEMO.ttf', weight: '400', style: 'normal'},
@@ -28,17 +37,31 @@ Poppins({weight: ['600', '300', '400', '800', '500', '200'], subsets: ['latin', 
 export const outlineFont = Bungee_Outline({weight: '400', subsets: ['latin', 'latin-ext'],})
 export const fancyFont = Lobster({weight: '400', subsets: ['latin', 'latin-ext'],})
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+
+  ReactGA.initialize("G-XZXLQ7TJQ8");
+
+
+
   const { isEnabled } = await draftMode()
+  const config = await getCachedGlobal('siteConfig', 1)()
+  const icoUrl = getMediaURL(config.faviconIco)
+  const svgUrl = getMediaURL(config.faviconSvg)
+  const siteConfig = {
+    darkModeIcon: getMediaURL(config.darkModeIcon),
+    darkModeLogo: getMediaURL(config.darkModeLogo),
+    lightModeIcon: getMediaURL(config.lightModeIcon),
+    lightModeLogo: getMediaURL(config.lightModeLogo),
+  }
 
   return (
     <html className={cn(GeistSans.variable, GeistMono.variable, mainFont.className)} lang="en" suppressHydrationWarning>
       <head>
         <InitTheme />
-        <link href="/favicon.ico" rel="icon" sizes="32x32" />
-        <link href="/favicon.svg" rel="icon" type="image/svg+xml" />
+        <link href={icoUrl || '/favicon.ico'} rel="icon" sizes="32x32" />
+        {/* {svgUrl && <link href={svgUrl || '/favicon.svg'} rel="icon" type="image/svg+xml" />} */}
       </head>
       <body suppressHydrationWarning>
-        <Providers>
+        <Providers siteConfig={siteConfig}>
           {/* <AdminBar
             adminBarProps={{
               preview: isEnabled,

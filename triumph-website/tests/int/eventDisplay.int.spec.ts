@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Event } from '@/payload-types'
-import { getEventEndDate, getEventSlotDateRange, getEventStartDate } from '@/utilities/eventDisplay'
+import {
+  formatEventDateRange,
+  getEventEndDate,
+  getEventSlotDateRange,
+  getEventStartDate,
+} from '@/utilities/eventDisplay'
 
 type EventDay = NonNullable<Event['days']>[number]
 type EventSlot = NonNullable<EventDay['slots']>[number]
@@ -18,6 +23,17 @@ function slot(startHour: number, startMinute: number, endHour: number, endMinute
 }
 
 describe('event time boundaries', () => {
+  it('includes the year for every date in an event range', () => {
+    const label = formatEventDateRange({
+      days: [
+        { eventDate: localDate(2026, 6, 21), slots: [] },
+        { eventDate: localDate(2026, 6, 22), slots: [] },
+      ],
+    })
+
+    expect(label.match(/2026/g)).toHaveLength(2)
+  })
+
   it('combines Payload slot times with the event day', () => {
     const range = getEventSlotDateRange(localDate(2026, 6, 21), slot(9, 30, 12, 15))
 

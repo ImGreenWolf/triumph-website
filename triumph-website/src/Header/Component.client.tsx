@@ -1,16 +1,11 @@
 'use client'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
 
-import type { Event, Header, Page, Post } from '@/payload-types'
+import type { Header } from '@/payload-types'
 
-import { Logo } from '@/components/Logo'
-import { HeaderNav } from './Nav'
 import CardNav from './Nav/CardNav'
-import { getPayload } from 'payload'
-import payloadConfig from '@payload-config'
 import { UserIcon } from 'lucide-react'
 
 interface HeaderClientProps {
@@ -42,7 +37,7 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({ data, links }) => {
           <Logo loading="eager" priority="high" className="invert dark:invert-0 max-w-[8em]" />
         </Link>
         <HeaderNav data={data} /> */}
-        <CardNav logo='/logo_full.png' baseColor='#141e34cc' menuColor='var(--card-foreground)' buttonText={<UserIcon/>} buttonBgColor='background' buttonUrl='/members'
+        <CardNav baseColor='#141e34cc' menuColor='var(--card-foreground)' buttonText={<UserIcon/>} buttonBgColor='background' buttonUrl='/members'
         className=''
          items={links}/>
          {/* data.navCategory!.map(i => {return {label: i.link.label!, link: i.link.url || getHref(i.link),
@@ -53,5 +48,3 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({ data, links }) => {
     </header>
   )
 }
-
-

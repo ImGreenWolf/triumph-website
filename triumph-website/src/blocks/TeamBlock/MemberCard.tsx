@@ -2,21 +2,30 @@
 
 import { cn } from '@/utilities/ui'
 import { Media as MediaElem } from '../../components/Media'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { ArrowUpRight as Arrow } from 'lucide-react'
 import Logo from '@/components/Logo'
 import defaultProfilePicture from '../../../public/profile_picture.png'
+import { motion, type Variants } from 'framer-motion'
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 16, scale: 0.96 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] as const },
+    y: 0,
+  },
+} satisfies Variants
 
 export default function Card(props: { member: any; small?: boolean; extraSmall?: boolean }) {
   const { member, small = false, extraSmall = false } = props
   const [flipped, setFlipped] = useState(false)
 
   return (
-    <div
-      className={cn(
-        'relative w-full ',
-        'perspective-[2000px]'
-      )}
+    <motion.div
+      variants={cardVariants}
+      className={cn('relative w-full', 'perspective-[2000px]')}
       onMouseLeave={() => setFlipped(false)}
     >
       <div
@@ -132,6 +141,6 @@ export default function Card(props: { member: any; small?: boolean; extraSmall?:
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

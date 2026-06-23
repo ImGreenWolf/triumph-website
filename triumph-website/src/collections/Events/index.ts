@@ -17,6 +17,17 @@ import { MediaBlock } from '../../blocks/MediaBlock/config'
 import { generatePreviewPath } from '../../utilities/generatePreviewPath'
 import { populateAuthors } from './hooks/populateAuthors'
 import { revalidateDelete, revalidatePost } from './hooks/revalidatePost'
+import {
+  generateParticipationAttendanceEmailHTML,
+  generateParticipationAttendanceEmailSubject,
+  generateParticipationAttendanceEmailText,
+  generateParticipationConfirmationEmailHTML,
+  generateParticipationConfirmationEmailSubject,
+  generateParticipationConfirmationEmailText,
+  generateParticipationUpdateEmailHTML,
+  generateParticipationUpdateEmailSubject,
+  generateParticipationUpdateEmailText,
+} from './registrationEmails'
 import { colorField } from '@/fields/color-picker/field'
 
 import {
@@ -35,6 +46,7 @@ import {
   isEventSlotRegistrationOpen,
 } from '@/utilities/eventRegistration'
 import payloadConfig from '@payload-config'
+import { getEventStartDate } from '@/utilities/eventDisplay'
 
 class MySpecialError extends APIError {
   constructor(message: string) {
@@ -147,12 +159,11 @@ export const Events: CollectionConfig<'events'> = {
 
                           required: false,
                         }),
-                         colorField({
+                        colorField({
                           name: 'cardColor',
                           defaultValue: '#141e34',
                           required: false,
                         }),
-                        
                       ],
                     },
                   ],
@@ -199,6 +210,7 @@ export const Events: CollectionConfig<'events'> = {
                   required: true,
                   admin: {
                     date: {
+                      displayFormat: 'dd MMMM yyyy',
                       pickerAppearance: 'dayOnly',
                     },
                   },
@@ -477,7 +489,6 @@ export const EventRegistrations: CollectionConfig = {
     {
       name: 'email',
       type: 'email',
-      required: true,
     },
 
     {
@@ -488,7 +499,6 @@ export const EventRegistrations: CollectionConfig = {
     {
       name: 'phone',
       type: 'text',
-      required: true,
     },
     {
       name: 'questions',
@@ -501,19 +511,19 @@ export const EventRegistrations: CollectionConfig = {
           name: 'donation',
           type: 'number',
           required: true,
-          defaultValue: 0
+          defaultValue: 0,
         },
         {
           name: 'guests',
           type: 'number',
           defaultValue: 0,
-           required: true,
+          required: true,
         },
         {
           name: 'timeOfArrival',
           type: 'date',
-        }
-      ]
+        },
+      ],
     },
     {
       name: 'status',
@@ -549,6 +559,10 @@ export const EventRegistrations: CollectionConfig = {
           throw new APIError('Selectează o zi și un interval.', 400)
         }
 
+        if (!req.context.eventRegistrationWalkIn && (!data.email || !data.phone)) {
+          throw new APIError('Completează adresa de email și numărul de telefon.', 400)
+        }
+
         const eventId = typeof data.event === 'string' ? data.event : data.event.id
 
         const event = await req.payload.findByID({
@@ -557,7 +571,10 @@ export const EventRegistrations: CollectionConfig = {
           depth: 0,
         })
 
-        if (event.private && !req.context.eventRegistrationImport) {
+        const bypassSignupRestrictions =
+          req.context.eventRegistrationImport || req.context.eventRegistrationWalkIn
+
+        if (event.private && !bypassSignupRestrictions) {
           throw new APIError('Înscrierile pentru acest eveniment sunt private.', 403)
         }
 
@@ -568,7 +585,7 @@ export const EventRegistrations: CollectionConfig = {
         }
 
         if (
-          !req.context.eventRegistrationImport &&
+          !bypassSignupRestrictions &&
           !isEventSlotRegistrationOpen({
             endTime: slot.endTime,
             eventDate: day.eventDate,
@@ -581,35 +598,37 @@ export const EventRegistrations: CollectionConfig = {
           )
         }
 
-        const existing = await req.payload.find({
-          collection: 'event-registrations',
-          limit: 1,
-          where: {
-            and: [
-              {
-                email: {
-                  equals: data.email,
+        if (data.email) {
+          const existing = await req.payload.find({
+            collection: 'event-registrations',
+            limit: 1,
+            where: {
+              and: [
+                {
+                  email: {
+                    equals: data.email,
+                  },
                 },
-              },
-              {
-                event: {
-                  equals: eventId,
+                {
+                  event: {
+                    equals: eventId,
+                  },
                 },
-              },
-              {
-                status: {
-                  not_equals: 'cancelled',
+                {
+                  status: {
+                    not_equals: 'cancelled',
+                  },
                 },
-              },
-            ],
-          },
-        })
+              ],
+            },
+          })
 
-        if (existing.docs.length > 0) {
-          throw new APIError(
-            'Te-ai înscris deja la acest eveniment cu această adresă de email.',
-            409,
-          )
+          if (existing.docs.length > 0) {
+            throw new APIError(
+              'Te-ai înscris deja la acest eveniment cu această adresă de email.',
+              409,
+            )
+          }
         }
 
         const existingForSlot = await req.payload.find({
@@ -642,7 +661,10 @@ export const EventRegistrations: CollectionConfig = {
           },
         })
 
-        if (existingForSlot.docs.length >= (slot.capacity ?? 0)) {
+        if (
+          !req.context.eventRegistrationWalkIn &&
+          existingForSlot.docs.length >= (slot.capacity ?? 0)
+        ) {
           throw new APIError(
             `${formatEventDayLabel(day.eventDate)}, ${formatEventSlotLabel(slot.startTime, slot.endTime)} este complet.`,
             409,
@@ -650,6 +672,60 @@ export const EventRegistrations: CollectionConfig = {
         }
 
         return data
+      },
+    ],
+    afterChange: [
+      async ({ doc, operation, req }) => {
+        if (!doc.email) return doc
+
+        const eventID = typeof doc.event === 'string' ? doc.event : doc.event.id
+        const event = await req.payload.findByID({ collection: 'events', id: eventID })
+        const { day, slot } = findEventSlot(event, doc.day, doc.slot)
+        const dayLabel = day?.eventDate ? formatEventDayLabel(day.eventDate) : 'Zi nespecificată'
+        const slotLabel = slot
+          ? formatEventSlotLabel(slot.startTime, slot.endTime)
+          : 'Interval nespecificat'
+        const emailArgs = {
+          dayLabel,
+          event,
+          registration: doc,
+          req,
+          slotLabel,
+        }
+          
+        try {
+          // if(getEventStartDate(event)!.getTime() > new Date(doc.createdAt).getTime())
+          //   return
+          if (operation === 'create' && doc.status === 'registered') {
+            await req.payload.sendEmail({
+              html: generateParticipationConfirmationEmailHTML(emailArgs),
+              subject: generateParticipationConfirmationEmailSubject(event.name),
+              text: generateParticipationConfirmationEmailText(emailArgs),
+              to: doc.email,
+            })
+          } else if ( doc.status === 'present') {
+            await req.payload.sendEmail({
+              html: generateParticipationAttendanceEmailHTML(emailArgs),
+              subject: generateParticipationAttendanceEmailSubject(event.name),
+              text: generateParticipationAttendanceEmailText(emailArgs),
+              to: doc.email,
+            })
+          } else if (operation === 'update') {
+            await req.payload.sendEmail({
+              html: generateParticipationUpdateEmailHTML(emailArgs),
+              subject: generateParticipationUpdateEmailSubject(event.name),
+              text: generateParticipationUpdateEmailText(emailArgs),
+              to: doc.email,
+            })
+          }
+        } catch (error) {
+          req.payload.logger.error(
+            { err: error, registrationID: doc.id },
+            'Emailul pentru participarea la eveniment nu a putut fi trimis.',
+          )
+        }
+
+        return doc
       },
     ],
   },

@@ -200,8 +200,8 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {hasManagedEvents && (
             <Link
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-3 text-sm font-semibold text-white transition hover:bg-[#008fc6]"
-              href="/members/pm"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-white transition hover:bg-accent"
+              href="/members/projects"
             >
               <ClipboardCheck className="size-4" />
               Panou PM
@@ -209,7 +209,7 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
           )}
 
           <Link
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-background hover:text-foreground"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
             href="/members/profile"
           >
             <SettingsIcon className="size-4" />
@@ -217,7 +217,7 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
           </Link>
 
           <Link
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-background hover:text-foreground"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
             href="/members/gallery/upload"
           >
             <ImagePlus className="size-4" />
@@ -226,7 +226,7 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
 
           {boardMemberRoles.has(member.role) && (
             <Link
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-background hover:text-foreground"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
               href="/admin"
             >
               <ShieldCheck className="size-4" />
@@ -235,7 +235,7 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
           )}
 
           <Link
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-background hover:text-foreground"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-sidebar hover:text-foreground"
             href="/members/logout"
           >
             <LogOut className="size-4" />
@@ -256,7 +256,7 @@ function ProfilePicture(props: { member: User }) {
       : ''
 
   return (
-    <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-background/60">
+    <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-sidebar/60">
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img alt="" className="h-full w-full object-cover" src={imageUrl} />
@@ -511,7 +511,7 @@ async function NextMeeting(props: { member: User }) {
       />
 
       <div className="mt-6 rounded-lg border border-[#00a2e0]/25 bg-[#00a2e0]/10 p-5">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#00a2e0]/25 bg-background/60 px-3 py-1 text-sm font-medium">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#00a2e0]/25 bg-sidebar/60 px-3 py-1 text-sm font-medium">
           <Clock3 className="size-4 text-[#00a2e0]" />
           {formatRelativeDay(daysRemaining)}
         </div>
@@ -573,7 +573,7 @@ function QuickLinks(props: { links?: MembersDashboard['quickLinks'] }) {
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {links.map((link, index) => (
           <CMSLink key={link.id || `${link.link.label}-${index}`} reference={link.link.reference} url={link.link.url}
-              className="group flex min-h-16 items-center justify-between gap-4 rounded-md border border-border bg-background/40 px-4 py-3 text-sm font-semibold transition hover:border-[#00a2e0]/50 hover:bg-[#00a2e0]/10"
+              className="group flex min-h-16 items-center justify-between gap-4 rounded-md border border-border bg-sidebar/60 px-4 py-3 text-sm font-semibold transition hover:border-[#00a2e0]/50 hover:bg-[#00a2e0]/10"
           
           >
             {link.link.label}
@@ -601,7 +601,7 @@ function SupportCard(props: { email?: string | null }) {
 
       {email ? (
         <a
-          className="mt-6 inline-flex min-h-12 items-center justify-between gap-3 rounded-md border border-border bg-background/40 px-4 py-3 text-sm font-semibold transition hover:border-[#00a2e0]/50 hover:bg-[#00a2e0]/10"
+          className="mt-6 inline-flex min-h-12 items-center justify-between gap-3 rounded-md border border-border bg-sidebar/60 px-4 py-3 text-sm font-semibold transition hover:border-[#00a2e0]/50 hover:bg-[#00a2e0]/10"
           href={`mailto:${email}`}
         >
           <span className="break-all">{email}</span>
@@ -666,7 +666,7 @@ function MiniStat(props: {
   const { label, value, tone = 'default' } = props
 
   return (
-    <div className="rounded-md border border-border bg-background/40 p-3">
+    <div className="rounded-md border border-border bg-sidebar/60 p-3">
       <p
         className={cn(
           'text-2xl font-semibold',

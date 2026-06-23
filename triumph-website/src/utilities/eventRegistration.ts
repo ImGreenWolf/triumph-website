@@ -31,6 +31,7 @@ export function formatEventDayLabel(eventDate: string) {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
+    year: 'numeric',
   }).format(new Date(eventDate))
 }
 
@@ -39,6 +40,7 @@ export function formatCompactEventDayLabel(eventDate: string) {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
+    year: 'numeric',
   }).format(new Date(eventDate))
 }
 

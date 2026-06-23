@@ -143,11 +143,13 @@ export interface Config {
     header: Header;
     footer: Footer;
     'members-dashboard': MembersDashboard;
+    siteConfig: SiteConfig;
   };
   globalsSelect: {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
     'members-dashboard': MembersDashboardSelect<false> | MembersDashboardSelect<true>;
+    siteConfig: SiteConfigSelect<false> | SiteConfigSelect<true>;
   };
   locale: null;
   widgets: {
@@ -870,6 +872,7 @@ export interface Cause {
   id: string;
   name: string;
   description?: string | null;
+  link?: string | null;
   logo?: (string | null) | Media;
   updatedAt: string;
   createdAt: string;
@@ -883,9 +886,9 @@ export interface EventRegistration {
   event: string | Event;
   day: string;
   slot: string;
-  email: string;
+  email?: string | null;
   name: string;
-  phone: string;
+  phone?: string | null;
   questions?: string | null;
   donation: number;
   guests: number;
@@ -2828,6 +2831,7 @@ export interface SponsorsSelect<T extends boolean = true> {
 export interface CausesSelect<T extends boolean = true> {
   name?: T;
   description?: T;
+  link?: T;
   logo?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -3325,6 +3329,21 @@ export interface MembersDashboard {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "siteConfig".
+ */
+export interface SiteConfig {
+  id: string;
+  lightModeLogo?: (string | null) | Media;
+  lightModeIcon?: (string | null) | Media;
+  darkModeLogo?: (string | null) | Media;
+  darkModeIcon?: (string | null) | Media;
+  faviconIco?: (string | null) | Media;
+  faviconSvg?: (string | null) | Media;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "header_select".
  */
 export interface HeaderSelect<T extends boolean = true> {
@@ -3451,6 +3470,21 @@ export interface MembersDashboardSelect<T extends boolean = true> {
   galleryUploadInstructions?: T;
   duesInfoText?: T;
   supportEmail?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "siteConfig_select".
+ */
+export interface SiteConfigSelect<T extends boolean = true> {
+  lightModeLogo?: T;
+  lightModeIcon?: T;
+  darkModeLogo?: T;
+  darkModeIcon?: T;
+  faviconIco?: T;
+  faviconSvg?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

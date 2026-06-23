@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  formatCompactEventDayLabel,
+  formatEventDayLabel,
   getEventSlotAvailability,
   isEventSlotRegistrationOpen,
   REGISTRATION_CUTOFF_MINUTES,
 } from '@/utilities/eventRegistration'
 
 describe('event registration availability', () => {
+  it('includes the year in full and compact event date labels', () => {
+    const eventDate = localDate(2026, 5, 15, 12).toISOString()
+
+    expect(formatEventDayLabel(eventDate)).toContain('2026')
+    expect(formatCompactEventDayLabel(eventDate)).toContain('2026')
+  })
+
   it('closes a timed slot at the file configured cutoff before its start time', () => {
     const eventDate = localDate(2026, 5, 15).toISOString()
     const startTime = localDate(2026, 5, 15, 10).toISOString()

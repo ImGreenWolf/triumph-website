@@ -31,6 +31,10 @@ export const Causes: CollectionConfig = {
         type: 'textarea'
     },
     {
+        name: 'link',
+        type: 'text'
+    },
+    {
         name: 'logo',
         type: 'upload',
         relationTo: 'media'

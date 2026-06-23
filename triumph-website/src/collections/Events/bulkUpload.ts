@@ -194,7 +194,7 @@ export async function importParticipantsFromCSV(args: {
       })
 
       result.created.push({
-        email: created.email,
+        email: created.email ?? row.email,
         id: created.id,
         name: created.name,
         row: row.row,

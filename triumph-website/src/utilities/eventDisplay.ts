@@ -13,6 +13,7 @@ const longDateFormatter = new Intl.DateTimeFormat('ro-RO', {
 const shortDateFormatter = new Intl.DateTimeFormat('ro-RO', {
   day: 'numeric',
   month: 'short',
+  year: 'numeric',
 })
 
 export function getEventDays(event: Pick<Event, 'days'>) {
@@ -129,7 +130,7 @@ export function getContrastTextColor(hexColor?: string | null) {
   const blue = parseInt(normalized.slice(4, 6), 16)
   const luminance = (red * 299 + green * 587 + blue * 114) / 1000
 
-  return luminance > 145 ? '#111827' : '#ffffff'
+  return luminance > 200 ? '#111827' : '#ffffff'
 }
 
 export function combineEventDateAndTime(eventDate: string, time?: string | null) {

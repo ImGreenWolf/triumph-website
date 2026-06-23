@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import type { Event } from '@/payload-types'
 import { getContrastTextColor, isEventCompleted } from '@/utilities/eventDisplay'
 import type { EventSlotAvailability } from '@/utilities/eventRegistration'
-import { CheckCircle2, Ticket, Users, X } from 'lucide-react'
+import { CheckCircle2, Coins, Ticket, Users, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useState } from 'react'
 
 type SignupFormProps = {
@@ -15,8 +15,9 @@ type SignupFormProps = {
   backgroundColor: string
 }
 
-type SignupEvent = Pick<Event, 'capacity' | 'days' | 'id' | 'private'> & {
+type SignupEvent = Pick<Event, 'capacity' | 'days' | 'id' | 'private' | 'name'> & {
   participantsCount: number
+  totalDonation: number
 }
 
 export default function SignupForm({ accentColor, backgroundColor, event, slotAvailability, cardColor }: SignupFormProps) {
@@ -121,15 +122,15 @@ export default function SignupForm({ accentColor, backgroundColor, event, slotAv
           <Ticket aria-hidden className="size-5" />
         </div>
         <div>
-          <p className="text-lg font-bold">Participă la eveniment</p>
+          <p className="text-lg font-bold">Înscrieri {event.name}</p>
           <p className="mt-1 text-sm leading-5 opacity-60">
-            Alege ziua și intervalul potrivit direct din formular.
+            Completează formularul cu ziua și intervalul dorit.
           </p>
         </div>
       </div>
 
       <Participants accentColor={accentColor} backgroundColor={backgroundColor} event={event} participantsCount={participantsCount} />
-
+      
       <Button
         className="mt-4 w-full"
         disabled={eventIsPrivate || availableSlots.length === 0 || eventHasEnded}
@@ -407,6 +408,8 @@ async function register(args: {
   if (!response.ok) {
     throw new Error(json?.errors?.[0]?.message ?? json?.message ?? 'Înscrierea a eșuat.')
   }
+
+  
 }
 
 function Participants({
@@ -424,24 +427,38 @@ function Participants({
   const percentage = capacity > 0 ? Math.min((participantsCount / capacity) * 100, 100) : 0
 
   return (
-    <div className="mt-5 rounded-xl p-4"
+    <div className="mt-5 rounded-xl p-4 flex flex-col gap-4"
     style={{backgroundColor: backgroundColor, color: getContrastTextColor(backgroundColor)}}
     >
-      <div className="flex items-center justify-between gap-3 text-sm">
+      <div> 
+        <div className="flex items-center justify-between gap-3 text-sm">
         <span className="flex items-center gap-2 opacity-80">
           <Users aria-hidden className="size-4" />
           Participanți
         </span>
-        <span className="font-bold">
+        <span className="font-bold text-xl">
           {participantsCount}
           {capacity > 0 && ` / ${capacity}`}
         </span>
+        
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/20">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ backgroundColor: accentColor, width: `${percentage}%` }}
+            />
+        </div>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/20">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ backgroundColor: accentColor, width: `${percentage}%` }}
-        />
+
+      <div className="flex flex-col justify-between text-sm">
+        
+          <span className="flex items-center gap-2 opacity-80">
+              <Coins aria-hidden className="size-4"/>
+              Donații Strânse
+            </span>
+          <span className="font-bold text-xl text-right">
+            {event.totalDonation} RON
+          </span>
       </div>
     </div>
   )

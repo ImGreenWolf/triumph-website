@@ -27,6 +27,7 @@ import { Attendance } from './collections/Attendance'
 import { AbsenceMotivations } from './collections/AbsenceMotivations'
 import { Payments } from './collections/Members/payments'
 import { GalleryPhotos } from './collections/GalleryPhotos'
+import { SiteConfig } from './globals/SiteConfig/config'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -126,7 +127,7 @@ export default buildConfig({
   cors: allowedOrigins,
   // Payload appends serverURL automatically during config sanitization.
   csrf: allowedOrigins.filter((origin) => origin !== serverURL),
-  globals: [Header, Footer, MembersDashboard],
+  globals: [Header, Footer, MembersDashboard, SiteConfig],
   plugins,
   secret: process.env.PAYLOAD_SECRET,
   sharp,

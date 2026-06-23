@@ -71,6 +71,7 @@ export default async function Page({ params: paramsPromise }: Args) {
       {draft && <LivePreviewListener />}
 
       <RenderHero {...hero} />
+      {hero.type == 'none' && <div className='my-24'/>}
       <RenderBlocks blocks={layout} />
     </article>
   )

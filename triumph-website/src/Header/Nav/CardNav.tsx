@@ -4,6 +4,7 @@ import { gsap } from 'gsap';
 // use your own icon import if react-icons is not available
 import { ArrowUpRight as GoArrowUpRight } from 'lucide-react';
 import { CMSLink } from '@/components/Link';
+import { Logo } from '@/components/Logo';
 
 type CardNavLink = {
   label: string;
@@ -20,7 +21,7 @@ export type CardNavItem = {
 };
 
 export interface CardNavProps {
-  logo: string;
+  logo?: string;
   logoAlt?: string;
   items: CardNavItem[];
   className?: string;
@@ -192,8 +193,15 @@ const CardNav: React.FC<CardNavProps> = ({
             />
           </div>
 
-          <div className="logo-container flex items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 order-1 md:order-none">
-            <img src={logo} alt={logoAlt} className="logo h-[28px]" />
+          <div
+            className="logo-container flex items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 order-1 md:order-none"
+            data-theme="dark"
+          >
+            {logo ? (
+              <img src={logo} alt={logoAlt} className="logo h-[28px]" />
+            ) : (
+              <Logo className="logo h-[28px] w-auto" />
+            )}
           </div>
 
           {/* <button

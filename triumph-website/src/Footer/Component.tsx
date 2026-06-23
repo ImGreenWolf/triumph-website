@@ -70,7 +70,7 @@ export async function Footer() {
       <div className="container py-10 md:py-14">
         <div className="grid gap-10 lg:grid-cols-[1.1fr_1.4fr] lg:items-start">
           <div className="space-y-6">
-            <Link className="inline-flex items-center" href="/">
+            <Link className="inline-flex items-center" data-theme="dark" href="/">
               <Logo />
             </Link>
             {footerDescription && (

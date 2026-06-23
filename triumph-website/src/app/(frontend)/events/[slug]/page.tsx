@@ -6,7 +6,7 @@ import { Media } from '@/components/Media'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import RichText from '@/components/RichText'
 import { EventHero } from '@/heros/EventHero'
-import type { Event, GalleryPhoto, Media as MediaType, User } from '@/payload-types'
+import type { Event, EventRegistration, GalleryPhoto, Media as MediaType, User } from '@/payload-types'
 import {
   getContrastTextColor,
   getEventLocation,
@@ -31,7 +31,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { draftMode } from 'next/headers'
-import { getPayload } from 'payload'
+import { getPayload, Payload } from 'payload'
 import { cache } from 'react'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 import EventPhotoBoard, {
@@ -90,6 +90,7 @@ export default async function Event({ params: paramsPromise }: Args) {
         day: true,
         slot: true,
         status: true,
+        donation: true
       },
       where: {
         event: {
@@ -129,7 +130,7 @@ export default async function Event({ params: paramsPromise }: Args) {
   const cardColor = event.useColors && event.cardColor ? event.cardColor : '#141e34'
   const backgroundColor = event.useColors && event.primaryColor ? event.primaryColor : '#141e34'
   const eventDays = event.days?.filter((day) => day.eventDate) ?? []
-  const compactProgram = eventDays.length > 3
+  const compactProgram = eventDays.length > 5
   const location = getEventLocation(event.location)
   const googleMapsURL = getGoogleMapsURL(location)
   const inspoboardItems = getInspoboardItems(event.inspoboard)
@@ -170,7 +171,7 @@ export default async function Event({ params: paramsPromise }: Args) {
           }
         >
           <div className="min-w-0 space-y-4">
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.72fr)]">
+            <section className="grid gap-4 md:grid-cols-2 ">
               <DetailCard accentColor={accentColor}  cardColor={cardColor} icon={CalendarDays} label="Program">
                 <div className={compactProgram ? 'grid grid-cols-2 gap-2' : 'space-y-3 '}>
                   {eventDays.map((day) =>
@@ -197,10 +198,10 @@ export default async function Event({ params: paramsPromise }: Args) {
                         ) : (
                           day.slots &&
                           day.slots.length > 0 && (
-                            <p className="mt-1 text-xs leading-5 opacity-60">
+                            <p className="mt-1 leading-5 flex flex-wrap gap-2">
                               {day.slots
-                                .map((slot) => formatEventSlotLabel(slot.startTime, slot.endTime))
-                                .join(' · ')}
+                                .map((slot) => <span className={eventDays.length > 3 ?'rounded-xl text-[10px] px-2 py-0.5 bg-[var(--event-accent)]/80' : 'rounded-xl text-xs px-3 py-1 bg-[var(--event-accent)]/80' }>{formatEventSlotLabel(slot.startTime, slot.endTime)}</span>)
+                              }
                             </p>
                           )
                         )}
@@ -220,7 +221,7 @@ export default async function Event({ params: paramsPromise }: Args) {
                   )}
                   {googleMapsURL && (
                     <a
-                      className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--event-accent)] transition hover:opacity-50"
+                      className="mt-4 inline-flex items-center gap-1.5 text-md font-semibold text-[var(--event-accent)] transition hover:opacity-50"
                       href={googleMapsURL}
                       rel="noreferrer"
                       target="_blank"
@@ -232,26 +233,7 @@ export default async function Event({ params: paramsPromise }: Args) {
                 </DetailCard>
               )}
 
-              {event.cause && typeof event.cause === 'object' && (
-                <DetailCard
-                  accentColor={accentColor}
-                  cardColor={cardColor}
-                  compact
-                  icon={HeartHandshake}
-                  label="Cauza susținută"
-                >
-                  <div className="flex items-center gap-2.5">
-                    {event.cause.logo && typeof event.cause.logo !== 'string' && (
-                      <Media
-                        className="size-18 shrink-0 overflow-hidden rounded-full"
-                        imgClassName="size-18 object-cover"
-                        resource={event.cause.logo}
-                      />
-                    )}
-                    <p className="min-w-0 text-lg font-bold leading-5">{event.cause.name}</p>
-                  </div>
-                </DetailCard>
-              )}
+             
             </section>
 
             <section className="rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg shadow-black/10 md:p-8"
@@ -281,6 +263,42 @@ export default async function Event({ params: paramsPromise }: Args) {
 
           {!event.private && (
             <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-28">
+               {event.cause && typeof event.cause === 'object' && (
+                <DetailCard
+                  accentColor={accentColor}
+                  cardColor={cardColor}
+                  compact
+                  icon={HeartHandshake}
+                  label="Cauza susținută"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {event.cause.logo && typeof event.cause.logo !== 'string' && (
+                      <Media
+                        className="size-18 shrink-0 overflow-hidden rounded-full"
+                        imgClassName="size-18 object-cover"
+                        resource={event.cause.logo}
+                      />
+                    )}
+                    <div className='flex flex-col h-full'>
+                      <p className="min-w-0 text-lg font-bold leading-5">{event.cause.name}</p>
+
+                      {event.cause.link && 
+                      <a
+                          className="inline-flex items-center gap-1.5 text-md font-semibold text-[var(--event-accent)] transition hover:opacity-50"
+                          href={event.cause.link}
+
+                          target="_blank"
+                        >
+                          Despre Cauzǎ
+                          <ExternalLink aria-hidden className="size-3.5" />
+                        </a>
+                      }
+                    </div>
+                   
+                  </div>
+                  
+                </DetailCard>
+              )}
               {event.donation && (
                 <DetailCard accentColor={accentColor}  cardColor={cardColor} icon={HandHelping} label="Donație minimă">
                   {!isNaN(parseInt(event.donation)) ? <p className="text-2xl font-bold">{event.donation} RON</p> :
@@ -295,8 +313,10 @@ export default async function Event({ params: paramsPromise }: Args) {
                   capacity: event.capacity,
                   days: event.days,
                   id: event.id,
+                  name: event.name,
                   participantsCount,
                   private: event.private,
+                  totalDonation: await getTotalDonations(registrations.docs)
                 }}
                 slotAvailability={slotAvailability}
               />
@@ -307,6 +327,14 @@ export default async function Event({ params: paramsPromise }: Args) {
     </article>
   )
 }
+
+const  getTotalDonations = cache(async (registrations: Pick<EventRegistration, 'day' | 'slot' | 'donation' | 'status' | 'id'>[]) => {
+
+  
+  if(!registrations || !registrations)
+    return 0;
+  return registrations.reduce((sum, evReg) => sum+=(evReg as EventRegistration).donation, 0) || 0
+})
 
 function formatSlotCount(slotCount: number) {
   if (slotCount === 0) return 'Fără intervale'
@@ -374,7 +402,7 @@ function DetailCard({
 }) {
   return (
     <section
-      className={`rounded-2xl bg-card text-card-foreground shadow-lg shadow-black/10 ${compact ? 'p-4' : 'p-5'}`}
+      className={`rounded-2xl bg-card text-card-foreground flex flex-col shadow-lg shadow-black/10 ${compact ? 'p-4' : 'p-5'}`}
       style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor)}}
     >
       <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] opacity-55">

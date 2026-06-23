@@ -1,14 +1,18 @@
 import React from 'react'
 
 import { HeaderThemeProvider } from './HeaderTheme'
+import { SiteConfigProvider, type SiteConfigContextValue } from './SiteConfig'
 import { ThemeProvider } from './Theme'
 
 export const Providers: React.FC<{
   children: React.ReactNode
-}> = ({ children }) => {
+  siteConfig?: SiteConfigContextValue
+}> = ({ children, siteConfig }) => {
   return (
-    <ThemeProvider>
-      <HeaderThemeProvider>{children}</HeaderThemeProvider>
-    </ThemeProvider>
+    <SiteConfigProvider value={siteConfig}>
+      <ThemeProvider>
+        <HeaderThemeProvider>{children}</HeaderThemeProvider>
+      </ThemeProvider>
+    </SiteConfigProvider>
   )
 }
