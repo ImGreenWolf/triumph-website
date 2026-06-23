@@ -5,6 +5,7 @@ import { GeistMono } from 'geist/font/mono'
 import { Montserrat, Poppins, Bungee_Outline, Lobster} from 'next/font/google'
 import { GeistSans } from 'geist/font/sans'
 import React from 'react'
+import Script from 'next/script'
 
 import { AdminBar } from '@/components/AdminBar'
 import { Footer } from '@/Footer/Component'
@@ -20,12 +21,12 @@ import { getServerSideURL } from '@/utilities/getURL'
 import { getCachedGlobal } from '@/utilities/getGlobals'
 import type { Media } from '@/payload-types'
 
-
-import ReactGA from "react-ga4";
-
+import { GoogleAnalyticsPageViews } from './GoogleAnalyticsPageViews'
 
 const getMediaURL = (media?: Media | string | null) =>
   typeof media === 'string' ? media : media?.url
+
+const GA_MEASUREMENT_ID = 'G-XZXLQ7TJQ8'
 
 const mainFont = 
 // localFont({src: [
@@ -37,11 +38,6 @@ Poppins({weight: ['600', '300', '400', '800', '500', '200'], subsets: ['latin', 
 export const outlineFont = Bungee_Outline({weight: '400', subsets: ['latin', 'latin-ext'],})
 export const fancyFont = Lobster({weight: '400', subsets: ['latin', 'latin-ext'],})
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-
-  ReactGA.initialize("G-XZXLQ7TJQ8");
-
-
-
   const { isEnabled } = await draftMode()
   const config = await getCachedGlobal('siteConfig', 1)()
   const icoUrl = getMediaURL(config.faviconIco)
@@ -57,10 +53,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html className={cn(GeistSans.variable, GeistMono.variable, mainFont.className)} lang="en" suppressHydrationWarning>
       <head>
         <InitTheme />
+        <Script
+          async
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
         <link href={icoUrl || '/favicon.ico'} rel="icon" sizes="32x32" />
         {/* {svgUrl && <link href={svgUrl || '/favicon.svg'} rel="icon" type="image/svg+xml" />} */}
       </head>
       <body suppressHydrationWarning>
+        <React.Suspense fallback={null}>
+          <GoogleAnalyticsPageViews measurementId={GA_MEASUREMENT_ID} />
+        </React.Suspense>
         <Providers siteConfig={siteConfig}>
           {/* <AdminBar
             adminBarProps={{

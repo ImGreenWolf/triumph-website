@@ -16,6 +16,7 @@ import {
   generateForgotPasswordEmailSubject,
 } from './forgotPasswordEmail'
 import { sendPasswordResetEmails } from './passwordReset'
+import getHighschools from './highschools'
 
 const canManageUsers: FieldAccess = ({ req }) => hasBoardRole({ req })
 
@@ -389,6 +390,18 @@ export const Users: CollectionConfig = {
       label: 'Birthday Story Image',
       type: 'upload',
       relationTo: 'media',
+      access: {
+        update: canUpdateOwnProfileField,
+      },
+      admin: {
+        description: 'Image members provide for birthday social media stories.',
+      },
+    },
+    {
+      name: 'highschool',
+      label: 'Liceu',
+      type: 'select',
+      options: getHighschools(),
       access: {
         update: canUpdateOwnProfileField,
       },
