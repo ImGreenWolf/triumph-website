@@ -1,5 +1,6 @@
 'use client'
 
+import { trackTeamMemberCardFlip } from '@/lib/ga4/appEvents'
 import { cn } from '@/utilities/ui'
 import { Media as MediaElem } from '../../components/Media'
 import { useState } from 'react'
@@ -18,9 +19,24 @@ const cardVariants = {
   },
 } satisfies Variants
 
-export default function Card(props: { member: any; small?: boolean; extraSmall?: boolean }) {
-  const { member, small = false, extraSmall = false } = props
+export default function Card(props: { member: any; mandateYear?: number; small?: boolean; extraSmall?: boolean }) {
+  const { member, mandateYear, small = false, extraSmall = false } = props
   const [flipped, setFlipped] = useState(false)
+
+  const toggleFlipped = () => {
+    const nextFlipped = !flipped
+
+    if (nextFlipped) {
+      trackTeamMemberCardFlip({
+        mandateYear,
+        memberId: member.id,
+        memberName: member.name,
+        memberRole: member.role,
+      })
+    }
+
+    setFlipped(nextFlipped)
+  }
 
   return (
     <motion.div
@@ -34,7 +50,7 @@ export default function Card(props: { member: any; small?: boolean; extraSmall?:
           '[transform-style:preserve-3d]',
           flipped ? 'rotate-y-180' : ''
         )}
-        onClick={() => setFlipped((v) => !v)}
+        onClick={toggleFlipped}
       >
         {/* FRONT */}
         <div

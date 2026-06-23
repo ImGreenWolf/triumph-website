@@ -85,13 +85,14 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
                   whileInView="visible"
                 >
                   {mandate.members?.map((member, memberIndex) => {
-                    return (
-                      member.name ? <Card
-                        key={member.id || memberIndex}
-                        member={member}
-                        small={isFourCols}
-                        extraSmall={isFiveCols}
-                      /> : <div key={member.id || memberIndex}></div>
+	                    return (
+	                      member.name ? <Card
+	                        key={member.id || memberIndex}
+	                        member={member}
+	                        mandateYear={mandate.year ?? undefined}
+	                        small={isFourCols}
+	                        extraSmall={isFiveCols}
+	                      /> : <div key={member.id || memberIndex}></div>
                     )
                   })}
                 </motion.main>

@@ -12,7 +12,13 @@ export {
   updateConsent,
 } from './client'
 export { GoogleAnalytics } from './GoogleAnalytics'
-export { trackEventSignup, trackGalleryUpload, trackMemberLogin } from './appEvents'
+export {
+  trackEventSignup,
+  trackGalleryUpload,
+  trackMemberLogin,
+  trackSignupFormOpen,
+  trackTeamMemberCardFlip,
+} from './appEvents'
 export { createGA4InitScript, getGA4ScriptSrc } from './script'
 export type {
   GA4ConfigParams,
@@ -27,4 +33,6 @@ export type {
   TrackEventSignupParams,
   TrackGalleryUploadParams,
   TrackMemberLoginParams,
+  TrackSignupFormOpenParams,
+  TrackTeamMemberCardFlipParams,
 } from './appEvents'

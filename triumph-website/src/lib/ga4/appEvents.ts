@@ -8,6 +8,11 @@ export type TrackEventSignupParams = {
   slot?: string
 }
 
+export type TrackSignupFormOpenParams = {
+  eventId: string
+  eventName?: string
+}
+
 export type TrackMemberLoginParams = {
   method?: 'email_password'
   redirectTo?: string
@@ -20,6 +25,22 @@ export type TrackGalleryUploadParams = {
   privateCount?: number
   publicCount?: number
 }
+
+export type TrackTeamMemberCardFlipParams = {
+  mandateYear?: number
+  memberId?: string
+  memberName?: string
+  memberRole?: string
+}
+
+export const trackSignupFormOpen = ({ eventId, eventName }: TrackSignupFormOpenParams) =>
+  trackEvent('event_signup_form_open', {
+    event_category: 'events',
+    event_id: eventId,
+    event_label: eventName,
+    event_title: eventName,
+    value: 1,
+  } satisfies GA4EventParams)
 
 export const trackEventSignup = ({
   day,
@@ -63,4 +84,20 @@ export const trackGalleryUpload = ({
     private_count: privateCount,
     public_count: publicCount,
     value: photoCount,
+  } satisfies GA4EventParams)
+
+export const trackTeamMemberCardFlip = ({
+  mandateYear,
+  memberId,
+  memberName,
+  memberRole,
+}: TrackTeamMemberCardFlipParams) =>
+  trackEvent('team_member_card_flip', {
+    event_category: 'team',
+    event_label: memberName,
+    mandate_year: mandateYear,
+    member_id: memberId,
+    member_name: memberName,
+    member_role: memberRole,
+    value: 1,
   } satisfies GA4EventParams)

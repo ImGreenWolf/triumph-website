@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { trackEventSignup } from '@/lib/ga4/appEvents'
+import { trackEventSignup, trackSignupFormOpen } from '@/lib/ga4/appEvents'
 import type { Event } from '@/payload-types'
 import { getContrastTextColor, isEventCompleted } from '@/utilities/eventDisplay'
 import type { EventSlotAvailability } from '@/utilities/eventRegistration'
@@ -109,6 +109,10 @@ export default function SignupForm({ accentColor, backgroundColor, event, slotAv
     setError(null)
     setSubmitted(false)
     setIsOpen(true)
+    trackSignupFormOpen({
+      eventId: event.id,
+      eventName: event.name,
+    })
   }
 
   return (
