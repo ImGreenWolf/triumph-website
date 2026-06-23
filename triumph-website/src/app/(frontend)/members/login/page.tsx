@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { trackMemberLogin } from '@/lib/ga4/appEvents'
 
 import PageClient from './page.client'
 
@@ -67,8 +68,8 @@ export default function Login() {
       if (!res.ok) {
         throw new Error(data.errors?.[0]?.message || 'Login failed')
       }
-
       const redirectTo = getSafeRedirect(new URLSearchParams(window.location.search).get('redirect'))
+      trackMemberLogin({ redirectTo })
       router.replace(redirectTo)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')

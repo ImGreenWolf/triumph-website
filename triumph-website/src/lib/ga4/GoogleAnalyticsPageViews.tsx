@@ -3,11 +3,7 @@
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
-declare global {
-  interface Window {
-    gtag?: (...args: unknown[]) => void
-  }
-}
+import { trackPageView } from './client'
 
 type GoogleAnalyticsPageViewsProps = {
   measurementId: string
@@ -19,7 +15,7 @@ export const GoogleAnalyticsPageViews = ({ measurementId }: GoogleAnalyticsPageV
   const isInitialPageView = useRef(true)
 
   useEffect(() => {
-    if (!pathname || typeof window.gtag !== 'function') {
+    if (!pathname) {
       return
     }
 
@@ -29,11 +25,9 @@ export const GoogleAnalyticsPageViews = ({ measurementId }: GoogleAnalyticsPageV
     }
 
     const queryString = searchParams.toString()
-    const pagePath = queryString ? `${pathname}?${queryString}` : pathname
+    const page_path = queryString ? `${pathname}?${queryString}` : pathname
 
-    window.gtag('config', measurementId, {
-      page_path: pagePath,
-    })
+    trackPageView({ measurementId, page_path })
   }, [measurementId, pathname, searchParams])
 
   return null

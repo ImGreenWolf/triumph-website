@@ -5,7 +5,6 @@ import { GeistMono } from 'geist/font/mono'
 import { Montserrat, Poppins, Bungee_Outline, Lobster} from 'next/font/google'
 import { GeistSans } from 'geist/font/sans'
 import React from 'react'
-import Script from 'next/script'
 
 import { AdminBar } from '@/components/AdminBar'
 import { Footer } from '@/Footer/Component'
@@ -21,12 +20,10 @@ import { getServerSideURL } from '@/utilities/getURL'
 import { getCachedGlobal } from '@/utilities/getGlobals'
 import type { Media } from '@/payload-types'
 
-import { GoogleAnalyticsPageViews } from './GoogleAnalyticsPageViews'
+import { GoogleAnalytics } from '@/lib/ga4'
 
 const getMediaURL = (media?: Media | string | null) =>
   typeof media === 'string' ? media : media?.url
-
-const GA_MEASUREMENT_ID = 'G-XZXLQ7TJQ8'
 
 const mainFont = 
 // localFont({src: [
@@ -53,26 +50,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html className={cn(GeistSans.variable, GeistMono.variable, mainFont.className)} lang="en" suppressHydrationWarning>
       <head>
         <InitTheme />
-        <Script
-          async
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}');
-          `}
-        </Script>
         <link href={icoUrl || '/favicon.ico'} rel="icon" sizes="32x32" />
         {/* {svgUrl && <link href={svgUrl || '/favicon.svg'} rel="icon" type="image/svg+xml" />} */}
       </head>
       <body suppressHydrationWarning>
-        <React.Suspense fallback={null}>
-          <GoogleAnalyticsPageViews measurementId={GA_MEASUREMENT_ID} />
-        </React.Suspense>
+        <GoogleAnalytics />
         <Providers siteConfig={siteConfig}>
           {/* <AdminBar
             adminBarProps={{

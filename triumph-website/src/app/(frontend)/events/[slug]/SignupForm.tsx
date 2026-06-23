@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { trackEventSignup } from '@/lib/ga4/appEvents'
 import type { Event } from '@/payload-types'
 import { getContrastTextColor, isEventCompleted } from '@/utilities/eventDisplay'
 import type { EventSlotAvailability } from '@/utilities/eventRegistration'
@@ -212,6 +213,12 @@ export default function SignupForm({ accentColor, backgroundColor, event, slotAv
                       form.reset()
                       setParticipantsCount((currentCount) => currentCount + 1)
                       setSubmitted(true)
+                      trackEventSignup({
+                        day: formData.get('day') as string,
+                        eventId: event.id,
+                        eventName: event.name,
+                        slot: formData.get('slot') as string,
+                      })
                     } catch (submitError) {
                       setError(
                         submitError instanceof Error ? submitError.message : 'Înscrierea a eșuat.',

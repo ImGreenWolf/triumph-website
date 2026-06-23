@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { trackGalleryUpload } from '@/lib/ga4/appEvents'
 
 type EventOption = {
   id: string
@@ -292,6 +293,13 @@ export default function GalleryUploadForm(props: { events: EventOption[] }) {
         throw new Error(data.message || 'Pozele selectate nu au putut fi procesate.')
       }
 
+      trackGalleryUpload({
+        attachedEventCount: photos.filter((photo) => photo.eventId).length,
+        heifCount: photos.filter((photo) => photo.isHEIF).length,
+        photoCount: photos.length,
+        privateCount: photos.filter((photo) => photo.visibility === 'private').length,
+        publicCount: photos.filter((photo) => photo.visibility === 'public').length,
+      })
       photos.forEach((photo) => URL.revokeObjectURL(photo.preview))
       setBulkEvent('')
       setBulkVisibility('')

@@ -31,8 +31,8 @@ export const EventHero: React.FC<{
           size="100vw"
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/35" />
-      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/50 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/25 to-black/0 via-10% to-50%" />
+      {/* <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/20 to-transparent" /> */}
 
       <div className="container relative pb-10 pt-20 md:pb-14">
         <p
