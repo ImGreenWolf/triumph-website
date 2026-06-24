@@ -32,6 +32,7 @@ import { default as default_251fbffc0cb53d83775d2f42e8f71847 } from '@/component
 import { default as default_87573459ce2453ff62980426a37f1681 } from '@/components/MembersCell/MemberAttendenceLabel.tsx'
 import { default as default_e28b7edd5cc1aae64071db42abf827f0 } from '@/components/MembersCell/MemberAttendenceCell.tsx'
 import { default as default_99c39790b6f5920831b6d304b9d0e451 } from '@/components/payload/MembersPasswordResetAction'
+import { default as default_fc3285bf6201b692bbbb623bf3ed36e6 } from '@/components/payload/MembersEmailInstructionsAction'
 import { default as default_e7c7dcff9dbb592420ccb96a99798d18 } from '@/components/payload/MembersBeforeList'
 import { default as default_3b6ada8c06e88089f8171dd390cec0f5 } from '@/fields/location-selector'
 import { default as default_8637c8c4329278e6366b8e88248c3489 } from '@/components/MembersCell/MeetingAttendenceLabel.tsx'
@@ -97,6 +98,7 @@ export const importMap = {
   "@/components/MembersCell/MemberAttendenceLabel.tsx#default": default_87573459ce2453ff62980426a37f1681,
   "@/components/MembersCell/MemberAttendenceCell.tsx#default": default_e28b7edd5cc1aae64071db42abf827f0,
   "@/components/payload/MembersPasswordResetAction#default": default_99c39790b6f5920831b6d304b9d0e451,
+  "@/components/payload/MembersEmailInstructionsAction#default": default_fc3285bf6201b692bbbb623bf3ed36e6,
   "@/components/payload/MembersBeforeList#default": default_e7c7dcff9dbb592420ccb96a99798d18,
   "@/fields/location-selector#default": default_3b6ada8c06e88089f8171dd390cec0f5,
   "@/components/MembersCell/MeetingAttendenceLabel.tsx#default": default_8637c8c4329278e6366b8e88248c3489,

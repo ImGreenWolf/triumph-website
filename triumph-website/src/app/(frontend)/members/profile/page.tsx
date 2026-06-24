@@ -32,6 +32,5 @@ export default async function MemberProfilePage() {
     depth: 2,
     id: (auth.user as User).id,
   })) as User
-
   return <ProfilePageClient member={member} />
 }

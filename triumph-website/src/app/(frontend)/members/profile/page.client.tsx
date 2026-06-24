@@ -12,6 +12,7 @@ import {
   Camera,
   CheckCircle2,
   ImageIcon,
+  Lock,
   Mail,
   Save,
   ShieldCheck,
@@ -81,28 +82,38 @@ const PageClient: React.FC<{ member: ProfileMember }> = ({ member }) => {
     () => [
       {
         icon: Mail,
-        label: 'Email address',
+        label: 'Adresa Email',
         value: profile.email,
       },
       {
         icon: UserRound,
-        label: 'Name',
+        label: 'Prenume Nume',
         value: profile.name || profile.email,
       },
       {
         icon: ShieldCheck,
-        label: 'Role',
+        label: 'Rol',
         value: roleLabels[profile.role] || profile.role,
       },
       {
         icon: CalendarDays,
-        label: 'Join date',
+        label: 'Data Alaturǎrii',
         value: formatLongDate(profile.joinedAt),
       },
       {
         icon: Cake,
-        label: 'Birthday',
+        label: 'Zi de Naştere',
         value: profile.birthday ? formatDateOnly(profile.birthday) : 'Not set yet',
+      },
+      {
+        icon: Mail,
+        label: 'Adresa Email Interact',
+        value: profile.clubMail ? profile.clubMail : 'Adresa ta de mail inca nu este disponibila, contacteazǎ secretarul!',
+      },
+      {
+        icon: Lock,
+        label: 'Parola Email Interact',
+        value: profile.clubMailPassword ? profile.clubMailPassword : 'Adresa ta de mail inca nu este disponibila, contacteazǎ secretarul!',
       },
     ],
     [profile],
@@ -271,7 +282,7 @@ const PageClient: React.FC<{ member: ProfileMember }> = ({ member }) => {
           onSubmit={handleSubmit}
         >
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-md bg-[#f7a81b]/20 text-[#f7a81b]">
+            <div className="flex size-10 items-center justify-center rounded-md  bg-[#00a2e0]/20 text-[#00a2e0]">
               <Save className="size-5" />
             </div>
             <div>

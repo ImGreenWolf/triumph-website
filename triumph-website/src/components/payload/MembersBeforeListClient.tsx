@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 
 import './MembersBeforeList.scss'
-import { getExistingEmailAddresses } from '@/collections/Users/emailManager'
+
 
 type BulkUploadIssue = {
   email?: string
@@ -35,7 +35,7 @@ export default function MemberActions() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadState, setUploadState] = useState<UploadState | null>(null)
 
-  getExistingEmailAddresses()
+
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()

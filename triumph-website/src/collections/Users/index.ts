@@ -15,7 +15,7 @@ import {
   generateForgotPasswordEmailHTML,
   generateForgotPasswordEmailSubject,
 } from './forgotPasswordEmail'
-import { sendPasswordResetEmails } from './passwordReset'
+import { sendMailInstructionMails, sendPasswordResetEmails } from './passwordReset'
 import getHighschools from './highschools'
 
 const canManageUsers: FieldAccess = ({ req }) => hasBoardRole({ req })
@@ -141,6 +141,9 @@ export const Users: CollectionConfig = {
         {
           path: '@/components/payload/MembersPasswordResetAction',
         },
+        {
+          path: '@/components/payload/MembersEmailInstructionsAction',
+        },
       ],
     },
   },
@@ -258,6 +261,75 @@ export const Users: CollectionConfig = {
         return Response.json({ message, ...result }, { status })
       },
     },
+    {
+      path: '/send-mail-instuctions',
+      method: 'post',
+      handler: async (req) => {
+        const authorizationError = await getBoardAuthorizationError(req)
+
+        if (authorizationError) return authorizationError
+
+        if (typeof req.json !== 'function') {
+          return Response.json(
+            { message: 'Password reset selection is unavailable.' },
+            { status: 400 },
+          )
+        }
+
+        let body: unknown
+
+        try {
+          body = await req.json()
+        } catch {
+          return Response.json({ message: 'Invalid password reset selection.' }, { status: 400 })
+        }
+
+        const selection = body as { all?: unknown; ids?: unknown }
+        const selectAll = selection?.all === true
+        const selectedIDs = getSelectedIDs(selection?.ids)
+
+        if (!selectAll && selectedIDs.length === 0) {
+          return Response.json({ message: 'Select at least one user.' }, { status: 400 })
+        }
+
+        const selectedWhere = isWhere(req.query?.where) ? req.query.where : undefined
+        const where: Where = selectAll
+          ? selectedWhere || { id: { not_equals: '' } }
+          : { id: { in: selectedIDs } }
+        const users = await req.payload.find({
+          collection: 'users',
+          depth: 0,
+          limit: 0,
+          overrideAccess: true,
+          pagination: false,
+          select: {
+            email: true,
+            clubMail: true,
+            clubMailPassword: true,
+            name: true
+          },
+          where,
+        })
+
+        if (users.docs.length === 0) {
+          return Response.json({ message: 'No selected users were found.' }, { status: 400 })
+        }
+
+        const result = await sendMailInstructionMails({
+          payload: req.payload,
+          req,
+          users: users.docs,
+        })
+        const status = result.sent.length === 0 && result.errors.length > 0 ? 500 : 200
+        const message =
+          result.sent.length > 0
+            ? `Sent ${result.sent.length} password reset email${result.sent.length === 1 ? '' : 's'}.`
+            : 'No password reset emails were sent.'
+
+        return Response.json({ message, ...result }, { status })
+      },
+    },
+
   ],
   hooks: {
     beforeChange: [preventMemberBirthdayChanges],
@@ -268,6 +340,21 @@ export const Users: CollectionConfig = {
       type: 'text',
       access: {
         update: canManageUsers,
+      },
+    },
+    {
+      name: 'clubMail',
+      type: 'email',
+      access: {
+        update: canManageUsers,
+      },
+    },
+    {
+      name: 'clubMailPassword',
+      type: 'text',
+      access: {
+        update: canManageUsers,
+        read: hasBoardRole || canUpdateOwnProfileField
       },
     },
     {
