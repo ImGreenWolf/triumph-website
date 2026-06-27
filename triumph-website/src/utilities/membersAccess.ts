@@ -8,7 +8,6 @@ export const boardRoles = [
   'treasurer',
   'pr-director',
   'hr-director',
-  'tresoursier',
   'past-president'
 ] as const
 

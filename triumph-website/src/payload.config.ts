@@ -28,6 +28,8 @@ import { AbsenceMotivations } from './collections/AbsenceMotivations'
 import { Payments } from './collections/Members/payments'
 import { GalleryPhotos } from './collections/GalleryPhotos'
 import { SiteConfig } from './globals/SiteConfig/config'
+import dashboardLayout from './components/Dashboard/dashboardLayout'
+import dashboardWidgets from './components/Dashboard/dashboardWidgets'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -52,6 +54,10 @@ const allowedOrigins = Array.from(
 
 export default buildConfig({
   admin: {
+    dashboard: {
+      defaultLayout: dashboardLayout,
+      widgets: dashboardWidgets,
+    },
     components: {
       // The `BeforeLogin` component renders a message that you see while logging into your admin panel.
       // Feel free to delete this at any time. Simply remove the line below.
@@ -59,6 +65,11 @@ export default buildConfig({
         Logo: '@/components/Logo',
         Icon: '@/components/Logo/icon.tsx',
       },
+      views: {
+        // dashboard: {
+        //   Component: '@/components/Dashboard'
+        // }
+      }
       // The `BeforeDashboard` component renders the 'welcome' block that you see after logging into your admin panel.
       // Feel free to delete this at any time. Simply remove the line below
     },

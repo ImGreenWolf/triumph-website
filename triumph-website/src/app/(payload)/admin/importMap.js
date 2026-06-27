@@ -60,6 +60,15 @@ import { RowLabel as RowLabel_ec255a65fa6fa8d1faeb09cf35284224 } from '@/Header/
 import { RowLabel as RowLabel_1f6ff6ff633e3695d348f4f3c58f1466 } from '@/Footer/RowLabel'
 import { default as default_d525a163d317589860af26e6e4f3c451 } from '@/components/Logo/icon.tsx'
 import { default as default_2b7e2e151f989fb419ce3009e56b903e } from '@/components/Logo'
+import { default as default_5d204472b402252fd483917d5d52cf9b } from '@/components/Dashboard/Widgets/MemberPresenceStatisticsWidget'
+import { default as default_d71f351cd160870b0932074773e53d18 } from '@/components/Dashboard/Widgets/MemberPresenceGraphWidget'
+import { default as default_b633b22f1c7c5f35e54be5e90e1c762b } from '@/components/Dashboard/Widgets/GallerySubmissionWidget'
+import { default as default_a475d67fd7ce80247733fda976bc0bc5 } from '@/components/Dashboard/Widgets/EventStatisticsWidget'
+import { default as default_823522da3cb9619941a09633a30d730b } from '@/components/Dashboard/Widgets/MeetingsManagementWidget'
+import { default as default_4dc482460c863fe080691cd93c951a67 } from '@/components/Dashboard/Widgets/LastMeetingStatisticWidget'
+import { default as default_5462305270786ccf3acd89003be45a62 } from '@/components/Dashboard/Widgets/DuesStatisticsWidget'
+import { default as default_112ec0dc13c1a54877caed15f22dbbee } from '@/components/Dashboard/Widgets/DuesManagementWidget'
+import { default as default_5e59fe13afdfb1460de5dd051aeb5f46 } from '@/components/Dashboard/Widgets/IntroWidget'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
@@ -126,5 +135,14 @@ export const importMap = {
   "@/Footer/RowLabel#RowLabel": RowLabel_1f6ff6ff633e3695d348f4f3c58f1466,
   "@/components/Logo/icon.tsx#default": default_d525a163d317589860af26e6e4f3c451,
   "@/components/Logo#default": default_2b7e2e151f989fb419ce3009e56b903e,
+  "@/components/Dashboard/Widgets/MemberPresenceStatisticsWidget#default": default_5d204472b402252fd483917d5d52cf9b,
+  "@/components/Dashboard/Widgets/MemberPresenceGraphWidget#default": default_d71f351cd160870b0932074773e53d18,
+  "@/components/Dashboard/Widgets/GallerySubmissionWidget#default": default_b633b22f1c7c5f35e54be5e90e1c762b,
+  "@/components/Dashboard/Widgets/EventStatisticsWidget#default": default_a475d67fd7ce80247733fda976bc0bc5,
+  "@/components/Dashboard/Widgets/MeetingsManagementWidget#default": default_823522da3cb9619941a09633a30d730b,
+  "@/components/Dashboard/Widgets/LastMeetingStatisticWidget#default": default_4dc482460c863fe080691cd93c951a67,
+  "@/components/Dashboard/Widgets/DuesStatisticsWidget#default": default_5462305270786ccf3acd89003be45a62,
+  "@/components/Dashboard/Widgets/DuesManagementWidget#default": default_112ec0dc13c1a54877caed15f22dbbee,
+  "@/components/Dashboard/Widgets/IntroWidget#default": default_5e59fe13afdfb1460de5dd051aeb5f46,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

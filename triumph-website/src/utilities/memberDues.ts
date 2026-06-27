@@ -25,6 +25,21 @@ export type MemberDuesSummary = {
   waivedCount: number
 }
 
+export type MemberDuesSummaryWithMember = MemberDuesSummary & {
+  member: Pick<User, 'id' | 'joinedAt' | 'name'>
+  memberId: string
+}
+
+export type MembersDuesSummary = {
+  memberSummaries: MemberDuesSummaryWithMember[]
+  totalCoveredCount: number
+  totalOverdueCount: number
+  totalOwed: number
+  totalPaid: number
+  totalPaidCount: number
+  totalWaivedCount: number
+}
+
 export function getMonthKey(month: Date) {
   return `${month.getFullYear()}-${month.getMonth()}`
 }
@@ -44,6 +59,51 @@ export function getExpectedMonths(joinedAt: string, now = new Date()) {
 
 export function getPaymentsByMonth(payments: Payment[]) {
   return new Map(payments.map((payment) => [getMonthKey(new Date(payment.month)), payment]))
+}
+
+function getRelationId(value: unknown) {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string' || typeof value === 'number') return String(value)
+
+  if (typeof value === 'object') {
+    if ('id' in value && value.id !== null && value.id !== undefined) {
+      return String(value.id)
+    }
+
+    if ('_id' in value && value._id !== null && value._id !== undefined) {
+      return String(value._id)
+    }
+
+    if ('toString' in value && typeof value.toString === 'function') {
+      const stringValue = value.toString()
+
+      if (stringValue !== '[object Object]') return stringValue
+    }
+  }
+
+  return ''
+}
+
+export function getMemberId(member: Pick<User, 'id'>) {
+  return getRelationId(member.id)
+}
+
+export function getPaymentMemberId(payment: Payment) {
+  return getRelationId(payment.member)
+}
+
+export function getPaymentsByMember(payments: Payment[]) {
+  return payments.reduce((paymentsByMember, payment) => {
+    const memberId = getPaymentMemberId(payment)
+    if (!memberId) return paymentsByMember
+
+    const memberPayments = paymentsByMember.get(memberId) ?? []
+
+    memberPayments.push(payment)
+    paymentsByMember.set(memberId, memberPayments)
+
+    return paymentsByMember
+  }, new Map<string, Payment[]>())
 }
 
 export function getMemberDues(payments: Payment[], joinedAt: string, now = new Date()) {
@@ -104,6 +164,45 @@ export function getTotalPaid(dues: MemberDue[]) {
   }, 0)
 }
 
+export function isPaidPayment(payment: Payment) {
+  return payment.type !== 'waived'
+}
+
+export function getPaidPayments(payments: Payment[]) {
+  return payments.filter(isPaidPayment)
+}
+
+export function getPaidCountFromPayments(payments: Payment[]) {
+  return getPaidPayments(payments).length
+}
+
+export function getWaivedCountFromPayments(payments: Payment[]) {
+  return payments.filter((payment) => payment.type === 'waived').length
+}
+
+export function getCoveredCountFromPayments(payments: Payment[]) {
+  return payments.length
+}
+
+export function getTotalPaidAmountFromPayments(payments: Payment[]) {
+  return getPaidPayments(payments).reduce(
+    (total, payment) => total + (payment.amount ?? MONTHLY_DUE),
+    0,
+  )
+}
+
+export function getTotalOwedFromPayments(payments: Payment[], joinedAt: string, now = new Date()) {
+  return getTotalOwed(getMemberDues(payments, joinedAt, now))
+}
+
+export function getTotalPaidFromPayments(payments: Payment[], joinedAt?: string, now = new Date()) {
+  if (joinedAt) {
+    return getTotalPaid(getMemberDues(payments, joinedAt, now))
+  }
+
+  return getTotalPaidAmountFromPayments(payments)
+}
+
 export function getDuesSummary(dues: MemberDue[]): MemberDuesSummary {
   return {
     coveredCount: getCoveredCount(dues),
@@ -114,6 +213,74 @@ export function getDuesSummary(dues: MemberDue[]): MemberDuesSummary {
     totalPaid: getTotalPaid(dues),
     waivedCount: getWaivedCount(dues),
   }
+}
+
+export function getDuesSummaryFromPayments(payments: Payment[], joinedAt: string, now = new Date()) {
+  return getDuesSummary(getMemberDues(payments, joinedAt, now))
+}
+
+export function getMemberDuesSummaries(
+  members: Pick<User, 'id' | 'joinedAt'>[],
+  payments: Payment[],
+  now = new Date(),
+) {
+  const paymentsByMember = getPaymentsByMember(payments)
+
+  return members.map<MemberDuesSummaryWithMember>((member) => {
+    const memberId = getMemberId(member)
+
+    return {
+      ...getDuesSummaryFromPayments(paymentsByMember.get(memberId) ?? [], member.joinedAt, now),
+      member,
+      memberId,
+    }
+  })
+}
+
+export function getMembersDuesSummary(
+  members: Pick<User, 'id' | 'joinedAt'>[],
+  payments: Payment[],
+  now = new Date(),
+): MembersDuesSummary {
+  const memberSummaries = getMemberDuesSummaries(members, payments, now)
+  const memberIds = new Set(members.map(getMemberId))
+  const memberPayments = payments.filter((payment) => memberIds.has(getPaymentMemberId(payment)))
+  const dueTotals = memberSummaries.reduce(
+    (summary, memberSummary) => ({
+      totalOverdueCount: summary.totalOverdueCount + memberSummary.overdueCount,
+      totalOwed: summary.totalOwed + memberSummary.totalOwed,
+    }),
+    {
+      totalOverdueCount: 0,
+      totalOwed: 0,
+    },
+  )
+
+  return {
+    memberSummaries,
+    totalCoveredCount: getCoveredCountFromPayments(memberPayments),
+    totalOverdueCount: dueTotals.totalOverdueCount,
+    totalOwed: dueTotals.totalOwed,
+    totalPaid: getTotalPaidAmountFromPayments(memberPayments),
+    totalPaidCount: getPaidCountFromPayments(memberPayments),
+    totalWaivedCount: getWaivedCountFromPayments(memberPayments),
+  }
+}
+
+export function getTotalOwedForMembers(
+  members: Pick<User, 'id' | 'joinedAt'>[],
+  payments: Payment[],
+  now = new Date(),
+) {
+  return getMembersDuesSummary(members, payments, now).totalOwed
+}
+
+export function getTotalPaidForMembers(
+  members: Pick<User, 'id' | 'joinedAt'>[],
+  payments: Payment[],
+  now = new Date(),
+) {
+  return getMembersDuesSummary(members, payments, now).totalPaid
 }
 
 export async function getMemberDuesSummary(
@@ -133,5 +300,28 @@ export async function getMemberDuesSummary(
   })
   const payments = paymentsDocs.docs as Payment[]
 
-  return getDuesSummary(getMemberDues(payments, member.joinedAt, now))
+  return getDuesSummaryFromPayments(payments, member.joinedAt, now)
+}
+
+export async function getAllMembersDuesSummary(payload: Payload, now = new Date()) {
+  const [membersDocs, paymentsDocs] = await Promise.all([
+    payload.find({
+      collection: 'users',
+      depth: 0,
+      pagination: false,
+      sort: 'joinedAt',
+    }),
+    payload.find({
+      collection: 'payments',
+      depth: 0,
+      pagination: false,
+      sort: 'month',
+    }),
+  ])
+
+  return getMembersDuesSummary(
+    membersDocs.docs as Pick<User, 'id' | 'joinedAt'>[],
+    paymentsDocs.docs as Payment[],
+    now,
+  )
 }

@@ -113,7 +113,7 @@ const PageClient: React.FC<{ member: ProfileMember }> = ({ member }) => {
       {
         icon: Lock,
         label: 'Parola Email Interact',
-        value: profile.clubMailPassword ? profile.clubMailPassword : 'Adresa ta de mail inca nu este disponibila, contacteazǎ secretarul!',
+        value: profile.clubMailPassword ? profile.clubMailPassword : '',
       },
     ],
     [profile],

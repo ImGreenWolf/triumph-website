@@ -153,6 +153,15 @@ export interface Config {
   };
   locale: null;
   widgets: {
+    'member-presence-statistics': MemberPresenceStatisticsWidget;
+    'member-presence-graph': MemberPresenceGraphWidget;
+    'gallery-submission': GallerySubmissionWidget;
+    'event-statistics': EventStatisticsWidget;
+    'meetings-management': MeetingsManagementWidget;
+    'last-meeting-statistic': LastMeetingStatisticWidget;
+    'dues-statistics': DuesStatisticsWidget;
+    'dues-management': DuesManagementWidget;
+    'intro-widget': IntroWidgetWidget;
     collections: CollectionsWidget;
   };
   user: User;
@@ -3622,6 +3631,96 @@ export interface SiteConfigSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "member-presence-statistics_widget".
+ */
+export interface MemberPresenceStatisticsWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "member-presence-graph_widget".
+ */
+export interface MemberPresenceGraphWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gallery-submission_widget".
+ */
+export interface GallerySubmissionWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-statistics_widget".
+ */
+export interface EventStatisticsWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meetings-management_widget".
+ */
+export interface MeetingsManagementWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "last-meeting-statistic_widget".
+ */
+export interface LastMeetingStatisticWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "dues-statistics_widget".
+ */
+export interface DuesStatisticsWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "dues-management_widget".
+ */
+export interface DuesManagementWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "intro-widget_widget".
+ */
+export interface IntroWidgetWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'x-small' | 'small' | 'medium' | 'large' | 'x-large' | 'full';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
