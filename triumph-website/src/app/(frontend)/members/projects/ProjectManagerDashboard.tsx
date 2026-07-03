@@ -23,6 +23,7 @@ import {
   Search,
   Sparkles,
   TrendingUp,
+  Trash2,
   Upload,
   UserCheck,
   UserPlus,
@@ -140,7 +141,7 @@ export default function ProjectManagerDashboard(props: {
     overview: true,
     report: false,
   })
-  const [showPersonalData, setShowPersonalData] = useState(false)
+  const [showPersonalData, setShowPersonalData] = useState(true)
   const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
@@ -405,7 +406,7 @@ function Overview(props: {
   onTogglePersonalData: () => void
   showPersonalData: boolean
 }) {
-  const { event, metrics, onOpenCheckIn, onTogglePersonalData, showPersonalData } = props
+  const { event, metrics, onOpenCheckIn, showPersonalData } = props
   const recentRegistrations = [...event.registrations]
     .filter((registration) => registration.status !== 'cancelled')
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
@@ -521,7 +522,6 @@ function Overview(props: {
               description={`${recentRegistrations.length} din ${metrics.active.length} afișate`}
               title="Înscrieri recente"
             />
-            <PrivacyButton active={showPersonalData} onClick={onTogglePersonalData} />
           </div>
           <div className="mt-5 divide-y divide-[#edf0f4]">
             {recentRegistrations.map((registration) => (
@@ -563,13 +563,7 @@ function CheckIn(props: {
   onTogglePersonalData: () => void
   showPersonalData: boolean
 }) {
-  const {
-    event,
-    onRegistrationCreate,
-    onRegistrationUpdate,
-    onTogglePersonalData,
-    showPersonalData,
-  } = props
+  const { event, onRegistrationCreate, onRegistrationUpdate, showPersonalData } = props
   const [query, setQuery] = useState('')
   const [shift, setShift] = useState('all')
   const [status, setStatus] = useState('all')
@@ -577,8 +571,14 @@ function CheckIn(props: {
   const [importOpen, setImportOpen] = useState(false)
   const [walkInOpen, setWalkInOpen] = useState(false)
   const [creatingWalkIn, setCreatingWalkIn] = useState(false)
+  const [deletingID, setDeletingID] = useState<string | null>(null)
+  const [donationErrorIDs, setDonationErrorIDs] = useState<string[]>([])
   const [savingID, setSavingID] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null)
+
+  useEffect(() => {
+    setDonationErrorIDs([])
+  }, [event.id])
 
   const filtered = event.registrations.filter((registration) => {
     if (registration.status === 'cancelled') return false
@@ -599,9 +599,12 @@ function CheckIn(props: {
     status: 'registered' | 'present' | 'absent'
   }) {
     if (args.status === 'present' && args.donation < event.donation) {
+      setDonationErrorIDs((current) =>
+        current.includes(args.registration.id) ? current : [...current, args.registration.id],
+      )
       setNotice({
         kind: 'error',
-        message: `Înscrierea nu se poate face deoarece donația minimă este de ${event.donation} RON.`,
+        message: `Înscrierea nu se poate face deoarece donația minimă este de ${formatCurrency(event.donation)}.`,
       })
       setEditing(null)
       return
@@ -634,6 +637,7 @@ function CheckIn(props: {
       }
 
       onRegistrationUpdate(result.registration)
+      setDonationErrorIDs((current) => current.filter((id) => id !== args.registration.id))
       setEditing(null)
       setNotice({ kind: 'success', message: 'Înscriere actualizată.' })
     } catch (error) {
@@ -679,6 +683,39 @@ function CheckIn(props: {
     }
   }
 
+  async function deleteRegistration(registration: ManagedRegistration) {
+    setDeletingID(registration.id)
+    setNotice(null)
+
+    try {
+      const response = await fetch('/members/projects/check-in', {
+        body: JSON.stringify({ registrationId: registration.id }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'DELETE',
+      })
+      const result = (await response.json()) as {
+        message?: string
+        registration?: Pick<ManagedRegistration, 'id' | 'status' | 'timeOfArrival'>
+      }
+
+      if (!response.ok || !result.registration) {
+        throw new Error(result.message || 'Participantul nu a putut fi șters.')
+      }
+
+      onRegistrationUpdate(result.registration)
+      setDonationErrorIDs((current) => current.filter((id) => id !== registration.id))
+      setEditing(null)
+      setNotice({ kind: 'success', message: 'Participant șters din lista de check-in.' })
+    } catch (error) {
+      setNotice({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Participantul nu a putut fi șters.',
+      })
+    } finally {
+      setDeletingID(null)
+    }
+  }
+
   return (
     <div className="grid gap-5">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -705,7 +742,6 @@ function CheckIn(props: {
             <Upload className="size-3.5" />
             Importă CSV
           </button>
-          <PrivacyButton active={showPersonalData} onClick={onTogglePersonalData} wide />
         </div>
       </div>
 
@@ -779,8 +815,23 @@ function CheckIn(props: {
             <tbody className="divide-y divide-[#edf0f4]">
               {filtered.map((registration) => {
                 const slotInfo = getSlotInfo(event, registration.day, registration.slot)
+                const donationBelowMinimum =
+                  event.donation > 0 &&
+                  registration.donation < event.donation &&
+                  (registration.status === 'present' || registration.donation > 0)
+                const hasDonationError =
+                  donationErrorIDs.includes(registration.id) || donationBelowMinimum
+
                 return (
-                  <tr className="bg-card transition hover:opacity-90" key={registration.id}>
+                  <tr
+                    aria-invalid={hasDonationError || undefined}
+                    className={
+                      hasDonationError
+                        ? 'bg-red-50/90 ring-1 ring-inset ring-red-200 transition hover:bg-red-50'
+                        : 'bg-card transition hover:opacity-90'
+                    }
+                    key={registration.id}
+                  >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <Avatar name={registration.name} />
@@ -810,8 +861,20 @@ function CheckIn(props: {
                     <td className="px-4 py-4 text-sm font-semibold">
                       {1 + registration.guests} pers.
                     </td>
-                    <td className="px-4 py-4 text-sm font-bold">
-                      {registration.donation > 0 ? formatCurrency(registration.donation) : '—'}
+                    <td
+                      className={`px-4 py-4 text-sm font-bold ${
+                        hasDonationError ? 'text-red-700' : ''
+                      }`}
+                    >
+                      <span>
+                        {registration.donation > 0 ? formatCurrency(registration.donation) : '—'}
+                      </span>
+                      {hasDonationError && (
+                        <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-700">
+                          <XCircle className="size-3.5" />
+                          Minim {formatCurrency(event.donation)}
+                        </p>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
@@ -875,9 +938,11 @@ function CheckIn(props: {
       {editing && (
         <CheckInDialog
           onClose={() => setEditing(null)}
+          onDelete={() => deleteRegistration(editing)}
           onSave={(values) =>
             saveRegistration({ ...values, registration: editing, status: 'present' })
           }
+          deleting={deletingID === editing.id}
           registration={editing}
           saving={savingID === editing.id}
           showPersonalData={showPersonalData}
@@ -1120,33 +1185,46 @@ function WalkInParticipantDialog(props: {
 }
 
 function CheckInDialog(props: {
+  deleting: boolean
   onClose: () => void
-  onSave: (values: { donation: number; guests: number }) => void
+  onDelete: () => void | Promise<void>
+  onSave: (values: { donation: number; guests: number }) => void | Promise<void>
   registration: ManagedRegistration
   saving: boolean
   showPersonalData: boolean
   managedEvent: ManagedEvent
 }) {
-  const { onClose, onSave, registration, saving, showPersonalData, managedEvent } = props
+  const {
+    deleting,
+    onClose,
+    onDelete,
+    onSave,
+    registration,
+    saving,
+    showPersonalData,
+    managedEvent,
+  } = props
   const [donation, setDonation] = useState(String(registration.donation || managedEvent.donation))
+  const [deleteRequested, setDeleteRequested] = useState(false)
   const [guests, setGuests] = useState(String(registration.guests || 0))
   const parsedDonation = Number(donation || 0)
   const parsedGuests = Number(guests || 0)
   const people = 1 + (Number.isInteger(parsedGuests) && parsedGuests >= 0 ? parsedGuests : 0)
+  const busy = saving || deleting
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !saving) onClose()
+      if (event.key === 'Escape' && !busy) onClose()
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [onClose, saving])
+  }, [busy, onClose])
 
   return (
     <div
       className="fixed inset-0 z-[120] flex items-end justify-center bg-[#09101f]/65 p-0 backdrop-blur-sm sm:items-center sm:p-5"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !saving) onClose()
+        if (event.target === event.currentTarget && !busy) onClose()
       }}
     >
       <div className="w-full max-w-lg rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
@@ -1167,6 +1245,7 @@ function CheckInDialog(props: {
           <button
             aria-label="Închide"
             className="flex size-9 items-center justify-center rounded-lg text-[#7a8497] transition hover:bg-[#f2f4f7]"
+            disabled={busy}
             onClick={onClose}
             type="button"
           >
@@ -1184,6 +1263,14 @@ function CheckInDialog(props: {
             </div>
           )}
 
+          {deleteRequested && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm font-semibold text-red-800">
+                Participantul va fi eliminat din lista activă de check-in.
+              </p>
+            </div>
+          )}
+
           <div>
             <label
               className="mb-2 block text-sm font-bold text-[#344054]"
@@ -1195,12 +1282,14 @@ function CheckInDialog(props: {
               <HandCoins className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-accent" />
               <input
                 autoFocus
-                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10"
+                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={busy}
                 id="checkin-donation"
                 min={managedEvent.donation.toString() || '0'}
                 onChange={(event) => setDonation(event.target.value)}
                 onKeyDown={(ev) => {
-                  if (ev.key == 'Enter') onSave({ donation: parsedDonation, guests: parsedGuests })
+                  if (ev.key == 'Enter' && !busy)
+                    onSave({ donation: parsedDonation, guests: parsedGuests })
                 }}
                 placeholder="suma donatǎ"
                 step="1"
@@ -1220,7 +1309,8 @@ function CheckInDialog(props: {
             <div className="relative">
               <Users className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-[#7b61d1]" />
               <input
-                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10"
+                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={busy}
                 id="checkin-guests"
                 max="50"
                 min="0"
@@ -1245,31 +1335,49 @@ function CheckInDialog(props: {
           </div>
         </div>
 
-        <div className="flex gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-6 py-4 sm:justify-end">
+        <div className="flex flex-col gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <button
-            className="h-11 flex-1 rounded-lg border border-[#d7dde6] bg-white px-5 text-sm font-bold text-[#536071] sm:flex-none"
-            disabled={saving}
-            onClick={onClose}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-5 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={busy}
+            onClick={() => {
+              if (deleteRequested) {
+                void onDelete()
+                return
+              }
+
+              setDeleteRequested(true)
+            }}
             type="button"
           >
-            Anulează
+            <Trash2 className="size-4" />
+            {deleting ? 'Se șterge…' : deleteRequested ? 'Confirmă ștergerea' : 'Șterge'}
           </button>
-          <button
-            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
-            disabled={
-              saving ||
-              !Number.isFinite(parsedDonation) ||
-              parsedDonation < 0 ||
-              !Number.isInteger(parsedGuests) ||
-              parsedGuests < 0
-            }
-            onClick={() => onSave({ donation: parsedDonation, guests: parsedGuests })}
-            onSubmit={() => onSave({ donation: parsedDonation, guests: parsedGuests })}
-            type="button"
-          >
-            <CheckCircle2 className="size-4" />
-            {saving ? 'Se salvează…' : 'Confirmă check-in'}
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              className="h-11 rounded-lg border border-[#d7dde6] bg-white px-5 text-sm font-bold text-[#536071] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={busy}
+              onClick={onClose}
+              type="button"
+            >
+              Anulează
+            </button>
+            <button
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={
+                busy ||
+                !Number.isFinite(parsedDonation) ||
+                parsedDonation < 0 ||
+                !Number.isInteger(parsedGuests) ||
+                parsedGuests < 0
+              }
+              onClick={() => onSave({ donation: parsedDonation, guests: parsedGuests })}
+              onSubmit={() => onSave({ donation: parsedDonation, guests: parsedGuests })}
+              type="button"
+            >
+              <CheckCircle2 className="size-4" />
+              {saving ? 'Se salvează…' : 'Confirmă check-in'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1779,7 +1887,7 @@ function ProgressBar({
   )
 }
 
-function PrivacyButton(props: { active: boolean; onClick: () => void; wide?: boolean }) {
+export function PrivacyButton(props: { active: boolean; onClick: () => void; wide?: boolean }) {
   const Icon = props.active ? EyeOff : Eye
   return (
     <button

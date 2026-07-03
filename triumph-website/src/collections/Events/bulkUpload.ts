@@ -13,21 +13,21 @@ export type ParticipantCSVError = {
 
 export type ParsedParticipantCSVRow = {
   data: RegistrationCreateData
-  email: string
+  email?: string
   name: string
   row: number
 }
 
 export type ParticipantBulkUploadResult = {
   created: {
-    email: string
+    email?: string
     id: string
     name: string
     row: number
   }[]
   errors: ParticipantCSVError[]
   skipped: {
-    email: string
+    email?: string
     reason: string
     row: number
   }[]
@@ -40,7 +40,7 @@ const headerAliases = {
   phone: ['phone', 'phone number', 'phone_number', 'telephone', 'tel', 'telefon'],
   questions: ['questions', 'question', 'notes', 'mentions', 'observatii', 'observații'],
   slot: ['slot', 'shift', 'time slot', 'time_slot', 'tura', 'tură', 'interval'],
-  donation: ['donation', 'donatie', 'donație'],
+  donation: ['donation', 'donatie', 'donație', 'donation_value', 'value', 'donation_val'],
 } as const
 
 type CSVColumn = keyof typeof headerAliases
@@ -87,8 +87,8 @@ export function parseParticipantsCSV(
     const rowNumber = recordIndex + 2
     const rowErrors: string[] = []
     const name = getRequiredCell(record, columns.name)
-    const email = getRequiredCell(record, columns.email).toLowerCase()
-    const phone = getRequiredCell(record, columns.phone)
+    const email = getOptionalCell(record, columns.email)?.toLowerCase()
+    const phone = getOptionalCell(record, columns.phone)
     const dayValue = getRequiredCell(record, columns.day)
     const slotValue = getRequiredCell(record, columns.slot)
     const questions = getOptionalCell(record, columns.questions)
@@ -96,17 +96,16 @@ export function parseParticipantsCSV(
 
     if (!name) rowErrors.push('Numele este obligatoriu.')
 
-    if (!email) {
-      rowErrors.push('Emailul este obligatoriu.')
-    } else if (!isValidEmail(email)) {
-      rowErrors.push('Emailul nu este valid.')
-    } else if (seenEmails.has(email)) {
-      rowErrors.push(`Emailul dublează rândul ${seenEmails.get(email)} din acest CSV.`)
-    } else {
-      seenEmails.set(email, rowNumber)
-    }
+    if (email)  
+      if (!isValidEmail(email)) {
+        rowErrors.push('Emailul nu este valid.')
+      } else if (seenEmails.has(email)) {
+        rowErrors.push(`Emailul dublează rândul ${seenEmails.get(email)} din acest CSV.`)
+      } else {
+        seenEmails.set(email, rowNumber)
+      }
 
-    if (!phone) rowErrors.push('Telefonul este obligatoriu.')
+    // if (!phone) rowErrors.push('Telefonul este obligatoriu.')
 
     const day = eventDays.get(dayValue)
     if (!day) {
@@ -136,7 +135,7 @@ export function parseParticipantsCSV(
       name,
       phone,
       slot: matchingSlots[0].id,
-      status: donation ? 'present' : 'registered',
+      status: parseInt(donation!) ? 'present' : 'absent',
     }
 
     if (questions) data.questions = questions
@@ -162,27 +161,29 @@ export async function importParticipantsFromCSV(args: {
 
   for (const row of parsed.rows) {
     try {
-      const existing = await args.payload.find({
-        collection: 'event-registrations',
-        depth: 0,
-        limit: 1,
-        overrideAccess: true,
-        where: {
-          and: [
-            { event: { equals: args.event.id } },
-            { email: { equals: row.email } },
-            { status: { not_equals: 'cancelled' } },
-          ],
-        },
-      })
-
-      if (existing.totalDocs > 0) {
-        result.skipped.push({
-          email: row.email,
-          reason: 'Există deja o înscriere activă cu acest email la eveniment.',
-          row: row.row,
+      if(row.email) {
+        const existing = await args.payload.find({
+          collection: 'event-registrations',
+          depth: 0,
+          limit: 1,
+          overrideAccess: true,
+          where: {
+            and: [
+              { event: { equals: args.event.id } },
+              { email: { equals: row.email } },
+              { status: { not_equals: 'cancelled' } },
+            ],
+          },
         })
-        continue
+
+        if (existing.totalDocs > 0) {
+          result.skipped.push({
+            email: row.email,
+            reason: 'Există deja o înscriere activă cu acest email la eveniment.',
+            row: row.row,
+          })
+          continue
+        }
       }
 
       const created = await args.payload.create({

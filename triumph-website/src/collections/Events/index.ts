@@ -580,9 +580,9 @@ export const EventRegistrations: CollectionConfig = {
           throw new APIError('Selectează o zi și un interval.', 400)
         }
 
-        if (!req.context.eventRegistrationWalkIn && (!data.email || !data.phone)) {
-          throw new APIError('Completează adresa de email și numărul de telefon.', 400)
-        }
+        // if (!req.context.eventRegistrationWalkIn && (!data.email || !data.phone)) {
+        //   throw new APIError('Completează adresa de email și numărul de telefon.', 400)
+        // }
 
         const eventId = typeof data.event === 'string' ? data.event : data.event.id
 

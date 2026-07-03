@@ -85,13 +85,13 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Tura selectată nu mai există.' }, { status: 400 })
   }
 
-  const minimumDonation = normalizeDonation(event.donation)
-  if (donation < minimumDonation) {
-    return Response.json(
-      { message: `Donația minimă pentru acest eveniment este de ${minimumDonation} RON.` },
-      { status: 400 },
-    )
-  }
+  // const minimumDonation = normalizeDonation(event.donation)
+  // if (donation < minimumDonation) {
+  //   return Response.json(
+  //     { message: `Donația minimă pentru acest eveniment este de ${minimumDonation} RON.` },
+  //     { status: 400 },
+  //   )
+  // }
 
   try {
     const created = (await payload.create({
@@ -231,6 +231,73 @@ export async function PATCH(request: Request) {
       guests: updated.guests ?? 0,
       id: updated.id,
       status: updated.status ?? 'registered',
+      timeOfArrival: updated.timeOfArrival ?? null,
+    },
+  })
+}
+
+export async function DELETE(request: Request) {
+  const payload = await getPayload({ config: payloadConfig })
+  const authentication = await authenticateRequest(request, payload)
+  if ('response' in authentication) return authentication.response
+
+  let input: unknown
+
+  try {
+    input = await request.json()
+  } catch {
+    return Response.json({ message: 'Datele trimise nu sunt valide.' }, { status: 400 })
+  }
+
+  const body = input as Record<string, unknown>
+  const registrationID = typeof body.registrationId === 'string' ? body.registrationId : ''
+
+  if (!registrationID) {
+    return Response.json({ message: 'Selectează o înscriere validă.' }, { status: 400 })
+  }
+
+  let registration: EventRegistration
+
+  try {
+    registration = (await payload.findByID({
+      collection: 'event-registrations',
+      depth: 0,
+      id: registrationID,
+      overrideAccess: true,
+    })) as EventRegistration
+  } catch {
+    return Response.json({ message: 'Înscrierea nu a fost găsită.' }, { status: 404 })
+  }
+
+  const eventID = getRelationshipID(registration.event)
+  const event = (await payload.findByID({
+    collection: 'events',
+    depth: 0,
+    id: eventID,
+    overrideAccess: true,
+  })) as Event
+
+  if (!canManageEvent(event, authentication.user)) {
+    return Response.json(
+      { message: 'Nu ai permisiunea de a gestiona acest eveniment.' },
+      { status: 403 },
+    )
+  }
+
+  const updated = (await payload.update({
+    collection: 'event-registrations',
+    data: {
+      status: 'cancelled',
+      timeOfArrival: null,
+    },
+    id: registrationID,
+    overrideAccess: true,
+  })) as EventRegistration
+
+  return Response.json({
+    registration: {
+      id: updated.id,
+      status: updated.status ?? 'cancelled',
       timeOfArrival: updated.timeOfArrival ?? null,
     },
   })
