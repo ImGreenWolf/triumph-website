@@ -242,11 +242,11 @@ export default function ProjectManagerDashboard(props: {
       data-reduce-motion={prefersReducedMotion ? 'true' : undefined}
       style={themeStyle}
     >
-      <section className="relative overflow-hidden px-4 pb-8 pt-28 sm:px-6 lg:px-8 bg-[#141e34] halftone-background text-primary">
+      <section className="halftone-background relative overflow-hidden bg-[#141e34] px-4 pb-6 pt-24 text-primary sm:px-6 sm:pb-8 sm:pt-28 lg:px-8">
         <div className="pointer-events-none absolute -right-32 -top-48 size-[34rem] rounded-full bg-accent/10 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 left-1/3 h-px w-1/2 bg-gradient-to-r from-transparent via-accent to-transparent" />
         <div className="relative mx-auto max-w-[1440px]">
-          <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+          <div className="mb-5 flex flex-col items-start justify-between gap-2 sm:mb-7 sm:flex-row sm:items-center sm:gap-4">
             <Link
               className="inline-flex items-center gap-2 text-sm font-medium opacity-65 transition hover:opacity-100"
               href="/members"
@@ -254,37 +254,37 @@ export default function ProjectManagerDashboard(props: {
               <ArrowLeft className="size-4" />
               Dashboard membri
             </Link>
-            <p className="text-sm opacity-55">
+            <p className="text-xs opacity-55 sm:text-sm">
               Conectat ca <span className="font-semibold">{userName}</span>
             </p>
           </div>
 
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="mb-4 flex items-center gap-2">
+              <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-accent bg-accent/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent">
                   Project manager
                 </span>
                 <PhaseBadge phase={phase} />
               </div>
-              <h1 className="max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+              <h1 className="max-w-3xl break-words text-2xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
                 {event.name}
               </h1>
-              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm opacity-70">
-                <span className="inline-flex items-center gap-2">
+              <div className="mt-3 grid gap-2 text-sm opacity-70 sm:mt-4 sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
+                <span className="inline-flex min-w-0 items-center gap-2">
                   <CalendarDays className="size-4 text-accent" />
-                  {formatEventDateRange(event)}
+                  <span className="min-w-0 break-words">{formatEventDateRange(event)}</span>
                 </span>
                 {event.location && (
-                  <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex min-w-0 items-center gap-2">
                     <MapPin className="size-4 text-accent" />
-                    {event.location}
+                    <span className="min-w-0 break-words">{event.location}</span>
                   </span>
                 )}
               </div>
             </div>
 
-            <div className="relative min-w-0 sm:min-w-80">
+            <div className="relative w-full min-w-0 lg:w-auto lg:min-w-80">
               <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] opacity-50">
                 Eveniment gestionat
               </label>
@@ -308,34 +308,41 @@ export default function ProjectManagerDashboard(props: {
                   <ChevronDown className="pointer-events-none absolute bottom-4 right-4 size-4 opacity-55" />
                 </div>
               ) : (
-                <div className="inline-flex">
-                  {events.map((option) => (
-                    <div
-                      className={`relative bg-[#101a31] rounded-lg overflow-hidden border-2 mx-2 ${selectedEventID == option.id ? 'border-accent' : 'border-border'}`}
-                      key={option.id}
-                      onClick={() => setSelectedEventID(option.id)}
-                    >
-                      <Media
-                        resource={option.heroImage}
-                        className="object-cover aspect-4/5"
-                        imgClassName="w-40 aspect-4/5 object-cover"
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-linear-to-t from-black to-transparent flex items-end">
-                        <h4 className="leading-5 m-2">{option.name}</h4>
-                      </div>
-                    </div>
-                  ))}
+                <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+                  <div className="flex gap-3">
+                    {events.map((option) => (
+                      <button
+                        className={`relative aspect-[4/5] w-32 shrink-0 overflow-hidden rounded-lg border-2 bg-[#101a31] text-left transition sm:w-40 ${
+                          selectedEventID === option.id ? 'border-accent' : 'border-border'
+                        }`}
+                        key={option.id}
+                        onClick={() => setSelectedEventID(option.id)}
+                        type="button"
+                      >
+                        <Media
+                          resource={option.heroImage}
+                          className="h-full w-full object-cover"
+                          imgClassName="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 flex min-h-16 items-end bg-linear-to-t from-black to-transparent">
+                          <h4 className="m-2 line-clamp-2 text-sm font-bold leading-4">
+                            {option.name}
+                          </h4>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          <nav className="mt-8 flex gap-1 overflow-x-auto border-b border-current/10">
+          <nav className="-mx-4 mt-6 flex gap-1 overflow-x-auto border-b border-current/10 px-4 sm:mx-0 sm:mt-8 sm:px-0">
             {tabs.map((item) => {
               const Icon = item.icon
               return (
                 <button
-                  className={`relative inline-flex h-12 shrink-0 items-center gap-2 px-4 text-sm font-semibold transition ${
+                  className={`relative inline-flex h-11 shrink-0 items-center gap-2 px-3 text-sm font-semibold transition sm:h-12 sm:px-4 ${
                     tab === item.value ? 'opacity-100' : 'opacity-50 hover:opacity-80'
                   }`}
                   key={item.value}
@@ -362,7 +369,7 @@ export default function ProjectManagerDashboard(props: {
       <AnimatePresence initial={false} mode="wait">
         <motion.main
           animate="visible"
-          className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 lg:px-8 lg:py-9"
+          className="mx-auto max-w-[1440px] px-3 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-9"
           exit={prefersReducedMotion ? undefined : 'exit'}
           initial={prefersReducedMotion ? false : 'hidden'}
           key={event.id}
@@ -716,6 +723,80 @@ function CheckIn(props: {
     }
   }
 
+  function hasDonationIssue(registration: ManagedRegistration) {
+    const donationBelowMinimum =
+      event.donation > 0 &&
+      registration.donation < event.donation &&
+      (registration.status === 'present' || registration.donation > 0)
+
+    return donationErrorIDs.includes(registration.id) || donationBelowMinimum
+  }
+
+  function renderDonationSummary(registration: ManagedRegistration) {
+    const hasDonationError = hasDonationIssue(registration)
+
+    return (
+      <>
+        <span>{registration.donation > 0 ? formatCurrency(registration.donation) : '—'}</span>
+        {hasDonationError && (
+          <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-700">
+            <XCircle className="size-3.5" />
+            Minim {formatCurrency(event.donation)}
+          </p>
+        )}
+      </>
+    )
+  }
+
+  function renderRegistrationActions(registration: ManagedRegistration, compact = false) {
+    const confirmClass = compact
+      ? 'inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-center text-xs font-bold leading-4 text-white transition hover:bg-emerald-700 disabled:opacity-60'
+      : 'inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60'
+    const editClass = compact
+      ? 'inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#cfd6df] bg-white px-3 py-2 text-center text-xs font-bold leading-4 text-[#344054] transition hover:bg-[#f5f7fa]'
+      : 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#cfd6df] bg-white px-3 text-xs font-bold text-[#344054] transition hover:bg-[#f5f7fa]'
+
+    return (
+      <>
+        {registration.status !== 'present' && (
+          <button
+            className={confirmClass}
+            disabled={savingID === registration.id}
+            onClick={() => setEditing(registration)}
+            type="button"
+          >
+            <Check className="size-3.5" />
+            Confirmă
+          </button>
+        )}
+        {registration.status === 'present' && (
+          <button className={editClass} onClick={() => setEditing(registration)} type="button">
+            Editează
+          </button>
+        )}
+        {registration.status === 'registered' && (
+          <button
+            aria-label="Marchează absent"
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-red-500 bg-red-100 text-red-300 transition hover:border-red-400 hover:bg-red-200 hover:text-red-500 disabled:opacity-60 md:size-9"
+            disabled={savingID === registration.id}
+            onClick={() =>
+              saveRegistration({
+                donation: registration.donation || 0,
+                guests: registration.guests || 0,
+                registration,
+                status: 'absent',
+              })
+            }
+            title="Marchează absent"
+            type="button"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+      </>
+    )
+  }
+
   return (
     <div className="grid gap-5">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -725,9 +806,9 @@ function CheckIn(props: {
             Confirmă sosirea, donația totală și persoanele care împart donația.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-2 sm:flex sm:flex-wrap">
           <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-xs font-bold text-white transition hover:bg-emerald-700"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700 sm:w-auto sm:px-4"
             onClick={() => setWalkInOpen(true)}
             type="button"
           >
@@ -735,7 +816,7 @@ function CheckIn(props: {
             Adaugă participant
           </button>
           <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-xs font-bold text-accent-foreground transition hover:opacity-90"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent px-3 text-xs font-bold text-accent-foreground transition hover:opacity-90 sm:w-auto sm:px-4"
             onClick={() => setImportOpen(true)}
             type="button"
           >
@@ -763,7 +844,7 @@ function CheckIn(props: {
       )}
 
       <Panel className="overflow-hidden p-0" stagger={false}>
-        <div className="grid gap-3 border-b border-[#e5e9ef] p-4 md:grid-cols-[minmax(220px,1fr)_220px_180px]">
+        <div className="grid gap-3 border-b border-[#e5e9ef] p-3 sm:p-4 md:grid-cols-[minmax(220px,1fr)_220px_180px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a94a6]" />
             <input
@@ -800,7 +881,81 @@ function CheckIn(props: {
           </select>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="grid gap-2 p-2 sm:gap-3 sm:p-3 md:hidden">
+          {filtered.map((registration) => {
+            const slotInfo = getSlotInfo(event, registration.day, registration.slot)
+            const hasDonationError = hasDonationIssue(registration)
+
+            return (
+              <article
+                aria-invalid={hasDonationError || undefined}
+                className={`min-w-0 rounded-xl border p-3 shadow-sm sm:p-4 ${
+                  hasDonationError
+                    ? 'border-red-200 bg-red-50'
+                    : 'border-[#e4e8ef] bg-white text-[#152039]'
+                }`}
+                key={registration.id}
+              >
+                <div className="grid min-w-0 gap-3 min-[360px]:grid-cols-[minmax(0,1fr)_auto] min-[360px]:items-start">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Avatar name={registration.name} />
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-bold leading-5">
+                        {showPersonalData ? registration.name : maskName(registration.name)}
+                      </p>
+                      <p className="mt-0.5 min-w-0 break-words text-xs leading-4 text-[#6b7688]">
+                        {showPersonalData
+                          ? formatParticipantContact(registration)
+                          : 'Date personale ascunse'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="min-[360px]:justify-self-end">
+                    <StatusBadge status={registration.status} />
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2 text-sm min-[390px]:grid-cols-2 sm:mt-4 sm:gap-3">
+                  <div className="min-w-0 rounded-lg bg-[#f7f9fc] p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#7a8497]">
+                      Tură
+                    </p>
+                    <p className="mt-1 break-words font-bold">
+                      {slotInfo ? formatSlotTimeRange(slotInfo.slot) : '—'}
+                    </p>
+                    <p className="mt-0.5 text-xs capitalize text-[#7a8497]">
+                      {slotInfo ? compactDay(slotInfo.day.eventDate) : 'Indisponibilă'}
+                    </p>
+                  </div>
+                  <div className="min-w-0 rounded-lg bg-[#f7f9fc] p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#7a8497]">
+                      Grup
+                    </p>
+                    <p className="mt-1 font-bold">{1 + registration.guests} pers.</p>
+                  </div>
+                  <div
+                    className={`min-w-0 rounded-lg p-3 min-[390px]:col-span-2 ${
+                      hasDonationError ? 'bg-red-100 text-red-700' : 'bg-[#f7f9fc]'
+                    }`}
+                  >
+                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#7a8497]">
+                      Donație
+                    </p>
+                    <div className="mt-1 break-words text-sm font-bold">
+                      {renderDonationSummary(registration)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex min-w-0 gap-2 sm:mt-4">
+                  {renderRegistrationActions(registration, true)}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[920px] border-collapse text-left">
             <thead>
               <tr className="border-b border-current/10 bg-card text-[11px] font-bold uppercase tracking-[0.09em] opacity-70">
@@ -815,12 +970,7 @@ function CheckIn(props: {
             <tbody className="divide-y divide-[#edf0f4]">
               {filtered.map((registration) => {
                 const slotInfo = getSlotInfo(event, registration.day, registration.slot)
-                const donationBelowMinimum =
-                  event.donation > 0 &&
-                  registration.donation < event.donation &&
-                  (registration.status === 'present' || registration.donation > 0)
-                const hasDonationError =
-                  donationErrorIDs.includes(registration.id) || donationBelowMinimum
+                const hasDonationError = hasDonationIssue(registration)
 
                 return (
                   <tr
@@ -866,57 +1016,11 @@ function CheckIn(props: {
                         hasDonationError ? 'text-red-700' : ''
                       }`}
                     >
-                      <span>
-                        {registration.donation > 0 ? formatCurrency(registration.donation) : '—'}
-                      </span>
-                      {hasDonationError && (
-                        <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-700">
-                          <XCircle className="size-3.5" />
-                          Minim {formatCurrency(event.donation)}
-                        </p>
-                      )}
+                      {renderDonationSummary(registration)}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
-                        {registration.status !== 'present' && (
-                          <button
-                            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                            disabled={savingID === registration.id}
-                            onClick={() => setEditing(registration)}
-                            type="button"
-                          >
-                            <Check className="size-3.5" />
-                            Confirmă
-                          </button>
-                        )}
-                        {registration.status === 'present' && (
-                          <button
-                            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#cfd6df] bg-white px-3 text-xs font-bold text-[#344054] transition hover:bg-[#f5f7fa]"
-                            onClick={() => setEditing(registration)}
-                            type="button"
-                          >
-                            Editează
-                          </button>
-                        )}
-                        {registration.status === 'registered' && (
-                          <button
-                            aria-label="Marchează absent"
-                            className="inline-flex size-9 items-center justify-center rounded-lg border border-red-500 text-red-300 bg-red-100 transition hover:border-red-400 hover:bg-red-200 hover:text-red-500 disabled:opacity-60"
-                            disabled={savingID === registration.id}
-                            onClick={() =>
-                              saveRegistration({
-                                donation: registration.donation || 0,
-                                guests: registration.guests || 0,
-                                registration,
-                                status: 'absent',
-                              })
-                            }
-                            title="Marchează absent"
-                            type="button"
-                          >
-                            <X className="size-4" />
-                          </button>
-                        )}
+                        {renderRegistrationActions(registration)}
                       </div>
                     </td>
                   </tr>
@@ -926,7 +1030,7 @@ function CheckIn(props: {
           </table>
           {filtered.length === 0 && <InlineEmpty text="Nicio înscriere nu corespunde filtrelor." />}
         </div>
-        <div className="flex items-center justify-between border-t border-current/10 bg-card px-5 py-3 text-xs font-medium opacity-65">
+        <div className="flex flex-col gap-1 border-t border-current/10 bg-card px-4 py-3 text-xs font-medium opacity-65 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <span>{filtered.length} rezultate</span>
           <span>
             {event.registrations.filter((item) => item.status !== 'cancelled').length} înscrieri
@@ -1041,12 +1145,14 @@ function WalkInParticipantDialog(props: {
         className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white text-[#152039] shadow-2xl sm:rounded-2xl"
         onSubmit={submit}
       >
-        <div className="flex items-start justify-between border-b border-[#e7ebf0] px-6 py-5">
+        <div className="flex items-start justify-between border-b border-[#e7ebf0] px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-600">
               Participant neînregistrat
             </p>
-            <h2 className="mt-1.5 text-xl font-bold">Adaugă participant la eveniment</h2>
+            <h2 className="mt-1.5 break-words text-xl font-bold">
+              Adaugă participant la eveniment
+            </h2>
             <p className="mt-1 text-xs text-[#7a8497]">
               Va fi înregistrat direct ca prezent, cu ora sosirii curentă.
             </p>
@@ -1062,7 +1168,7 @@ function WalkInParticipantDialog(props: {
           </button>
         </div>
 
-        <div className="grid gap-5 px-6 py-6 sm:grid-cols-2">
+        <div className="grid gap-4 px-4 py-5 sm:grid-cols-2 sm:gap-5 sm:px-6 sm:py-6">
           <label className="flex flex-col gap-2 sm:col-span-2">
             <span className="text-sm font-bold">Zi și tură</span>
             <select
@@ -1161,9 +1267,9 @@ function WalkInParticipantDialog(props: {
           )}
         </div>
 
-        <div className="flex gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-6 py-4 sm:justify-end">
+        <div className="grid gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-4 py-4 sm:flex sm:px-6 sm:justify-end">
           <button
-            className="h-11 flex-1 rounded-lg border border-[#d7dde6] bg-white px-5 text-sm font-bold text-[#536071] sm:flex-none"
+            className="h-11 rounded-lg border border-[#d7dde6] bg-white px-5 text-sm font-bold text-[#536071] sm:flex-none"
             disabled={saving}
             onClick={onClose}
             type="button"
@@ -1171,7 +1277,7 @@ function WalkInParticipantDialog(props: {
             Anulează
           </button>
           <button
-            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-bold leading-5 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-5"
             disabled={saving || !canSubmit}
             type="submit"
           >
@@ -1227,13 +1333,13 @@ function CheckInDialog(props: {
         if (event.target === event.currentTarget && !busy) onClose()
       }}
     >
-      <div className="w-full max-w-lg rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
-        <div className="flex items-start justify-between border-b border-[#e7ebf0] px-6 py-5">
+      <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+        <div className="flex items-start justify-between border-b border-[#e7ebf0] px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-600">
               Confirmare sosire
             </p>
-            <h2 className="mt-1.5 text-xl font-bold text-[#152039]">
+            <h2 className="mt-1.5 break-words text-xl font-bold text-[#152039]">
               {showPersonalData ? registration.name : maskName(registration.name)}
             </h2>
             {showPersonalData && (
@@ -1253,7 +1359,7 @@ function CheckInDialog(props: {
           </button>
         </div>
 
-        <div className="space-y-5 px-6 py-6">
+        <div className="space-y-4 px-4 py-5 sm:space-y-5 sm:px-6 sm:py-6">
           {showPersonalData && registration.questions && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
               <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-amber-700">
@@ -1322,9 +1428,9 @@ function CheckInDialog(props: {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-[#dceaf1] bg-[#f2f9fc] px-4 py-3">
+          <div className="flex flex-col gap-1 rounded-xl border border-[#dceaf1] bg-[#f2f9fc] px-4 py-3 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
             <span className="text-sm font-semibold text-[#536071]">Grup confirmat</span>
-            <span className="text-sm font-bold text-[#152039]">
+            <span className="text-sm font-bold text-[#152039] min-[390px]:text-right">
               {people} {people === 1 ? 'persoană' : 'persoane'}
               {parsedDonation > 0 && (
                 <span className="ml-2 font-medium text-[#6b7688]">
@@ -1335,7 +1441,7 @@ function CheckInDialog(props: {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <button
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-5 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={busy}
@@ -1452,12 +1558,12 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
       }}
     >
       <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
-        <div className="flex items-start justify-between border-b border-[#e7ebf0] px-6 py-5">
+        <div className="flex items-start justify-between border-b border-[#e7ebf0] px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
               Import participanți
             </p>
-            <h2 className="mt-1.5 text-xl font-bold text-[#152039]">{event.name}</h2>
+            <h2 className="mt-1.5 break-words text-xl font-bold text-[#152039]">{event.name}</h2>
             <p className="mt-1 text-xs text-[#7a8497]">
               Evenimentul este aplicat automat tuturor rândurilor.
             </p>
@@ -1473,13 +1579,13 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
         </div>
 
         <form onSubmit={submitImport}>
-          <div className="space-y-5 px-6 py-6">
+          <div className="space-y-4 px-4 py-5 sm:space-y-5 sm:px-6 sm:py-6">
             <div className="rounded-xl border border-[#dceaf1] bg-[#f3f9fc] p-4">
               <div className="flex items-start gap-3">
                 <FileSpreadsheet className="mt-0.5 size-5 shrink-0 text-accent" />
                 <div>
                   <p className="text-sm font-bold text-[#152039]">Coloanele CSV</p>
-                  <p className="mt-1 text-xs leading-5 text-[#657286]">
+                  <p className="mt-1 break-words text-xs leading-5 text-[#657286]">
                     Obligatorii: <code>name,email,phone,day,slot</code>. Opțional:{' '}
                     <code>questions</code>. Ziua folosește <code>YYYY-MM-DD</code>, iar tura
                     intervalul afișat în eveniment, de exemplu <code>10:00-12:00</code>.
@@ -1487,7 +1593,7 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
                 </div>
               </div>
               <button
-                className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg border border-accent/30 bg-white px-3 text-xs font-bold text-accent transition hover:bg-[#f9fcfd]"
+                className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-accent/30 bg-white px-3 py-2 text-center text-xs font-bold leading-4 text-accent transition hover:bg-[#f9fcfd] sm:w-auto"
                 onClick={() => downloadParticipantTemplate(event)}
                 type="button"
               >
@@ -1556,9 +1662,9 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
             )}
           </div>
 
-          <div className="flex gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-6 py-4 sm:justify-end">
+          <div className="grid gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-4 py-4 sm:flex sm:px-6 sm:justify-end">
             <button
-              className="h-11 flex-1 rounded-lg border border-[#d7dde6] bg-white px-5 text-sm font-bold text-[#536071] sm:flex-none"
+              className="h-11 rounded-lg border border-[#d7dde6] bg-white px-5 text-sm font-bold text-[#536071] sm:flex-none"
               disabled={isUploading}
               onClick={onClose}
               type="button"
@@ -1566,7 +1672,7 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
               Închide
             </button>
             <button
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-bold text-accent-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-bold leading-5 text-accent-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-5"
               disabled={!file || isUploading}
               type="submit"
             >
@@ -1606,7 +1712,7 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
           </p>
         </div>
         <button
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#d9dfe7] bg-white px-4 text-sm font-bold text-[#344054] shadow-sm transition hover:bg-[#f8fafc]"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#d9dfe7] bg-white px-4 text-sm font-bold text-[#344054] shadow-sm transition hover:bg-[#f8fafc] sm:w-auto"
           onClick={() => exportReport(event)}
           type="button"
         >
@@ -1772,7 +1878,7 @@ function Panel(props: { children: ReactNode; className?: string; stagger?: boole
 
   return (
     <motion.section
-      className={`pm-dashboard-card rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-6 ${props.className ?? ''}`}
+      className={`pm-dashboard-card rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-6 ${props.className ?? ''}`}
       initial={stagger ? undefined : false}
       variants={stagger ? panelVariants : undefined}
     >
@@ -1809,14 +1915,14 @@ function MetricCard(props: {
 
   return (
     <motion.article
-      className="pm-dashboard-card rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)]"
+      className="pm-dashboard-card rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-5"
       variants={panelVariants}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.08em] opacity-60">{props.label}</p>
           {props.numberValue == undefined && (
-            <p className="mt-3 text-3xl font-bold tracking-tight">{props.value}</p>
+            <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{props.value}</p>
           )}
           {props.numberValue != undefined && (
             <span className="inline-flex align-bottom items-bottom mt-3 ">
@@ -1824,13 +1930,15 @@ function MetricCard(props: {
                 animateChanges={false}
                 animateOnMount
                 value={Math.round(props.numberValue)}
-                fontSize={42}
-                className="text-3xl font-bold"
+                fontSize={36}
+                className="text-2xl font-bold sm:text-3xl"
                 gap={0}
                 topGradientStyle={{}}
                 bottomGradientStyle={{}}
               />
-              <p className="pb-1 text-3xl font-bold tracking-tight">{props.numberUnit}</p>
+              <p className="pb-1 text-2xl font-bold tracking-tight sm:text-3xl">
+                {props.numberUnit}
+              </p>
             </span>
           )}
           <p className="mt-1.5 text-xs font-medium opacity-60">{props.detail}</p>
