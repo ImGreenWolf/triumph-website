@@ -1,18 +1,21 @@
 import type { WidgetServerProps } from 'payload'
 
+import { formatRotaryYearLabel, getRotaryYearStart } from '@/utilities/rotaryYear'
+
 import { BarGraph, CompactTable, WidgetCard } from './shared'
 import { getPresenceGraphData } from './presenceData'
 import { formatNumber } from './widgetUtils'
 
 export default async function MemberPresenceGraphWidget({ req }: WidgetServerProps) {
-  const points = await getPresenceGraphData(req.payload)
+  const now = new Date()
+  const points = await getPresenceGraphData(req.payload, now)
 
   return (
     <WidgetCard
       actionHref="/admin/collections/meetings"
-      actionLabel="Meetings"
-      eyebrow="Trend"
-      title="Member Presence Graph"
+      actionLabel="Întâlniri"
+      eyebrow={formatRotaryYearLabel(getRotaryYearStart(now))}
+      title="Grafic prezență membri"
     >
       <BarGraph
         bars={points.map((point) => ({
@@ -20,17 +23,17 @@ export default async function MemberPresenceGraphWidget({ req }: WidgetServerPro
           label: point.label,
           value: point.rate,
         }))}
-        emptyLabel="No completed meetings yet."
+        emptyLabel="Nu există încă întâlniri finalizate."
       />
       <CompactTable
-        emptyLabel="No meeting data available."
+        emptyLabel="Nu există date despre întâlniri."
         rows={points
           .slice(-3)
           .reverse()
           .map((point) => ({
             href: `/admin/collections/meetings/${point.id}`,
             label: point.label,
-            meta: `${formatNumber(point.present + point.late)} present, ${formatNumber(point.absent)} absent`,
+            meta: `${formatNumber(point.present + point.late)} prezenți, ${formatNumber(point.absent)} absenți`,
             value: `${point.rate}%`,
           }))}
       />

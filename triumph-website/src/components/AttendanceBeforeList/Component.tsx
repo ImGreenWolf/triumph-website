@@ -6,6 +6,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { DatePicker, usePayloadAPI } from '@payloadcms/ui'
 
 import type { Attendance, Meeting, User } from '@/payload-types'
+import {
+  formatRotaryYearLabel,
+  getRotaryYearStart,
+  getRotaryYearStartsFromDates,
+} from '@/utilities/rotaryYear'
+
 import './index.scss'
 
 type AttendanceWithRelations = Omit<Attendance, 'member' | 'meeting'> & {
@@ -150,15 +156,6 @@ const getStoredDateKey = (value: string | null) => {
   return getLocalDateKey(value)
 }
 
-const getRotaryYearStart = (date: Date) => {
-  const month = date.getMonth()
-  const year = date.getFullYear()
-
-  return month >= 6 ? year : year - 1
-}
-
-const formatRotaryYearLabel = (startYear: number) => `Anul Rotary ${startYear}-${startYear + 1}`
-
 const getMeetingRotaryYear = (record: AttendanceWithRelations) => {
   if (!isMeeting(record.meeting)) return null
 
@@ -251,7 +248,9 @@ export default function AttendanceBeforeList() {
   )
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
-  const [selectedRotaryYear, setSelectedRotaryYear] = useState<number | 'all'>('all')
+  const [selectedRotaryYear, setSelectedRotaryYear] = useState<number>(() =>
+    getRotaryYearStart(new Date()),
+  )
   const [openPanels, setOpenPanels] = useState<Record<PanelKey, boolean>>({
     meetings: true,
     members: false,
@@ -267,20 +266,13 @@ export default function AttendanceBeforeList() {
   const [selectedGraphMemberId, setSelectedGraphMemberId] = useState<string>('')
 
   const rotaryYears = useMemo(() => {
-    const years = new Set<number>()
-
-    for (const record of docs) {
-      const rotaryYear = getMeetingRotaryYear(record)
-
-      if (rotaryYear !== null) years.add(rotaryYear)
-    }
-
-    return [...years].sort((left, right) => right - left)
+    return getRotaryYearStartsFromDates(
+      docs.map((record) => (isMeeting(record.meeting) ? record.meeting.meetingDate : null)),
+      new Date(),
+    )
   }, [docs])
 
   const filteredDocs = useMemo(() => {
-    if (selectedRotaryYear === 'all') return docs
-
     return docs.filter((record) => getMeetingRotaryYear(record) === selectedRotaryYear)
   }, [docs, selectedRotaryYear])
 
@@ -493,8 +485,7 @@ export default function AttendanceBeforeList() {
     })),
   ]
 
-  const selectedYearLabel =
-    selectedRotaryYear === 'all' ? 'Toți anii Rotary' : formatRotaryYearLabel(selectedRotaryYear)
+  const selectedYearLabel = formatRotaryYearLabel(selectedRotaryYear)
   const selectedDateMeetings = selectedMeetingDate
     ? meetingDateMap.get(getLocalDateKey(selectedMeetingDate)) || []
     : []
@@ -621,13 +612,11 @@ export default function AttendanceBeforeList() {
                 className="attendance-before-list__select"
                 value={String(selectedRotaryYear)}
                 onChange={(event) => {
-                  const value = event.target.value
-                  setSelectedRotaryYear(value === 'all' ? 'all' : Number(value))
+                  setSelectedRotaryYear(Number(event.target.value))
                   setMeetingPage(1)
                   setMemberPage(1)
                 }}
               >
-                <option value="all">Toți anii</option>
                 {rotaryYears.map((year) => (
                   <option key={year} value={year}>
                     {formatRotaryYearLabel(year)}

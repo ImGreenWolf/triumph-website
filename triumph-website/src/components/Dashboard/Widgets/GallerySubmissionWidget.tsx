@@ -9,10 +9,17 @@ function getUploaderName(photo: GalleryPhoto) {
   const uploader = photo.uploadedBy
 
   if (uploader && typeof uploader === 'object') {
-    return (uploader as User).name || (uploader as User).email || 'Member'
+    return (uploader as User).name || (uploader as User).email || 'Membru'
   }
 
-  return 'Member'
+  return 'Membru'
+}
+
+function getVisibilityLabel(visibility: GalleryPhoto['visibility']) {
+  if (visibility === 'public') return 'Publică'
+  if (visibility === 'private') return 'Privată'
+
+  return visibility || '-'
 }
 
 export default async function GallerySubmissionWidget({ req }: WidgetServerProps) {
@@ -76,9 +83,9 @@ export default async function GallerySubmissionWidget({ req }: WidgetServerProps
   return (
     <WidgetCard
       actionHref="/admin/collections/gallery-photos"
-      actionLabel="Review"
+      actionLabel="Verifică"
       eyebrow="Galerie"
-      title="Submisii Galerie"
+      title="Trimiteri galerie"
     >
       <StatGrid>
         <StatItem
@@ -89,18 +96,18 @@ export default async function GallerySubmissionWidget({ req }: WidgetServerProps
         <StatItem label="Acceptate" value={formatNumber(approved.totalDocs)} />
         <StatItem label="Respinse" tone="danger" value={formatNumber(rejected.totalDocs)} />
         <StatItem
-          helper={`${formatNumber(privatePhotos.totalDocs)} private`}
-          label="Poze Publice"
+          helper={`${formatNumber(privatePhotos.totalDocs)} poze private`}
+          label="Poze publice"
           value={formatNumber(publicPhotos.totalDocs)}
         />
       </StatGrid>
       <CompactTable
-        emptyLabel="Nu exista poze care necesită verificare."
+        emptyLabel="Nu există poze care necesită verificare."
         rows={pendingPhotos.map((photo) => ({
           href: `/admin/collections/gallery-photos/${photo.id}`,
           label: getUploaderName(photo),
           meta: formatDateTime(photo.submittedAt || photo.createdAt),
-          value: photo.visibility,
+          value: getVisibilityLabel(photo.visibility),
         }))}
       />
     </WidgetCard>

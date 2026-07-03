@@ -1,11 +1,14 @@
 import type { WidgetServerProps } from 'payload'
 
+import { formatRotaryYearLabel, getRotaryYearStart } from '@/utilities/rotaryYear'
+
 import { BreakdownList, ProgressBar, StatGrid, StatItem, WidgetCard } from './shared'
 import { getPresenceGraphData } from './presenceData'
 import { formatNumber } from './widgetUtils'
 
 export default async function LastMeetingStatisticWidget({ req }: WidgetServerProps) {
-  const [lastMeeting] = (await getPresenceGraphData(req.payload, new Date(), 1)).reverse()
+  const now = new Date()
+  const [lastMeeting] = (await getPresenceGraphData(req.payload, now, 1)).reverse()
 
   return (
     <WidgetCard
@@ -14,19 +17,22 @@ export default async function LastMeetingStatisticWidget({ req }: WidgetServerPr
           ? `/admin/collections/meetings/${lastMeeting.id}`
           : '/admin/collections/meetings'
       }
-      actionLabel="Open"
-      eyebrow="Întâlniri Recente"
-      title="Statisticiile Ultimei Întâlniri"
+      actionLabel="Deschide"
+      eyebrow={formatRotaryYearLabel(getRotaryYearStart(now))}
+      title="Statisticile ultimei întâlniri"
     >
       {!lastMeeting ? (
         <p style={{ color: 'var(--theme-elevation-500, #6b7280)', margin: 0 }}>
-          No completed meetings are available yet.
+          Nu există încă întâlniri finalizate.
         </p>
       ) : (
         <>
           <StatGrid>
-            <StatItem label="Rata Prezenței" value={`${lastMeeting.rate}%`} />
-            <StatItem label="Participanți" value={`${formatNumber(lastMeeting.present + lastMeeting.late)} / ${formatNumber(lastMeeting.total)}`} />
+            <StatItem label="Rata prezenței" value={`${lastMeeting.rate}%`} />
+            <StatItem
+              label="Participanți"
+              value={`${formatNumber(lastMeeting.present + lastMeeting.late)} / ${formatNumber(lastMeeting.total)}`}
+            />
           </StatGrid>
           <ProgressBar label={lastMeeting.label} value={lastMeeting.rate} />
           <BreakdownList

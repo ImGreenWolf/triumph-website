@@ -36,6 +36,7 @@ import { getMediaUrl } from '@/utilities/getMediaUrl'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
 import { getMemberDuesSummary, MONTHLY_DUE } from '@/utilities/memberDues'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
+import { formatRotaryYearLabel, getRotaryYearStart } from '@/utilities/rotaryYear'
 import { cn } from '@/utilities/ui'
 
 import PageClient from './page.client'
@@ -273,6 +274,8 @@ async function Attendance(props: { member: User }) {
   const payload = await getPayload({
     config: payloadConfig,
   })
+  const now = new Date()
+  const rotaryYearLabel = formatRotaryYearLabel(getRotaryYearStart(now)).toLowerCase()
 
   const {
     absentMeetings,
@@ -281,12 +284,12 @@ async function Attendance(props: { member: User }) {
     motivatedMeetings,
     presentMeetings,
     records: attendance,
-  } = await getMemberAttendanceSummary(payload, member)
+  } = await getMemberAttendanceSummary(payload, member, now)
 
   return (
     <DashboardPanel className="flex h-full flex-col">
       <PanelHeader
-        description="Situația ta în ședințele înregistrate."
+        description={`Situația ta în ședințele înregistrate din ${rotaryYearLabel}.`}
         icon={<CheckCircle2 className="size-5" />}
         title="Prezență"
       />
@@ -347,16 +350,19 @@ async function Dues(props: { duesInfoText?: string | null; member: User }) {
   const payload = await getPayload({
     config: payloadConfig,
   })
+  const now = new Date()
+  const rotaryYearLabel = formatRotaryYearLabel(getRotaryYearStart(now)).toLowerCase()
 
   const { coveredCount, dues, overdueCount, totalOwed, waivedCount } = await getMemberDuesSummary(
     payload,
     member,
+    now,
   )
 
   return (
     <DashboardPanel className="relative flex h-full flex-col">
       <PanelHeader
-        description="Lunile achitate, scutite și restante."
+        description={`Lunile achitate, scutite și restante din ${rotaryYearLabel}.`}
         icon={<CreditCard className="size-5" />}
         title="Cotizații"
       />

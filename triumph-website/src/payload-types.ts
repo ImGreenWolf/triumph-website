@@ -959,6 +959,13 @@ export interface Event {
     | number
     | boolean
     | null;
+  documents?:
+    | {
+        label: string;
+        document: string | Media;
+        id?: string | null;
+      }[]
+    | null;
   cause?: (string | null) | Cause;
   donation?: string | null;
   days: {
@@ -1030,6 +1037,7 @@ export interface EventRegistration {
   name: string;
   phone?: string | null;
   questions?: string | null;
+  emailConsent?: boolean | null;
   donation: number;
   guests: number;
   timeOfArrival?: string | null;
@@ -2900,6 +2908,13 @@ export interface EventsSelect<T extends boolean = true> {
   cardColor?: T;
   inspoboard?: T;
   location?: T;
+  documents?:
+    | T
+    | {
+        label?: T;
+        document?: T;
+        id?: T;
+      };
   cause?: T;
   donation?: T;
   days?:
@@ -2950,6 +2965,7 @@ export interface EventRegistrationsSelect<T extends boolean = true> {
   name?: T;
   phone?: T;
   questions?: T;
+  emailConsent?: T;
   donation?: T;
   guests?: T;
   timeOfArrival?: T;

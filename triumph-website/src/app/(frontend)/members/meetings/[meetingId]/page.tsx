@@ -11,6 +11,7 @@ import {
 } from '@/payload-types'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
+import { getRotaryYearStart } from '@/utilities/rotaryYear'
 
 import MotivateAbsenceDialog from './MotivateAbsenceDialog'
 import PageClient from './page.client'
@@ -79,7 +80,12 @@ export default async function MeetingPage(
 
   const [memberAttendanceSummary, motivationDocs] = member
     ? await Promise.all([
-        getMemberAttendanceSummary(payload, member),
+        getMemberAttendanceSummary(
+          payload,
+          member,
+          new Date(),
+          getRotaryYearStart(new Date(meeting.meetingDate)),
+        ),
         payload.find({
           collection: 'absence-motivations',
           where: {

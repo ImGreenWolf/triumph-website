@@ -54,19 +54,19 @@ export function formatPercent(value: number) {
 }
 
 export function formatShortDate(value?: string | null) {
-  if (!value) return 'No date'
+  if (!value) return 'Fără dată'
 
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Invalid date'
+  if (Number.isNaN(date.getTime())) return 'Dată invalidă'
 
   return shortDateFormatter.format(date)
 }
 
 export function formatDateTime(value?: string | null) {
-  if (!value) return 'No date'
+  if (!value) return 'Fără dată'
 
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Invalid date'
+  if (Number.isNaN(date.getTime())) return 'Dată invalidă'
 
   return dateTimeFormatter.format(date)
 }

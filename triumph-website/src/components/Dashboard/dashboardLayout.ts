@@ -2,6 +2,9 @@ import type { PayloadRequest, WidgetInstance } from 'payload'
 import tresourerDashboardLayout from './Layouts/treasurer'
 import { BoardRole } from '@/utilities/membersAccess'
 import prDirectorDashboardLayout from './Layouts/pr-director'
+import presidentDashboardLayout from './Layouts/president'
+import secretaryDashboardLayout from './Layouts/secretary'
+import hrDirectorDashboardLayout from './Layouts/hr-director'
 
 export default async function dashboardLayout({
   req,
@@ -45,7 +48,14 @@ export default async function dashboardLayout({
 const {user} = req
 const rolesDashboard:  Partial<Record<BoardRole, typeof dashboardLayout>> = {
     treasurer: tresourerDashboardLayout,
-    "pr-director": prDirectorDashboardLayout
+    "pr-director": prDirectorDashboardLayout,
+    "president": presidentDashboardLayout,
+    "vice-president": presidentDashboardLayout,
+    "hr-director": hrDirectorDashboardLayout,
+    secretary: secretaryDashboardLayout,
+    "past-president": presidentDashboardLayout
+
+
 }
 if(!user || !user.role) return [];
 

@@ -1,9 +1,9 @@
 import type { Payload, PayloadRequest, RequiredDataFromCollectionSlug } from 'payload'
 
-import type { Event } from '@/payload-types'
+import type { Event, EventRegistration } from '@/payload-types'
 import { formatEventSlotLabel } from '@/utilities/eventRegistration'
 
-type RegistrationCreateData = RequiredDataFromCollectionSlug<'event-registrations'>
+type RegistrationCreateData = RequiredDataFromCollectionSlug<'event-registrations'> & Pick<EventRegistration, 'donation'>
 type ImportPayload = Pick<Payload, 'create' | 'find'>
 
 export type ParticipantCSVError = {
@@ -40,6 +40,7 @@ const headerAliases = {
   phone: ['phone', 'phone number', 'phone_number', 'telephone', 'tel', 'telefon'],
   questions: ['questions', 'question', 'notes', 'mentions', 'observatii', 'observații'],
   slot: ['slot', 'shift', 'time slot', 'time_slot', 'tura', 'tură', 'interval'],
+  donation: ['donation', 'donatie', 'donație'],
 } as const
 
 type CSVColumn = keyof typeof headerAliases
@@ -91,6 +92,7 @@ export function parseParticipantsCSV(
     const dayValue = getRequiredCell(record, columns.day)
     const slotValue = getRequiredCell(record, columns.slot)
     const questions = getOptionalCell(record, columns.questions)
+    const donation = getOptionalCell(record, columns.donation)
 
     if (!name) rowErrors.push('Numele este obligatoriu.')
 
@@ -127,14 +129,14 @@ export function parseParticipantsCSV(
 
     const data: RegistrationCreateData = {
       day: day.id,
-      donation: 0,
+      donation: parseInt(donation!) ?? 0,
       email,
       event: event.id,
       guests: 0,
       name,
       phone,
       slot: matchingSlots[0].id,
-      status: 'registered',
+      status: donation ? 'present' : 'registered',
     }
 
     if (questions) data.questions = questions

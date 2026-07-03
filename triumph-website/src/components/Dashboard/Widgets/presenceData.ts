@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import type { Attendance, Meeting, User } from '@/payload-types'
 import { boardRoles } from '@/utilities/membersAccess'
+import { getRotaryYearQueryBounds, getRotaryYearStart } from '@/utilities/rotaryYear'
 
 import { formatShortDate, getRelationId, percentage } from './widgetUtils'
 
@@ -46,7 +47,12 @@ function isMemberEligibleForMeeting(
   return new Date(member.joinedAt).getTime() <= getMeetingTime(meeting)
 }
 
-async function getPresenceSource(payload: Payload, now = new Date()) {
+async function getPresenceSource(
+  payload: Payload,
+  now = new Date(),
+  rotaryYearStart = getRotaryYearStart(now),
+) {
+  const bounds = getRotaryYearQueryBounds(rotaryYearStart, now)
   const [membersDocs, meetingsDocs, attendanceDocs] = await Promise.all([
     payload.find({
       collection: 'users',
@@ -68,7 +74,8 @@ async function getPresenceSource(payload: Payload, now = new Date()) {
       sort: 'meetingDate',
       where: {
         meetingDate: {
-          less_than_equal: now.toISOString(),
+          greater_than_equal: bounds.start.toISOString(),
+          [bounds.endOperator]: bounds.end.toISOString(),
         },
       },
     }),
@@ -125,8 +132,9 @@ function calculateMeetingPoint(args: {
 export async function getPresenceOverview(
   payload: Payload,
   now = new Date(),
+  rotaryYearStart = getRotaryYearStart(now),
 ): Promise<PresenceOverview> {
-  const { attendance, meetings, members } = await getPresenceSource(payload, now)
+  const { attendance, meetings, members } = await getPresenceSource(payload, now, rotaryYearStart)
   const memberById = new Map(members.map((member) => [getRelationId(member.id), member]))
   const meetingById = new Map(meetings.map((meeting) => [getRelationId(meeting.id), meeting]))
   const counts = emptyCounts()
@@ -165,8 +173,13 @@ export async function getPresenceOverview(
   }
 }
 
-export async function getPresenceGraphData(payload: Payload, now = new Date(), limit = 8) {
-  const { attendance, meetings, members } = await getPresenceSource(payload, now)
+export async function getPresenceGraphData(
+  payload: Payload,
+  now = new Date(),
+  limit = 8,
+  rotaryYearStart = getRotaryYearStart(now),
+) {
+  const { attendance, meetings, members } = await getPresenceSource(payload, now, rotaryYearStart)
   const latestMeetings = meetings.slice(-limit)
   const attendanceByMeeting = new Map<string, Attendance[]>()
 

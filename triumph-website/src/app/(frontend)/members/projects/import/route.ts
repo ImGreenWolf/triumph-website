@@ -3,6 +3,7 @@ import { getPayload } from 'payload'
 
 import { importParticipantsFromCSV } from '@/collections/Events/bulkUpload'
 import type { Event, User } from '@/payload-types'
+import { isBoardMember } from '@/utilities/membersAccess'
 
 const MAX_CSV_SIZE = 5 * 1024 * 1024
 
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
 
   const user = auth.user as User
   const canManage = (event.coordonators ?? []).some(
-    (coordinator) => getRelationshipID(coordinator) === user.id,
+    (coordinator) => getRelationshipID(coordinator) === user.id || isBoardMember(user),
   )
 
   if (!canManage) {

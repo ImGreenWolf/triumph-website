@@ -11,6 +11,7 @@ import {
   getMemberDues,
   getMemberDuesSummary,
   getMembersDuesSummary,
+  getMonthKey,
   getOverdueCount,
   getPaidCount,
   getPaidCountFromPayments,
@@ -73,6 +74,48 @@ describe('member dues utilities', () => {
     expect(getExpectedMonths(joinedAt, now).map((month) => month.getMonth())).toEqual([
       0, 1, 2, 3, 4, 5,
     ])
+  })
+
+  it('scopes expected months to the selected Rotary year', () => {
+    const august = new Date('2026-08-15T10:00:00.000Z')
+
+    expect(getExpectedMonths('2025-01-10T10:00:00.000Z', august).map(getMonthKey)).toEqual([
+      '2026-6',
+      '2026-7',
+    ])
+    expect(getExpectedMonths('2025-01-10T10:00:00.000Z', august, 2025).map(getMonthKey)).toEqual([
+      '2025-6',
+      '2025-7',
+      '2025-8',
+      '2025-9',
+      '2025-10',
+      '2025-11',
+      '2026-0',
+      '2026-1',
+      '2026-2',
+      '2026-3',
+      '2026-4',
+      '2026-5',
+    ])
+  })
+
+  it('does not count payments outside the selected Rotary year', () => {
+    const summary = getDuesSummaryFromPayments(
+      [
+        ...payments,
+        {
+          member: 'member-1',
+          amount: 21,
+          month: '2025-08-01T00:00:00.000Z',
+          type: 'paid',
+        },
+      ] as Payment[],
+      joinedAt,
+      now,
+    )
+
+    expect(summary.totalPaid).toBe(56)
+    expect(summary.paidCount).toBe(2)
   })
 
   it('calculates reusable dues totals and counts', () => {

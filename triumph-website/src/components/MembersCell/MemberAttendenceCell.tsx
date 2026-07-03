@@ -2,30 +2,22 @@ import { cache } from 'react'
 
 import type { DefaultServerCellComponentProps, Payload } from 'payload'
 
+import type { User } from '@/payload-types'
+import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
+
 import MemberAttendenceCell from './MemberAttendenceCell.client'
 
-const getMeetingsCount = cache(async (payload: Payload) => {
-  const { totalDocs } = await payload.count({
-    collection: 'meetings',
-    where: {
-      
-    },
-  })
-
-  return totalDocs
+const getCachedAttendanceSummary = cache(async (payload: Payload, member: User) => {
+  return getMemberAttendanceSummary(payload, member)
 })
 
 export default async function MeetingAttendenceCell({
-  cellData,
   payload,
+  rowData,
 }: DefaultServerCellComponentProps) {
-  const attendanceCount =
-    typeof cellData?.totalDocs === 'number'
-      ? cellData.totalDocs
-      : Array.isArray(cellData?.docs)
-        ? cellData.docs.length
-        : 0
-  const memberCount = await getMeetingsCount(payload)
+  const summary = await getCachedAttendanceSummary(payload, rowData as User)
+  const attendanceCount = summary.presentMeetings + summary.lateMeetings
+  const meetingsCount = Math.max(0, summary.totalMeetings - summary.motivatedMeetings)
 
-  return <MemberAttendenceCell attendanceCount={attendanceCount} meetingsCount={memberCount} />
+  return <MemberAttendenceCell attendanceCount={attendanceCount} meetingsCount={meetingsCount} />
 }

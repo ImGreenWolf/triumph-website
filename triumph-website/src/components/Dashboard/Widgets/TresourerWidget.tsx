@@ -4,7 +4,7 @@ import { getAllMembersDuesSummary } from '@/utilities/memberDues'
 
 export default async function UserStatsWidget({ req }: WidgetServerProps) {
   const { payload } = req
-  const summary = await getAllMembersDuesSummary(payload)
+  const summary = await getAllMembersDuesSummary(payload, new Date())
   const criticalDues = summary.memberSummaries
     .filter((memberSummary) => memberSummary.overdueCount > 3)
     .sort((a, b) => b.overdueCount - a.overdueCount)

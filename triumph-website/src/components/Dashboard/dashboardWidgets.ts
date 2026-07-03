@@ -1,42 +1,42 @@
 const dashboardWidgets = [
   {
     slug: 'member-presence-statistics',
-    label: 'Member Presence Statistics',
+    label: 'Statistici prezență membri',
     Component: '@/components/Dashboard/Widgets/MemberPresenceStatisticsWidget',
   },
   {
     slug: 'member-presence-graph',
-    label: 'Member Presence Graph',
+    label: 'Grafic prezență membri',
     Component: '@/components/Dashboard/Widgets/MemberPresenceGraphWidget',
   },
   {
     slug: 'gallery-submission',
-    label: 'Gallery Submission',
+    label: 'Trimiteri galerie',
     Component: '@/components/Dashboard/Widgets/GallerySubmissionWidget',
   },
   {
     slug: 'event-statistics',
-    label: 'Event Statistics',
+    label: 'Statistici evenimente',
     Component: '@/components/Dashboard/Widgets/EventStatisticsWidget',
   },
   {
     slug: 'meetings-management',
-    label: 'Meetings Management',
+    label: 'Administrare întâlniri',
     Component: '@/components/Dashboard/Widgets/MeetingsManagementWidget',
   },
   {
     slug: 'last-meeting-statistic',
-    label: 'Last Meeting Statistic',
+    label: 'Statistica ultimei întâlniri',
     Component: '@/components/Dashboard/Widgets/LastMeetingStatisticWidget',
   },
   {
     slug: 'dues-statistics',
-    label: 'Dues Statistics',
+    label: 'Statistici cotizații',
     Component: '@/components/Dashboard/Widgets/DuesStatisticsWidget',
   },
   {
     slug: 'dues-management',
-    label: 'Dues Management',
+    label: 'Administrare cotizații',
     Component: '@/components/Dashboard/Widgets/DuesManagementWidget',
   },
   {

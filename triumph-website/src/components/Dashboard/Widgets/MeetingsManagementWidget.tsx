@@ -41,38 +41,38 @@ export default async function MeetingsManagementWidget({ req }: WidgetServerProp
   return (
     <WidgetCard
       actionHref="/admin/collections/meetings"
-      actionLabel="Manage"
-      eyebrow="Club administration"
-      title="Meetings Management"
+      actionLabel="Administrează"
+      eyebrow="Administrare club"
+      title="Administrare întâlniri"
     >
       <StatGrid>
-        <StatItem label="Total meetings" value={formatNumber(totalMeetings.totalDocs)} />
-        <StatItem label="Upcoming" value={formatNumber(upcomingMeetings.totalDocs)} />
+        <StatItem label="Total întâlniri" value={formatNumber(totalMeetings.totalDocs)} />
+        <StatItem label="Viitoare" value={formatNumber(upcomingMeetings.totalDocs)} />
       </StatGrid>
       <ActionList
         items={[
           {
             href: '/admin/collections/meetings/create',
-            label: 'Create meeting',
-            meta: 'New record',
+            label: 'Creează întâlnire',
+            meta: 'Înregistrare nouă',
           },
           {
             href: '/admin/collections/attendance/create',
-            label: 'Add attendance',
-            meta: 'Member status',
+            label: 'Adaugă prezență',
+            meta: 'Status membri',
           },
           {
             href: '/admin/collections/absence-motivations',
-            label: 'Review motivations',
-            meta: 'Requests',
+            label: 'Verifică motivări',
+            meta: 'Cereri',
           },
         ]}
       />
       <CompactTable
-        emptyLabel="No upcoming meetings scheduled."
+        emptyLabel="Nu există întâlniri viitoare programate."
         rows={(upcoming.length > 0 ? upcoming : latest).map((meeting) => ({
           href: `/admin/collections/meetings/${meeting.id}`,
-          label: upcoming.length > 0 ? 'Upcoming meeting' : 'Latest meeting',
+          label: upcoming.length > 0 ? 'Întâlnire viitoare' : 'Ultima întâlnire',
           meta: meeting.description || undefined,
           value: formatDateTime(meeting.meetingDate),
         }))}

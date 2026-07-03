@@ -176,6 +176,23 @@ export const Events: CollectionConfig<'events'> = {
                 },
 
                 locationField({ label: 'Location of Event' }),
+                {
+                  type: 'array',
+                  name: 'documents',
+                  fields: [
+                    {
+                      type: 'text',
+                      name: 'label',
+                      required: true
+                    },
+                    {
+                      type: 'upload',
+                      relationTo: 'media',
+                      name: 'document',
+                      required: true
+                    }
+                  ]
+                }
               ],
             },
 
@@ -446,7 +463,7 @@ export const EventRegistrations: CollectionConfig = {
     create: () => true, // allow public signup
     read: authenticated,
     delete: authenticated,
-    update: () => false,
+    update: authenticated,
   },
 
   fields: [
@@ -503,6 +520,10 @@ export const EventRegistrations: CollectionConfig = {
     {
       name: 'questions',
       type: 'textarea',
+    },
+    {
+      name: 'emailConsent',
+      type: 'checkbox',
     },
     {
       type: 'group',
@@ -694,30 +715,32 @@ export const EventRegistrations: CollectionConfig = {
         }
           
         try {
+          if(!doc.emailConsent)
+            return doc;
           // if(getEventStartDate(event)!.getTime() > new Date(doc.createdAt).getTime())
           //   return
-          if (operation === 'create' && doc.status === 'registered') {
-            await req.payload.sendEmail({
-              html: generateParticipationConfirmationEmailHTML(emailArgs),
-              subject: generateParticipationConfirmationEmailSubject(event.name),
-              text: generateParticipationConfirmationEmailText(emailArgs),
-              to: doc.email,
-            })
-          } else if ( doc.status === 'present') {
-            await req.payload.sendEmail({
-              html: generateParticipationAttendanceEmailHTML(emailArgs),
-              subject: generateParticipationAttendanceEmailSubject(event.name),
-              text: generateParticipationAttendanceEmailText(emailArgs),
-              to: doc.email,
-            })
-          } else if (operation === 'update') {
-            await req.payload.sendEmail({
-              html: generateParticipationUpdateEmailHTML(emailArgs),
-              subject: generateParticipationUpdateEmailSubject(event.name),
-              text: generateParticipationUpdateEmailText(emailArgs),
-              to: doc.email,
-            })
-          }
+          // if (operation === 'create' && doc.status === 'registered') {
+          //   await req.payload.sendEmail({
+          //     html: generateParticipationConfirmationEmailHTML(emailArgs),
+          //     subject: generateParticipationConfirmationEmailSubject(event.name),
+          //     text: generateParticipationConfirmationEmailText(emailArgs),
+          //     to: doc.email,
+          //   })
+          // } else if ( doc.status === 'present') {
+          //   await req.payload.sendEmail({
+          //     html: generateParticipationAttendanceEmailHTML(emailArgs),
+          //     subject: generateParticipationAttendanceEmailSubject(event.name),
+          //     text: generateParticipationAttendanceEmailText(emailArgs),
+          //     to: doc.email,
+          //   })
+          // } else if (operation === 'update') {
+          //   await req.payload.sendEmail({
+          //     html: generateParticipationUpdateEmailHTML(emailArgs),
+          //     subject: generateParticipationUpdateEmailSubject(event.name),
+          //     text: generateParticipationUpdateEmailText(emailArgs),
+          //     to: doc.email,
+          //   })
+          // }
         } catch (error) {
           req.payload.logger.error(
             { err: error, registrationID: doc.id },

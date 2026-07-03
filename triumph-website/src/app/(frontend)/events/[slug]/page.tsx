@@ -24,6 +24,7 @@ import { getMediaUrl } from '@/utilities/getMediaUrl'
 import configPromise from '@payload-config'
 import {
   CalendarDays,
+  DownloadIcon,
   ExternalLink,
   HandHelping,
   HeartHandshake,
@@ -40,6 +41,7 @@ import EventPhotoBoard, {
 } from './EventPhotoBoard.client'
 import PageClient from './page.client'
 import SignupForm from './SignupForm'
+import { DocumentIcon } from '@payloadcms/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -303,6 +305,12 @@ export default async function Event({ params: paramsPromise }: Args) {
                 <DetailCard accentColor={accentColor}  cardColor={cardColor} icon={HandHelping} label="Donație minimă">
                   {!isNaN(parseInt(event.donation)) ? <p className="text-2xl font-bold">{event.donation} RON</p> :
                   <p className="text-2xl font-bold">{event.donation}</p>}
+                </DetailCard>
+              )}
+              {event.documents?.length != 0 && (
+                <DetailCard accentColor={accentColor}  cardColor={cardColor} icon={HandHelping} label="Acorduri Necesare">
+                  
+                 {event.documents?.map(document => <div className='text-[var(--event-accent)] underline inline-flex items-center gap-2'><a  href={typeof document.document == 'string' ? document.document : document.document.url!} >{document.label}</a><DownloadIcon aria-hidden className="size-3.5" /></div>)}
                 </DetailCard>
               )}
               <SignupForm

@@ -55,36 +55,36 @@ export default async function EventStatisticsWidget({ req }: WidgetServerProps) 
   return (
     <WidgetCard
       actionHref="/admin/collections/events"
-      actionLabel="Events"
-      eyebrow="Projects"
-      title="Event Statistics"
+      actionLabel="Evenimente"
+      eyebrow="Proiecte"
+      title="Statistici evenimente"
     >
       <StatGrid>
-        <StatItem label="Upcoming events" value={formatNumber(upcomingEvents)} />
-        <StatItem label="Registrations" value={formatNumber(activeRegistrations.length)} />
-        <StatItem label="Checked in" value={formatNumber(presentRegistrations.length)} />
-        <StatItem label="Donations" value={formatCurrency(totalDonations)} />
+        <StatItem label="Evenimente viitoare" value={formatNumber(upcomingEvents)} />
+        <StatItem label="Înscrieri" value={formatNumber(activeRegistrations.length)} />
+        <StatItem label="Prezențe confirmate" value={formatNumber(presentRegistrations.length)} />
+        <StatItem label="Donații" value={formatCurrency(totalDonations)} />
       </StatGrid>
       <ProgressBar
-        label="Capacity filled"
+        label="Capacitate ocupată"
         value={fillRate}
         tone={fillRate > 90 ? 'warning' : 'success'}
       />
       <BreakdownList
         items={[
           {
-            label: 'Registered',
+            label: 'Înscriși',
             tone: 'success',
             value: registrations.filter((item) => item.status === 'registered').length,
           },
-          { label: 'Present', value: presentRegistrations.length },
+          { label: 'Prezenți', value: presentRegistrations.length },
           {
-            label: 'Absent',
+            label: 'Absenți',
             tone: 'danger',
             value: registrations.filter((item) => item.status === 'absent').length,
           },
           {
-            label: 'Cancelled',
+            label: 'Anulate',
             value: registrations.filter((item) => item.status === 'cancelled').length,
           },
         ]}

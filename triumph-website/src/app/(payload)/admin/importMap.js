@@ -51,6 +51,7 @@ import { default as default_764d56fa79a8e57b96829d107217e3a1 } from '@/component
 import { default as default_923473d35ecfea1ace55fd37042df162 } from '@/components/payload/EventRegistrationDayField'
 import { default as default_20e56f8d6db69941c54a95d796bf142a } from '@/components/payload/EventRegistrationSlotCell'
 import { default as default_3a99439fbda5ecc88f67008642c89963 } from '@/components/payload/EventRegistrationSlotField'
+import { default as default_852136aed92b7fd732e847a03d926f55 } from '@/components/payload/DuesBeforeList'
 import { default as default_6204a84feec590daed0cede85685c96a } from '@/components/payload/GalleryPhotoPreviewCell'
 import { default as default_dae9f94e0fc78ea7c1925f9ebeb669ef } from '@/components/payload/GalleryPhotoActionsCell'
 import { LinkToDoc as LinkToDoc_aead06e4cbf6b2620c5c51c9ab283634 } from '@payloadcms/plugin-search/client'
@@ -126,6 +127,7 @@ export const importMap = {
   "@/components/payload/EventRegistrationDayField#default": default_923473d35ecfea1ace55fd37042df162,
   "@/components/payload/EventRegistrationSlotCell#default": default_20e56f8d6db69941c54a95d796bf142a,
   "@/components/payload/EventRegistrationSlotField#default": default_3a99439fbda5ecc88f67008642c89963,
+  "@/components/payload/DuesBeforeList#default": default_852136aed92b7fd732e847a03d926f55,
   "@/components/payload/GalleryPhotoPreviewCell#default": default_6204a84feec590daed0cede85685c96a,
   "@/components/payload/GalleryPhotoActionsCell#default": default_dae9f94e0fc78ea7c1925f9ebeb669ef,
   "@payloadcms/plugin-search/client#LinkToDoc": LinkToDoc_aead06e4cbf6b2620c5c51c9ab283634,

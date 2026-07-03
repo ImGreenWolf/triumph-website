@@ -1,57 +1,63 @@
-import { CollectionConfig } from "payload";
+import { CollectionConfig } from 'payload'
 
 export const Payments: CollectionConfig = {
   slug: 'payments',
   admin: {
     useAsTitle: 'member',
-    group: "Club Administration",
+    group: 'Club Administration',
+    components: {
+      beforeList: [
+        {
+          path: '@/components/payload/DuesBeforeList',
+        },
+      ],
+    },
   },
-    indexes: [
+  indexes: [
     {
-        fields: ['member', 'month'],
-        unique: true,
+      fields: ['member', 'month'],
+      unique: true,
     },
   ],
   fields: [
-  {
-    name: 'member',
-    type: 'relationship',
-    relationTo: 'users',
-    required: true,
-  },
-  
-  {
-    name: 'month',
-    type: 'date',
-    required: true,
-    defaultValue: () => new Date(),
-    admin: {
+    {
+      name: 'member',
+      type: 'relationship',
+      relationTo: 'users',
+      required: true,
+    },
+
+    {
+      name: 'month',
+      type: 'date',
+      required: true,
+      defaultValue: () => new Date(),
+      admin: {
         date: {
-        pickerAppearance: 'monthOnly',
+          pickerAppearance: 'monthOnly',
+        },
       },
-    }
-  },
-  {
-    name: 'amount',
-    type: 'number',
-    defaultValue: 21,
-  },
-  {
-    name: 'type',
-    type: 'select',
-    defaultValue: 'paid',
-    options: [
-      {
-        label: 'Paid',
-        value: 'paid',
-      },
-      {
-        label: 'Waived',
-        value: 'waived',
-      },
-    ],
-  },
-  
-],
-timestamps: true
+    },
+    {
+      name: 'amount',
+      type: 'number',
+      defaultValue: 21,
+    },
+    {
+      name: 'type',
+      type: 'select',
+      defaultValue: 'paid',
+      options: [
+        {
+          label: 'Paid',
+          value: 'paid',
+        },
+        {
+          label: 'Waived',
+          value: 'waived',
+        },
+      ],
+    },
+  ],
+  timestamps: true,
 }

@@ -1,18 +1,25 @@
 import type { Payload } from 'payload'
 
 import type { Attendance, Meeting, User } from '@/payload-types'
+import { getRotaryYearQueryBounds, getRotaryYearStart } from '@/utilities/rotaryYear'
 
 export async function getMemberAttendanceSummary(
   payload: Payload,
   member: User,
   now = new Date(),
+  rotaryYearStart = getRotaryYearStart(now),
 ) {
+  const bounds = getRotaryYearQueryBounds(rotaryYearStart, now)
+  const memberJoinedAt = new Date(member.joinedAt)
+  const start = memberJoinedAt > bounds.start ? memberJoinedAt : bounds.start
+
   const [meetingsDocs, attendanceDocs] = await Promise.all([
     payload.find({
       collection: 'meetings',
       where: {
         meetingDate: {
-          greater_than_equal: new Date(member.joinedAt).toISOString(),
+          greater_than_equal: start.toISOString(),
+          [bounds.endOperator]: bounds.end.toISOString(),
         },
       },
       limit: 1000,
@@ -62,7 +69,9 @@ export async function getMemberAttendanceSummary(
   const lateMeetings = records.filter((record) => record.status === 'late').length
   const motivatedMeetings = records.filter((record) => record.status === 'motivated').length
   const absentMeetings = records.filter((record) => record.status === 'absent').length
-  const effectiveMeetings = historicalRecords.filter((record) => record.status !== 'motivated').length
+  const effectiveMeetings = historicalRecords.filter(
+    (record) => record.status !== 'motivated',
+  ).length
   const attendancePercentage =
     effectiveMeetings <= 0
       ? 100

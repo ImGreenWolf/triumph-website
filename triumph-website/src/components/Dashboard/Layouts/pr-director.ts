@@ -17,5 +17,9 @@ export default async function prDirectorDashboardLayout({
       widgetSlug: 'last-meeting-statistic',
       width: 'x-small',
     },
+    {
+      widgetSlug: 'event-statistics',
+      width: 'medium',
+    },
   ]
 }
