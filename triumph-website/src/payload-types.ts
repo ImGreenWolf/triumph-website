@@ -202,7 +202,8 @@ export interface Page {
   id: string;
   title: string;
   hero: {
-    type: 'none' | 'highImpact' | 'mediumImpact' | 'lowImpact' | 'mainHero';
+    type: 'none' | 'highImpact' | 'mediumImpact' | 'lowImpact' | 'mainHero' | 'videoHero';
+    title?: string | null;
     richText?: {
       root: {
         type: string;
@@ -244,6 +245,8 @@ export interface Page {
       | null;
     media?: (string | null) | Media;
     galery?: (string | Media)[] | null;
+    mediaLandscape?: (string | null) | Media;
+    mediaVertical?: (string | null) | Media;
   };
   layout: (
     | CallToActionBlock
@@ -2210,6 +2213,7 @@ export interface PagesSelect<T extends boolean = true> {
     | T
     | {
         type?: T;
+        title?: T;
         richText?: T;
         links?:
           | T
@@ -2228,6 +2232,8 @@ export interface PagesSelect<T extends boolean = true> {
             };
         media?: T;
         galery?: T;
+        mediaLandscape?: T;
+        mediaVertical?: T;
       };
   layout?:
     | T

@@ -39,7 +39,19 @@ export const hero: Field = {
           label: 'Main Hero',
           value: 'mainHero',
         },
+         {
+          label: 'Video Hero',
+          value: 'videoHero',
+        },
       ],
+      required: true,
+    },
+    {
+      name: 'title',
+      type: 'text',
+      admin: {
+        condition: (_, { type } = {}) => ['videoHero'].includes(type),
+      },
       required: true,
     },
     {
@@ -82,6 +94,26 @@ export const hero: Field = {
       relationTo: 'media',
       required: true,
     },
+   {
+      name: 'mediaLandscape',
+      type: 'upload',
+      admin: {
+        condition: (_, { type } = {}) => ['videoHero'].includes(type),
+      },
+      relationTo: 'media',
+      required: true,
+    },
+    {
+      name: 'mediaVertical',
+      type: 'upload',
+      admin: {
+        condition: (_, { type } = {}) => ['videoHero'].includes(type),
+      },
+      relationTo: 'media',
+      required: true,
+    },
+    
+    
   ],
   label: false,
 }
