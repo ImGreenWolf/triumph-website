@@ -34,6 +34,7 @@ const nextConfig: NextConfig = {
   },
   output: 'standalone',
   images: {
+    maximumResponseBody: 100_000_000,
     localPatterns: [
       {
         pathname: '/api/media/file/**',

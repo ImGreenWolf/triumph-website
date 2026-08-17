@@ -8,6 +8,7 @@ import {
 } from '@payloadcms/richtext-lexical'
 
 import { linkGroup } from '@/fields/linkGroup'
+import { textOrMediaField } from '@/fields/textOrMedia'
 
 export const hero: Field = {
   name: 'hero',
@@ -39,21 +40,24 @@ export const hero: Field = {
           label: 'Main Hero',
           value: 'mainHero',
         },
-         {
+        {
           label: 'Video Hero',
           value: 'videoHero',
         },
       ],
       required: true,
     },
-    {
+    textOrMediaField({
       name: 'title',
-      type: 'text',
-      admin: {
-        condition: (_, { type } = {}) => ['videoHero'].includes(type),
+      label: 'Title',
+      mediaLabel: 'Title media',
+      overrides: {
+        admin: {
+          condition: (_, { type } = {}) => ['videoHero'].includes(type),
+        },
       },
       required: true,
-    },
+    }),
     {
       name: 'richText',
       type: 'richText',
@@ -94,7 +98,7 @@ export const hero: Field = {
       relationTo: 'media',
       required: true,
     },
-   {
+    {
       name: 'mediaLandscape',
       type: 'upload',
       admin: {
@@ -112,8 +116,6 @@ export const hero: Field = {
       relationTo: 'media',
       required: true,
     },
-    
-    
   ],
   label: false,
 }
