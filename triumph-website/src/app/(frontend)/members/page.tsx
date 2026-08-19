@@ -481,7 +481,6 @@ async function NextMeeting(props: { member: User }) {
       </DashboardPanel>
     )
   }
-
   const absenceMotivationsDocs = await payload.find({
     collection: 'absence-motivations',
     where: {
@@ -499,7 +498,7 @@ async function NextMeeting(props: { member: User }) {
       ],
     },
     limit: 1,
-    overrideAccess: false,
+    overrideAccess: true,
     user: member,
   })
   const attendanceDocs = await payload.find({
