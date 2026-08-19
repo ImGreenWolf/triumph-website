@@ -45,7 +45,7 @@ export function generateForgotPasswordEmailHTML(args: ForgotPasswordEmailArgs = 
                         Resetează parola contului tău
                       </h1>
                       <p style="margin:14px 0 0; max-width:500px; color:rgba(255,255,255,0.74); font-size:16px; line-height:1.6;">
-                        Am primit o cerere de resetare a parolei pentru contul tău Interact București Triumph.
+                        Am primit o cerere de resetare a parolei, care expira în 24 de ore, pentru contul tău Interact București Triumph.
                       </p>
                     </td>
                   </tr>

@@ -29,7 +29,7 @@ const renderTitle = (title: VideoHeroTitle) => {
   if (title.inputType === 'media') {
     return title.media && typeof title.media === 'object' ? (
       <Media
-        className="mx-auto mb-8 w-full max-w-[36.5rem]"
+        className="mx-auto mb-8 w-full max-w-[20rem]"
         imgClassName="mx-auto max-h-48 max-w-full object-contain"
         priority
         resource={title.media}
@@ -52,14 +52,14 @@ export const VideoHero: React.FC<Page['hero']> = ({
 }) => {
   return (
     <div className="relative b-0 text-text">
-      <div className="container mb-8 z-10 max-h-[80vh] h-[75vh] overflow-hidden relative flex items-center justify-center text-shadow-lg">
-        <div className="max-w-[36.5rem] md:text-center">
+      <div className="container mb-8 z-10 max-h-[80vh] h-[75vh] overflow-hidden relative flex items-center justify-left text-shadow-lg">
+        <div className="max-w-[36.5rem] md:text-lft">
           {renderTitle(title)}
           {richText && (
             <RichText className="mb-6" data={richText} enableGutter={false} enableProse={false} />
           )}
           {Array.isArray(links) && links.length > 0 && (
-            <ul className="flex md:justify-center gap-4">
+            <ul className="flex md:justify-left gap-4">
               {links.map(({ link }, i) => {
                 return (
                   <li key={i}>

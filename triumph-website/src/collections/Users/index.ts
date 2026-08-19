@@ -127,6 +127,7 @@ export const Users: CollectionConfig = {
       return Boolean(req.user?.id && id && String(req.user.id) === String(id))
     },
   },
+  
   admin: {
     defaultColumns: ['name', 'email', 'joinedAt','attendance', 'payments'],
     useAsTitle: 'name',
@@ -149,9 +150,11 @@ export const Users: CollectionConfig = {
   },
   auth: {
     forgotPassword: {
+      expiration: 3600000 * 24, // 24 hours
       generateEmailHTML: generateForgotPasswordEmailHTML,
       generateEmailSubject: generateForgotPasswordEmailSubject,
     },
+    tokenExpiration: 3600 * 24 * 30, // 30 days
   },
   endpoints: [
     {
