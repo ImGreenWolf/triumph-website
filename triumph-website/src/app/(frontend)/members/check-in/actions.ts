@@ -3,7 +3,6 @@
 import { User } from "@/payload-types"
 import payloadConfig from "@payload-config"
 import { getPayload } from "payload"
-import { getTodayMeeting } from "./page"
 import { revalidatePath } from 'next/cache'
 export async function onCodeScanned(url: string, timestamp: number, scannerUser: string) {
     const payload = await getPayload({config: payloadConfig})
@@ -75,4 +74,35 @@ export async function onCodeScanned(url: string, timestamp: number, scannerUser:
     })
     revalidatePath('/members/check-in')
     return {user: user, err, meeting}
+}
+
+export async function getTodayMeeting(includeAttendance=false, includeMotivations=false) {
+    const payload = await getPayload({config: payloadConfig})
+    const dayStart = new Date()
+    const dayEnd = new Date()
+
+    dayStart.setUTCHours(0,0,0,0)
+    dayEnd.setUTCHours(24,0,0,0)
+    
+      const meetingsDocs = await payload.find({
+        collection: 'meetings',
+        where: {
+        meetingDate: {
+            greater_than: dayStart.toISOString(),
+            less_than: dayEnd.toISOString(),
+        },
+        },
+        sort: 'meetingDate',
+        limit: 1,
+        depth: 2,
+        joins: {
+            attendance: includeAttendance && {count: true},
+            absenceMotivations: includeMotivations && {count: true}
+        }
+    })
+
+    if(meetingsDocs.totalDocs == 0) {
+        return undefined
+    } 
+    return meetingsDocs.docs[0]
 }

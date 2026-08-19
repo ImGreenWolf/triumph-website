@@ -46,13 +46,6 @@ import { boardRoles } from '@/utilities/membersAccess'
 
 const DEFAULT_DUES_INFO_TEXT =
   'Cotizațiile sunt calculate începând cu luna primei ședințe din mandatul curent. Luna curentă este marcată printr-un chip gol și nu este considerată restantă. Restanțele păstrează regula existentă: primele 4 luni sunt evaluate la 21 lei, apoi la 41 lei.'
-export const boardMemberRoles = new Set<string>([
-  'president',
-  'pr-director',
-  'hr-director',
-  'secretary',
-  'tresoursier',
-])
 
 
 

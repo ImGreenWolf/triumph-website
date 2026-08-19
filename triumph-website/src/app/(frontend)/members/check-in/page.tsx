@@ -6,6 +6,7 @@ import { getPayloadAuthHeaders } from "@/utilities/payloadAuth"
 import { redirect } from "next/navigation"
 import { Calendar, Clock } from "lucide-react"
 import ClockComponent from "./clockComponent"
+import { getTodayMeeting } from "./actions"
 
 
 async function Page() {
@@ -82,35 +83,5 @@ async function Page() {
    
 }
 
-export async function getTodayMeeting(includeAttendance=false, includeMotivations=false) {
-    const payload = await getPayload({config: payloadConfig})
-    const dayStart = new Date()
-    const dayEnd = new Date()
-
-    dayStart.setUTCHours(0,0,0,0)
-    dayEnd.setUTCHours(24,0,0,0)
-    
-      const meetingsDocs = await payload.find({
-        collection: 'meetings',
-        where: {
-        meetingDate: {
-            greater_than: dayStart.toISOString(),
-            less_than: dayEnd.toISOString(),
-        },
-        },
-        sort: 'meetingDate',
-        limit: 1,
-        depth: 2,
-        joins: {
-            attendance: includeAttendance && {count: true},
-            absenceMotivations: includeMotivations && {count: true}
-        }
-    })
-
-    if(meetingsDocs.totalDocs == 0) {
-        return undefined
-    } 
-    return meetingsDocs.docs[0]
-}
 
 export default Page
