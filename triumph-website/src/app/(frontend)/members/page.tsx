@@ -368,7 +368,7 @@ async function Dues(props: { duesInfoText?: string | null; member: User }) {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
-          <p className={cn('text-4xl font-bold', totalOwed > 0 && 'text-red-500')}>
+          <p className={cn('text-4xl font-bold', overdueCount > 1 && 'text-red-500')}>
             {totalOwed} lei
           </p>
           <p className="text-sm text-muted-foreground">de plată estimat</p>
