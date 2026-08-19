@@ -85,13 +85,17 @@ export const Attendance: CollectionConfig = {
     },
 
     {
-      name: 'motivatedBy',
+      name: 'issuedBy',
       type: 'relationship',
       relationTo: 'users',
       admin: {
-        condition: (_, siblingData) =>
-          siblingData.status === 'motivated',
-      },
+        readOnly: true,
+        description: 'Pentru prezenta, este membrul care a scanat codul, iar pentru motivare, persoana care a motivat absenta'
+      }
+      // admin: {
+      //   condition: (_, siblingData) =>
+      //     siblingData.status === 'motivated',
+      // },
     },
 
     {

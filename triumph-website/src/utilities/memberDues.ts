@@ -1,7 +1,12 @@
 import type { Payload } from 'payload'
 
-import type { Payment, User } from '@/payload-types'
-import { getRotaryYearRange, getRotaryYearStart, isDateInRotaryYear } from '@/utilities/rotaryYear'
+import type { Meeting, Payment, User } from '@/payload-types'
+import {
+  getRotaryYearQueryBounds,
+  getRotaryYearRange,
+  getRotaryYearStart,
+  isDateInRotaryYear,
+} from '@/utilities/rotaryYear'
 
 export const MONTHLY_DUE = 21
 export const OVERDUE_DUE = 41
@@ -41,6 +46,10 @@ export type MembersDuesSummary = {
   totalWaivedCount: number
 }
 
+export type DuesCalculationOptions = {
+  firstMeetingAt?: Date | string | null
+}
+
 export function getMonthKey(month: Date) {
   return `${month.getFullYear()}-${month.getMonth()}`
 }
@@ -58,6 +67,20 @@ function getExpectedEndDate(now: Date, rotaryYearStart: number) {
   return now
 }
 
+function getValidDate(value: Date | string | null | undefined) {
+  if (!value) return null
+
+  const date = typeof value === 'string' ? new Date(value) : value
+
+  if (Number.isNaN(date.getTime())) return null
+
+  return date
+}
+
+function hasFirstMeetingConstraint(options: DuesCalculationOptions) {
+  return Object.prototype.hasOwnProperty.call(options, 'firstMeetingAt')
+}
+
 function isPaymentInRotaryYear(payment: Pick<Payment, 'month'>, rotaryYearStart: number) {
   return isDateInRotaryYear(payment.month, rotaryYearStart)
 }
@@ -66,19 +89,58 @@ function getScopedPayments(payments: Payment[], rotaryYearStart: number) {
   return payments.filter((payment) => isPaymentInRotaryYear(payment, rotaryYearStart))
 }
 
+export function getFirstMeetingDate(
+  meetings: Pick<Meeting, 'meetingDate'>[],
+  now = new Date(),
+  rotaryYearStart = getRotaryYearStart(now),
+) {
+  const range = getRotaryYearRange(rotaryYearStart)
+  const end = getExpectedEndDate(now, rotaryYearStart)
+
+  return (
+    meetings
+      .map((meeting) => getValidDate(meeting.meetingDate))
+      .filter((meetingDate): meetingDate is Date => {
+        if (!meetingDate) return false
+
+        return meetingDate >= range.start && meetingDate <= end
+      })
+      .sort((left, right) => left.getTime() - right.getTime())[0] ?? null
+  )
+}
+
 export function getExpectedMonths(
   joinedAt: string,
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
+  options: DuesCalculationOptions = {},
 ) {
   const joinedAtDate = new Date(joinedAt)
   const expectedMonths: Date[] = []
   const range = getRotaryYearRange(rotaryYearStart)
-  const joinedMonthStart = getMonthStart(joinedAtDate)
-  const start = joinedMonthStart > range.start ? joinedMonthStart : range.start
-  const end = getMonthStart(getExpectedEndDate(now, rotaryYearStart))
+  const expectedEndDate = getExpectedEndDate(now, rotaryYearStart)
+  const firstMeetingAt = getValidDate(options.firstMeetingAt)
 
-  if (Number.isNaN(joinedAtDate.getTime()) || start > end) return expectedMonths
+  if (Number.isNaN(joinedAtDate.getTime())) return expectedMonths
+
+  if (hasFirstMeetingConstraint(options)) {
+    if (
+      !firstMeetingAt ||
+      firstMeetingAt > expectedEndDate ||
+      !isDateInRotaryYear(firstMeetingAt, rotaryYearStart)
+    ) {
+      return expectedMonths
+    }
+  }
+
+  const joinedMonthStart = getMonthStart(joinedAtDate)
+  const firstMeetingMonthStart = firstMeetingAt ? getMonthStart(firstMeetingAt) : range.start
+  const start = [joinedMonthStart, range.start, firstMeetingMonthStart].reduce((latest, date) =>
+    date > latest ? date : latest,
+  )
+  const end = getMonthStart(expectedEndDate)
+
+  if (start > end) return expectedMonths
 
   for (let date = new Date(start); date <= end; date.setMonth(date.getMonth() + 1)) {
     expectedMonths.push(new Date(date))
@@ -141,12 +203,13 @@ export function getMemberDues(
   joinedAt: string,
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
+  options: DuesCalculationOptions = {},
 ) {
   const paymentsByMonth = getPaymentsByMonth(getScopedPayments(payments, rotaryYearStart))
   const currentMonthKey = getMonthKey(now)
   let overdueMonthsSeen = 0
 
-  return getExpectedMonths(joinedAt, now, rotaryYearStart).map<MemberDue>((month) => {
+  return getExpectedMonths(joinedAt, now, rotaryYearStart, options).map<MemberDue>((month) => {
     const payment = paymentsByMonth.get(getMonthKey(month))
     const isCurrentMonth = getMonthKey(month) === currentMonthKey
     let amountDue = 0
@@ -231,8 +294,9 @@ export function getTotalOwedFromPayments(
   joinedAt: string,
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
+  options: DuesCalculationOptions = {},
 ) {
-  return getTotalOwed(getMemberDues(payments, joinedAt, now, rotaryYearStart))
+  return getTotalOwed(getMemberDues(payments, joinedAt, now, rotaryYearStart, options))
 }
 
 export function getTotalPaidFromPayments(
@@ -240,9 +304,10 @@ export function getTotalPaidFromPayments(
   joinedAt?: string,
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
+  options: DuesCalculationOptions = {},
 ) {
   if (joinedAt) {
-    return getTotalPaid(getMemberDues(payments, joinedAt, now, rotaryYearStart))
+    return getTotalPaid(getMemberDues(payments, joinedAt, now, rotaryYearStart, options))
   }
 
   return getTotalPaidAmountFromPayments(payments)
@@ -265,8 +330,9 @@ export function getDuesSummaryFromPayments(
   joinedAt: string,
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
+  options: DuesCalculationOptions = {},
 ) {
-  return getDuesSummary(getMemberDues(payments, joinedAt, now, rotaryYearStart))
+  return getDuesSummary(getMemberDues(payments, joinedAt, now, rotaryYearStart, options))
 }
 
 export function getMemberDuesSummaries(
@@ -274,6 +340,7 @@ export function getMemberDuesSummaries(
   payments: Payment[],
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
+  options: DuesCalculationOptions = {},
 ) {
   const paymentsByMember = getPaymentsByMember(payments)
 
@@ -286,6 +353,7 @@ export function getMemberDuesSummaries(
         member.joinedAt,
         now,
         rotaryYearStart,
+        options,
       ),
       member,
       memberId,
@@ -298,12 +366,22 @@ export function getMembersDuesSummary(
   payments: Payment[],
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
+  options: DuesCalculationOptions = {},
 ): MembersDuesSummary {
-  const memberSummaries = getMemberDuesSummaries(members, payments, now, rotaryYearStart)
+  const memberSummaries = getMemberDuesSummaries(members, payments, now, rotaryYearStart, options)
   const memberIds = new Set(members.map(getMemberId))
-  const memberPayments = getScopedPayments(payments, rotaryYearStart).filter((payment) =>
-    memberIds.has(getPaymentMemberId(payment)),
+  const dueMonthsByMember = new Map(
+    memberSummaries.map((memberSummary) => [
+      memberSummary.memberId,
+      new Set(memberSummary.dues.map((due) => getMonthKey(due.month))),
+    ]),
   )
+  const memberPayments = getScopedPayments(payments, rotaryYearStart).filter((payment) => {
+    const memberId = getPaymentMemberId(payment)
+    if (!memberIds.has(memberId)) return false
+
+    return dueMonthsByMember.get(memberId)?.has(getMonthKey(new Date(payment.month))) ?? false
+  })
   const dueTotals = memberSummaries.reduce(
     (summary, memberSummary) => ({
       totalOverdueCount: summary.totalOverdueCount + memberSummary.overdueCount,
@@ -331,8 +409,9 @@ export function getTotalOwedForMembers(
   payments: Payment[],
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
+  options: DuesCalculationOptions = {},
 ) {
-  return getMembersDuesSummary(members, payments, now, rotaryYearStart).totalOwed
+  return getMembersDuesSummary(members, payments, now, rotaryYearStart, options).totalOwed
 }
 
 export function getTotalPaidForMembers(
@@ -340,8 +419,9 @@ export function getTotalPaidForMembers(
   payments: Payment[],
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
+  options: DuesCalculationOptions = {},
 ) {
-  return getMembersDuesSummary(members, payments, now, rotaryYearStart).totalPaid
+  return getMembersDuesSummary(members, payments, now, rotaryYearStart, options).totalPaid
 }
 
 export async function getMemberDuesSummary(
@@ -350,19 +430,42 @@ export async function getMemberDuesSummary(
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
 ) {
-  const paymentsDocs = await payload.find({
-    collection: 'payments',
-    where: {
-      member: {
-        equals: member.id,
+  const bounds = getRotaryYearQueryBounds(rotaryYearStart, now)
+  const [paymentsDocs, meetingsDocs] = await Promise.all([
+    payload.find({
+      collection: 'payments',
+      where: {
+        member: {
+          equals: member.id,
+        },
       },
-    },
-    pagination: false,
-    sort: 'month',
-  })
+      pagination: false,
+      sort: 'month',
+    }),
+    payload.find({
+      collection: 'meetings',
+      depth: 0,
+      limit: 1,
+      pagination: false,
+      sort: 'meetingDate',
+      where: {
+        meetingDate: {
+          greater_than_equal: bounds.start.toISOString(),
+          [bounds.endOperator]: bounds.end.toISOString(),
+        },
+      },
+    }),
+  ])
   const payments = paymentsDocs.docs as Payment[]
+  const firstMeetingAt = getFirstMeetingDate(
+    meetingsDocs.docs as Pick<Meeting, 'meetingDate'>[],
+    now,
+    rotaryYearStart,
+  )
 
-  return getDuesSummaryFromPayments(payments, member.joinedAt, now, rotaryYearStart)
+  return getDuesSummaryFromPayments(payments, member.joinedAt, now, rotaryYearStart, {
+    firstMeetingAt,
+  })
 }
 
 export async function getAllMembersDuesSummary(
@@ -370,7 +473,8 @@ export async function getAllMembersDuesSummary(
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
 ) {
-  const [membersDocs, paymentsDocs] = await Promise.all([
+  const bounds = getRotaryYearQueryBounds(rotaryYearStart, now)
+  const [membersDocs, paymentsDocs, meetingsDocs] = await Promise.all([
     payload.find({
       collection: 'users',
       depth: 0,
@@ -383,12 +487,31 @@ export async function getAllMembersDuesSummary(
       pagination: false,
       sort: 'month',
     }),
+    payload.find({
+      collection: 'meetings',
+      depth: 0,
+      limit: 1,
+      pagination: false,
+      sort: 'meetingDate',
+      where: {
+        meetingDate: {
+          greater_than_equal: bounds.start.toISOString(),
+          [bounds.endOperator]: bounds.end.toISOString(),
+        },
+      },
+    }),
   ])
+  const firstMeetingAt = getFirstMeetingDate(
+    meetingsDocs.docs as Pick<Meeting, 'meetingDate'>[],
+    now,
+    rotaryYearStart,
+  )
 
   return getMembersDuesSummary(
     membersDocs.docs as Pick<User, 'id' | 'joinedAt'>[],
     paymentsDocs.docs as Payment[],
     now,
     rotaryYearStart,
+    { firstMeetingAt },
   )
 }

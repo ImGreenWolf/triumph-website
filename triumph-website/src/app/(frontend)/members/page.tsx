@@ -8,7 +8,6 @@ import {
   CalendarDays,
   ClipboardCheck,
   CheckCircle2,
-  Clock3,
   CreditCard,
   ExternalLink,
   HelpCircle,
@@ -42,10 +41,12 @@ import { cn } from '@/utilities/ui'
 import PageClient from './page.client'
 import TimelineDots from './TimelineDots'
 import { CMSLink } from '@/components/Link'
+import NextMeetingWithCode from './memberCode'
+import { boardRoles } from '@/utilities/membersAccess'
 
 const DEFAULT_DUES_INFO_TEXT =
-  'Luna curentă este marcată printr-un chip gol și nu este considerată restantă. Restanțele păstrează regula existentă: primele 4 luni sunt evaluate la 21 lei, apoi la 41 lei.'
-const boardMemberRoles = new Set<string>([
+  'Cotizațiile sunt calculate începând cu luna primei ședințe din mandatul curent. Luna curentă este marcată printr-un chip gol și nu este considerată restantă. Restanțele păstrează regula existentă: primele 4 luni sunt evaluate la 21 lei, apoi la 41 lei.'
+export const boardMemberRoles = new Set<string>([
   'president',
   'pr-director',
   'hr-director',
@@ -53,9 +54,12 @@ const boardMemberRoles = new Set<string>([
   'tresoursier',
 ])
 
+
+
 const roleLabels: Record<User['role'], string> = {
   aspirer: 'Membru Aspirant',
   active: 'Membru Activ',
+  "vice-president": 'Vice Președinte',
   president: 'Președinte',
   'pr-director': 'PR Director',
   'hr-director': 'HR Director',
@@ -103,14 +107,13 @@ export default async function DashboardPage() {
       },
     },
   })
-
   return (
     <div className="halftone-background min-h-screen bg-background text-foreground">
       <PageClient />
 
       <section className="halftone-background relative overflow-hidden border-b border-white/10 bg-[#0f172c] px-4 pb-10 pt-28 text-white sm:px-6 lg:px-8">
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#00a2e0]/70 to-transparent" />
-        <div className="mx-auto max-w-7xl">
+        <div className="container">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase text-white/80 backdrop-blur">
@@ -131,7 +134,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:px-8">
+      <main className="container grid gap-4 py-8">
         {dashboard?.announcement?.enabled && (
           <Announcement
             message={dashboard.announcement.message}
@@ -141,17 +144,18 @@ export default async function DashboardPage() {
 
         <MemberSummary hasManagedEvents={managedEvents.totalDocs > 0} member={member} />
 
-        <div className="grid gap-6">
-          <div className="grid gap-6 lg:auto-rows-fr lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_420px]">
+        <div className="grid gap-4">
+          <div className="grid gap-4 lg:auto-rows-fr lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_420px]">
             <Attendance member={member} />
             <Dues duesInfoText={dashboard?.duesInfoText} member={member} />
             <NextMeeting member={member} />
+
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+          {/* <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
             <QuickLinks links={dashboard?.quickLinks} />
             <SupportCard email={dashboard?.supportEmail} />
-          </div>
+          </div> */}
         </div>
       </main>
     </div>
@@ -225,7 +229,7 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
             Upload photos
           </Link>
 
-          {boardMemberRoles.has(member.role) && (
+          {boardRoles.includes(member.role as any) && (
             <Link
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
               href="/admin"
@@ -234,6 +238,7 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
               Club Admin
             </Link>
           )}
+          
 
           <Link
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-sidebar hover:text-foreground"
@@ -504,63 +509,50 @@ async function NextMeeting(props: { member: User }) {
     overrideAccess: false,
     user: member,
   })
+  const attendanceDocs = await payload.find({
+    collection: 'attendance',
+    where: {
+      and: [
+        {
+          member: {
+            equals: member.id,
+          },
+        },
+        {
+          meeting: {
+            equals: nextMeeting.id,
+          },
+        },
+      ],
+    },
+    limit: 1,
+    overrideAccess: false,
+    user: member,
+  })
   const absenceMotivation = absenceMotivationsDocs.docs[0] as AbsenceMotivation | undefined
   const meetingDate = new Date(nextMeeting.meetingDate)
   const daysRemaining = getDaysRemaining(now, meetingDate)
 
   return (
-    <DashboardPanel className="flex h-full flex-col bg-card">
-      <PanelHeader
-        description="Următorul reper din calendarul clubului."
-        icon={<CalendarDays className="size-5" />}
-        title="Următoarea întâlnire"
-      />
-
-      <div className="mt-6 rounded-lg border border-[#00a2e0]/25 bg-[#00a2e0]/10 p-5">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#00a2e0]/25 bg-sidebar/60 px-3 py-1 text-sm font-medium">
-          <Clock3 className="size-4 text-[#00a2e0]" />
-          {formatRelativeDay(daysRemaining)}
-        </div>
-
-        <h3 className="text-2xl font-semibold leading-tight">
-          {meetingDate.toLocaleString('ro-RO', {
-            dateStyle: 'full',
-            timeStyle: 'short',
-          })}
-        </h3>
-
-        {nextMeeting.description && (
-          <p className="mt-4 text-sm leading-6 text-muted-foreground">{nextMeeting.description}</p>
-        )}
-      </div>
-
-      <div className="mt-auto flex flex-col gap-3 pt-5 sm:flex-row sm:items-center">
-        <Link
-          href={`/members/meetings/${nextMeeting.id}`}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-        >
-          Vezi întâlnirea
-          <ArrowRight className="size-4" />
-        </Link>
-
-        {absenceMotivation && <MotivationStatusBox status={absenceMotivation.status} />}
-      </div>
-    </DashboardPanel>
-  )
-}
-
-function MotivationStatusBox(props: { status: AbsenceMotivation['status'] }) {
-  return (
-    <div
-      className={cn(
-        'inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm font-semibold',
-        props.status === 'accepted' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
-        props.status === 'pending' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
-        props.status === 'rejected' && 'border-red-500/25 bg-red-500/10 text-red-500',
-      )}
-    >
-      {motivationLabel(props.status)}
-    </div>
+    <NextMeetingWithCode
+      absenceMotivationStatus={absenceMotivation?.status ?? null}
+      member={{
+        email: member.email,
+        id: member.id,
+        name: member.name,
+        role: member.role
+      }}
+      attendance={attendanceDocs.docs[0]}
+      nextMeeting={{
+        description: nextMeeting.description,
+        id: nextMeeting.id,
+        meetingDateLabel: meetingDate.toLocaleString('ro-RO', {
+          dateStyle: 'full',
+          timeStyle: 'short',
+        }),
+        relativeLabel: formatRelativeDay(daysRemaining),
+      }}
+    />
   )
 }
 
@@ -580,7 +572,7 @@ function QuickLinks(props: { links?: MembersDashboard['quickLinks'] }) {
           {links.map((link, index) => (
           <CMSLink key={link.id || `${link.link.label}-${index}`} reference={link.link.reference} url={link.link.url}
               className="group flex min-h-16 items-center justify-between gap-4 rounded-md border border-border bg-sidebar/60 px-4 py-3 text-sm font-semibold transition hover:border-[#00a2e0]/50 hover:bg-[#00a2e0]/10"
-          
+
           >
             {link.link.label}
             <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-[#00a2e0]" />
@@ -626,7 +618,7 @@ function DashboardPanel(props: HTMLAttributes<HTMLDivElement>) {
   return (
     <section
       className={cn(
-        'rounded-lg border border-border bg-card p-5 text-card-foreground shadow-sm sm:p-6',
+        'rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-5',
         className,
       )}
       {...rest}
@@ -766,11 +758,4 @@ function attendanceTone(status: AttendanceType['status']) {
   if (status === 'absent') return 'danger'
 
   return 'neutral'
-}
-
-function motivationLabel(status: AbsenceMotivation['status']) {
-  if (status === 'accepted') return 'Motivare acceptată'
-  if (status === 'rejected') return 'Motivare respinsă'
-
-  return 'Motivare în verificare'
 }

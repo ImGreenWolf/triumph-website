@@ -69,7 +69,7 @@ describe('absence motivation workflow', () => {
       data: {
         member: 'member-1',
         meeting: 'meeting-1',
-        motivatedBy: 'secretary-1',
+        issuedBy: 'secretary-1',
         motivationReason: 'Nu pot participa.',
         status: 'motivated',
       },
@@ -182,7 +182,7 @@ describe('absence motivation workflow', () => {
     expect(update).toHaveBeenCalledWith({
       collection: 'attendance',
       data: {
-        motivatedBy: null,
+        issuedBy: null,
         motivationReason: null,
         status: 'absent',
       },

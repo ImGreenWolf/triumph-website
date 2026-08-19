@@ -405,7 +405,7 @@ export const Users: CollectionConfig = {
         },
         {
           label: 'Vice Presedinte',
-          value: 'president',
+          value: 'vice-president',
         },
         {
           label: 'PR Director',

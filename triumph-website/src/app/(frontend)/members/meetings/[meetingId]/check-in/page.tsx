@@ -71,7 +71,7 @@ export default async function CheckInPage({
       collection: 'attendance',
       id: existingAttendance.docs[0].id,
       data: {
-        motivatedBy: null,
+        issuedBy: null,
         motivationReason: null,
         status: 'present',
       },

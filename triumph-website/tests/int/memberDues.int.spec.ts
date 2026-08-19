@@ -1,13 +1,14 @@
 import type { Payload } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { Payment, User } from '@/payload-types'
+import type { Meeting, Payment, User } from '@/payload-types'
 import {
   getAllMembersDuesSummary,
   getCoveredCount,
   getDuesSummary,
   getDuesSummaryFromPayments,
   getExpectedMonths,
+  getFirstMeetingDate,
   getMemberDues,
   getMemberDuesSummary,
   getMembersDuesSummary,
@@ -28,6 +29,8 @@ import {
 
 const joinedAt = '2026-01-10T10:00:00.000Z'
 const now = new Date('2026-06-19T10:00:00.000Z')
+const firstMeetingAt = '2026-01-15T18:00:00.000Z'
+const meetings = [{ meetingDate: firstMeetingAt }] as Meeting[]
 const payments = [
   {
     member: 'member-1',
@@ -97,6 +100,51 @@ describe('member dues utilities', () => {
       '2026-4',
       '2026-5',
     ])
+  })
+
+  it('starts expected months from the first meeting in the selected Rotary year', () => {
+    const october = new Date('2026-10-10T10:00:00.000Z')
+
+    expect(
+      getExpectedMonths('2026-07-01T10:00:00.000Z', october, 2026, {
+        firstMeetingAt: '2026-09-12T18:00:00.000Z',
+      }).map(getMonthKey),
+    ).toEqual(['2026-8', '2026-9'])
+  })
+
+  it('does not calculate dues when the selected Rotary year has no past meeting', () => {
+    const september = new Date('2026-09-01T10:00:00.000Z')
+
+    expect(
+      getExpectedMonths('2026-07-01T10:00:00.000Z', september, 2026, {
+        firstMeetingAt: null,
+      }),
+    ).toEqual([])
+    expect(
+      getExpectedMonths('2026-07-01T10:00:00.000Z', september, 2026, {
+        firstMeetingAt: '2026-09-12T18:00:00.000Z',
+      }),
+    ).toEqual([])
+    expect(
+      getMemberDues([], '2026-07-01T10:00:00.000Z', september, 2026, {
+        firstMeetingAt: null,
+      }),
+    ).toEqual([])
+  })
+
+  it('finds the first past meeting in the selected Rotary year', () => {
+    const october = new Date('2026-10-10T10:00:00.000Z')
+    const firstMeeting = getFirstMeetingDate(
+      [
+        { meetingDate: '2026-09-01T18:00:00.000Z' },
+        { meetingDate: '2026-07-15T18:00:00.000Z' },
+        { meetingDate: '2027-07-15T18:00:00.000Z' },
+      ] as Meeting[],
+      october,
+      2026,
+    )
+
+    expect(firstMeeting?.toISOString()).toBe('2026-07-15T18:00:00.000Z')
   })
 
   it('does not count payments outside the selected Rotary year', () => {
@@ -169,7 +217,9 @@ describe('member dues utilities', () => {
 
   it('fetches every payment and returns the member summary', async () => {
     const payload = {
-      find: vi.fn().mockResolvedValue({ docs: payments }),
+      find: vi.fn(({ collection }) =>
+        Promise.resolve({ docs: collection === 'meetings' ? meetings : payments }),
+      ),
     } as unknown as Payload
 
     const summary = await getMemberDuesSummary(payload, { id: 'member-1', joinedAt }, now)
@@ -177,13 +227,19 @@ describe('member dues utilities', () => {
     expect(payload.find).toHaveBeenCalledWith(
       expect.objectContaining({ collection: 'payments', pagination: false }),
     )
+    expect(payload.find).toHaveBeenCalledWith(
+      expect.objectContaining({ collection: 'meetings', depth: 0, limit: 1, pagination: false }),
+    )
     expect(summary.totalPaid).toBe(56)
   })
 
   it('fetches all members and payments for club-wide dues', async () => {
     const payload = {
       find: vi.fn(({ collection }) =>
-        Promise.resolve({ docs: collection === 'users' ? members : allPayments }),
+        Promise.resolve({
+          docs:
+            collection === 'users' ? members : collection === 'meetings' ? meetings : allPayments,
+        }),
       ),
     } as unknown as Payload
 
@@ -194,6 +250,9 @@ describe('member dues utilities', () => {
     )
     expect(payload.find).toHaveBeenCalledWith(
       expect.objectContaining({ collection: 'payments', depth: 0, pagination: false }),
+    )
+    expect(payload.find).toHaveBeenCalledWith(
+      expect.objectContaining({ collection: 'meetings', depth: 0, limit: 1, pagination: false }),
     )
     expect(summary.totalOwed).toBe(105)
   })

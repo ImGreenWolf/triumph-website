@@ -66,7 +66,7 @@ export const MembersDashboard: GlobalConfig = {
       label: 'Dues Info Text',
       type: 'textarea',
       defaultValue:
-        'Luna curentă este marcată printr-un chip gol și nu este considerată restantă. Restanțele păstrează regula existentă: primele 4 luni sunt evaluate la 21 lei, apoi la 41 lei.',
+        'Cotizațiile sunt calculate începând cu luna primei ședințe din mandatul curent. Luna curentă este marcată printr-un chip gol și nu este considerată restantă. Restanțele păstrează regula existentă: primele 4 luni sunt evaluate la 21 lei, apoi la 41 lei.',
     },
 
     {

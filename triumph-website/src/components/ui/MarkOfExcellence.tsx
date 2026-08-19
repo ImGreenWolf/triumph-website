@@ -1,4 +1,4 @@
-export default function MarkOfExcellence({currentAccent, className, animate}: {currentAccent: 'blue' | 'royal' | 'gold', className: string, animate?: boolean}) {
+export default function MarkOfExcellence({currentAccent, className, animate}: {currentAccent: 'blue' | 'royal' | 'gold' | 'cranberry', className: string, animate?: boolean}) {
   const accentStyles = {
     blue: {
       bg: 'from-[#0194ce] to-[#017bb0]',
@@ -18,7 +18,13 @@ export default function MarkOfExcellence({currentAccent, className, animate}: {c
       light: 'bg-[#f7a81b]/15',
       border: 'border-[#f7a81b]/30',
     },
+    cranberry: {
+      bg: 'from-[#d91b5c] to-[#b7124a]',
+      text: 'text-[#d91b5c]',
+      light: 'bg-[#d91b5c]/15',
+      border: 'border-[#d91b5c]/30',
+    },
   }
   
-    return  <div  className={` ${className} ${animate && 'animate-[spin_18s_linear_infinite]'} bg-gradient-to-r aspect-square cover rounded-full ${accentStyles[currentAccent!].bg} mask-[url(/MarkofExcellence_simple.svg)]`}/>
+    return  <div  className={` ${className} ${animate && 'animate-[spin_18s_linear_infinite]'} bg-gradient-to-r aspect-square cover rounded-full ${accentStyles[currentAccent!].bg} mask-[url(/MarkOfExcellence_Simple.svg)]`}/>
 }

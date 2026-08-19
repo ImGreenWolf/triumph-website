@@ -26,11 +26,12 @@ export const AbsenceMotivations: CollectionConfig = {
       if (!req.user) return false
       if (isSecretary(req.user)) return true
 
-      return {
-        member: {
-          equals: req.user.id,
-        },
-      }
+      return false
+      //  {
+      //   member: {
+      //     equals: req.user.id,
+      //   },
+      // }
     },
     update: ({ req }) => isSecretary(req.user),
   },
@@ -158,63 +159,63 @@ export const AbsenceMotivations: CollectionConfig = {
 
         if (!member || !meeting) return doc
 
-        const attendance = await req.payload.find({
-          collection: 'attendance',
-          where: {
-            and: [
-              {
-                member: {
-                  equals: member,
-                },
-              },
-              {
-                meeting: {
-                  equals: meeting,
-                },
-              },
-            ],
-          },
-          limit: 1,
-          req,
-        })
-        const existingAttendance = attendance.docs[0] as Attendance | undefined
+        // const attendance = await req.payload.find({
+        //   collection: 'attendance',
+        //   where: {
+        //     and: [
+        //       {
+        //         member: {
+        //           equals: member,
+        //         },
+        //       },
+        //       {
+        //         meeting: {
+        //           equals: meeting,
+        //         },
+        //       },
+        //     ],
+        //   },
+        //   limit: 1,
+        //   req,
+        // })
+        // const existingAttendance = attendance.docs[0] as Attendance | undefined
 
-        if (doc.status === 'accepted') {
-          const reviewer = getRelationshipID(req.user)
-          const data = {
-            member,
-            meeting,
-            motivatedBy: reviewer,
-            motivationReason: doc.memberMessage,
-            status: 'motivated' as const,
-          }
+        // if (doc.status === 'accepted') {
+        //   const reviewer = getRelationshipID(req.user)
+        //   const data = {
+        //     member,
+        //     meeting,
+        //     issuedBy: reviewer,
+        //     motivationReason: doc.memberMessage,
+        //     status: 'motivated' as const,
+        //   }
 
-          if (existingAttendance) {
-            await req.payload.update({
-              collection: 'attendance',
-              id: existingAttendance.id,
-              data,
-              req,
-            })
-          } else {
-            await req.payload.create({
-              collection: 'attendance',
-              data,
-              req,
-            })
-          }
-        } else if (previousDoc.status === 'accepted' && existingAttendance?.status === 'motivated') {
-          await req.payload.update({
-            collection: 'attendance',
-            id: existingAttendance.id,
-            data: {
-              motivatedBy: null,
-              motivationReason: null,
-              status: 'absent',
-            },
-            req,
-          })
-        }
+        //   if (existingAttendance) {
+        //     await req.payload.update({
+        //       collection: 'attendance',
+        //       id: existingAttendance.id,
+        //       data,
+        //       req,
+        //     })
+        //   } else {
+        //     await req.payload.create({
+        //       collection: 'attendance',
+        //       data,
+        //       req,
+        //     })
+        //   }
+        // } else if (previousDoc.status === 'accepted' && existingAttendance?.status === 'motivated') {
+        //   await req.payload.update({
+        //     collection: 'attendance',
+        //     id: existingAttendance.id,
+        //     data: {
+        //       issuedBy: null,
+        //       motivationReason: null,
+        //       status: 'absent',
+        //     },
+        //     req,
+        //   })
+        // }
 
         return doc
       },

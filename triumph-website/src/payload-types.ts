@@ -508,6 +508,7 @@ export interface User {
     | 'passive'
     | 'president'
     | 'past-president'
+    | 'vice-president'
     | 'pr-director'
     | 'hr-director'
     | 'secretary'
@@ -712,7 +713,10 @@ export interface Attendance {
   meeting: string | Meeting;
   status: 'present' | 'absent' | 'motivated' | 'late';
   motivationReason?: string | null;
-  motivatedBy?: (string | null) | User;
+  /**
+   * Pentru prezenta, este membrul care a scanat codul, iar pentru motivare, persoana care a motivat absenta
+   */
+  issuedBy?: (string | null) | User;
   notes?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -1701,6 +1705,21 @@ export interface AboutUsBlock {
     };
     [k: string]: unknown;
   };
+  rotaractContent: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
   relationshipContent: {
     root: {
       type: string;
@@ -1717,7 +1736,7 @@ export interface AboutUsBlock {
     [k: string]: unknown;
   };
   image: string | Media;
-  accentColor?: ('blue' | 'royal' | 'gold') | null;
+  accentColor?: ('blue' | 'royal' | 'cranberry' | 'gold') | null;
   id?: string | null;
   blockName?: string | null;
   blockType: 'aboutUs';
@@ -2605,6 +2624,7 @@ export interface AboutUsBlockSelect<T extends boolean = true> {
   title?: T;
   interactContent?: T;
   rotaryContent?: T;
+  rotaractContent?: T;
   relationshipContent?: T;
   image?: T;
   accentColor?: T;
@@ -2890,7 +2910,7 @@ export interface AttendanceSelect<T extends boolean = true> {
   meeting?: T;
   status?: T;
   motivationReason?: T;
-  motivatedBy?: T;
+  issuedBy?: T;
   notes?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -65,6 +65,8 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "7.71.1",
+    "react-qr-barcode-scanner": "^2.1.28",
+    "react-qr-code": "^2.2.0",
     "react-select": "^5.10.2",
     "sharp": "0.34.2",
     "tailwind-merge": "^3.4.0"

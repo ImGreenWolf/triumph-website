@@ -1,4 +1,5 @@
 // triumph-website/src/utilities/membersAccess.ts
+import { User } from '@/payload-types'
 import type { Access, PayloadRequest } from 'payload'
 
 export const boardRoles = [
@@ -8,7 +9,7 @@ export const boardRoles = [
   'treasurer',
   'pr-director',
   'hr-director',
-  'past-president'
+  'past-president',
 ] as const
 
 export const allRoles = ['aspirer', 'active', ...boardRoles] as const
@@ -32,8 +33,8 @@ export const hasBoardRole: AdminAccess = ({ req }) => {
   return isBoardMember(req.user)
 }
 
-export const isSecretary = (user: { role?: string } | null | undefined) => {
-  return user?.role === 'secretary' || user?.role === 'president'
+export const isSecretary = (user: Pick<User, 'role'> | null | undefined) => {
+  return user?.role === 'secretary' || user?.role === 'president' || user?.role === 'vice-president'
 }
 
 export const hasSecretaryRole: AdminAccess = ({ req }) => {

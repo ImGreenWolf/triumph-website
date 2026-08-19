@@ -5,10 +5,54 @@ import RichText from '@/components/RichText'
 import { cn } from '@/utilities/ui'
 import MarkOfExcellence from '@/components/ui/MarkOfExcellence'
 
-export const AboutUsBlock: React.FC<AboutUsProps> = ({
+type RichTextData = AboutUsProps['interactContent']
+
+type AboutUsBlockProps = AboutUsProps & {
+  rotaractContent?: RichTextData
+}
+
+const defaultRichText = (text: string): RichTextData =>
+  ({
+    root: {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            {
+              detail: 0,
+              format: 0,
+              mode: 'normal',
+              style: '',
+              text,
+              type: 'text',
+              version: 1,
+            },
+          ],
+          direction: null,
+          format: '',
+          indent: 0,
+          textFormat: 0,
+          textStyle: '',
+          version: 1,
+        },
+      ],
+      direction: null,
+      format: '',
+      indent: 0,
+      version: 1,
+    },
+  }) as RichTextData
+
+const DEFAULT_ROTARACT_CONTENT = defaultRichText(
+  'Rotaract este puntea dintre Interact si Rotary: o comunitate pentru tineri adulti care continua spiritul voluntariatului prin leadership, proiecte de impact si conexiuni internationale in familia Rotary.',
+)
+
+export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
   title,
   interactContent,
   rotaryContent,
+  rotaractContent = DEFAULT_ROTARACT_CONTENT,
   relationshipContent,
   image,
   accentColor = 'blue',
@@ -32,9 +76,16 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
       light: 'bg-[#f7a81b]/15',
       border: 'border-[#f7a81b]/30',
     },
+    cranberry: {
+      bg: 'from-[#d91b5c] to-[#b7124a]',
+      text: 'text-[#d91b5c]',
+      light: 'bg-[#d91b5c]/15',
+      border: 'border-[#d91b5c]/30',
+    },
   }
 
-  const currentAccent = accentStyles[accentColor!]
+  const currentAccentName = (accentColor ?? 'blue') as keyof typeof accentStyles
+  const currentAccent = accentStyles[currentAccentName] ?? accentStyles.blue
 
   return (
     <section className="relative py-4 md:py-8 lg:py-16 px-4 sm:px-6 lg:px-12 bg-foreground overflow-hidden">
@@ -76,7 +127,7 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                   <div className={`inline-flex items-center gap-1 ${currentAccent.light} px-3 py-1 rounded-full backdrop-blur-sm`}>
                     {/* <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${currentAccent.bg}`} /> */}
                    
-                    <MarkOfExcellence className='w-3 h-3' currentAccent={accentColor!}/>
+                    <MarkOfExcellence className='w-3 h-3' currentAccent={currentAccentName}/>
                     <span className={`text-xs font-semibold uppercase tracking-wider ${currentAccent.text}`}>
                     
                       About Us
@@ -86,9 +137,9 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                     {title}
                   </h2>
                 </div>
-                 <MarkOfExcellence className='absolute m-2 bottom-0 left-0 right-0 h-1/2 -z-1 opacity-50 backdrop-blur-xl' currentAccent={'blue'} animate/>
-                {/* Two Column Content */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                 <MarkOfExcellence className='absolute m-2 bottom-0 left-0 right-0 h-1/2 -z-1 opacity-50 backdrop-blur-xl' currentAccent={currentAccentName} animate/>
+                {/* Organization Content */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                   <div className="group/card">
                     <div className="relative h-full p-6 bg-white  backdrop-blur-lg rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
                       <div className="mb-4">
@@ -106,6 +157,29 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                         enableGutter={false} 
                         data={interactContent} 
                         className="text-slate-600 text-sm md:text-base leading-relaxed" 
+                      />
+                     
+                    </div>
+                  </div>
+
+                  <div className="group/card">
+                    <div className="relative h-full overflow-hidden p-6 bg-white/90 backdrop-blur-lg rounded-xl border border-[#d91b5c]/30 shadow-sm shadow-[#d91b5c]/10 hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
+                      <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-[#d91b5c]/10 to-transparent pointer-events-none" />
+                      <div className="mb-4">
+                        <div className="h-12 mb-3">
+                          <img 
+                            src="/rotaract.png" 
+                            alt="Rotaract" 
+                            className="relative h-full max-w-full object-contain object-left"
+                            loading="lazy"
+                          />
+                        </div>
+                      </div>
+                      <RichText 
+                        enableProse={false} 
+                        enableGutter={false} 
+                        data={rotaractContent} 
+                        className="relative text-slate-700 text-sm md:text-base leading-relaxed [&_strong]:text-[#d91b5c]" 
                       />
                      
                     </div>
@@ -209,7 +283,7 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                   </h2>
                 </div>
                 
-                {/* Two Column Content */}
+                {/* Organization Content */}
                 <div className="grid grid-cols-1 gap-5 sm:gap-6">
                   <div className="group/card">
                     <div className="relative p-4 sm:p-5 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm">
@@ -228,6 +302,28 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
                         enableGutter={false} 
                         data={interactContent} 
                         className="text-slate-600 text-sm leading-relaxed" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="group/card">
+                    <div className="relative overflow-hidden p-4 sm:p-5 bg-white/90 backdrop-blur-sm rounded-xl border border-[#d91b5c]/30 shadow-sm shadow-[#d91b5c]/10">
+                      <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-[#d91b5c]/10 to-transparent pointer-events-none" />
+                      <div className="relative mb-3">
+                        <div className="h-11 mb-2">
+                          <img 
+                            src="/rotaract.png" 
+                            alt="Rotaract" 
+                            className="h-full max-w-full object-contain object-left"
+                            loading="lazy"
+                          />
+                        </div>
+                      </div>
+                      <RichText 
+                        enableProse={false} 
+                        enableGutter={false} 
+                        data={rotaractContent} 
+                        className="relative text-slate-700 text-sm leading-relaxed [&_strong]:text-[#d91b5c]" 
                       />
                     </div>
                   </div>
@@ -297,4 +393,3 @@ export const AboutUsBlock: React.FC<AboutUsProps> = ({
     </section>
   )
 }
-

@@ -4,8 +4,8 @@ import { useMemo, useState } from 'react'
 
 import { usePayloadAPI } from '@payloadcms/ui'
 
-import type { Payment, User } from '@/payload-types'
-import { getMembersDuesSummary, MONTHLY_DUE } from '@/utilities/memberDues'
+import type { Meeting, Payment, User } from '@/payload-types'
+import { getFirstMeetingDate, getMembersDuesSummary, MONTHLY_DUE } from '@/utilities/memberDues'
 import {
   formatRotaryYearLabel,
   getRotaryYearEnd,
@@ -23,6 +23,10 @@ type PaymentWithRelations = Omit<Payment, 'member'> & {
 
 type PaymentsListResponse = {
   docs?: PaymentWithRelations[]
+}
+
+type MeetingsListResponse = {
+  docs?: Pick<Meeting, 'meetingDate'>[]
 }
 
 type UsersListResponse = {
@@ -174,6 +178,16 @@ export default function DuesBeforeList() {
     },
   )
 
+  const [{ data: meetingsData, isError: meetingsError, isLoading: meetingsLoading }] =
+    usePayloadAPI('/api/meetings', {
+      initialParams: {
+        depth: 0,
+        limit: 1000,
+        sort: 'meetingDate',
+        where: {},
+      },
+    })
+
   const payments = useMemo(
     () =>
       ((paymentsData as PaymentsListResponse | undefined)?.docs ?? []) as PaymentWithRelations[],
@@ -185,13 +199,22 @@ export default function DuesBeforeList() {
     [usersData],
   )
 
+  const meetings = useMemo(
+    () => ((meetingsData as MeetingsListResponse | undefined)?.docs ?? []).filter(Boolean),
+    [meetingsData],
+  )
+
   const rotaryYears = useMemo(
     () =>
       getRotaryYearStartsFromDates(
-        [...payments.map((payment) => payment.month), ...members.map((member) => member.joinedAt)],
+        [
+          ...payments.map((payment) => payment.month),
+          ...members.map((member) => member.joinedAt),
+          ...meetings.map((meeting) => meeting.meetingDate),
+        ],
         now,
       ),
-    [members, now, payments],
+    [meetings, members, now, payments],
   )
 
   const selectedPayments = useMemo(
@@ -199,9 +222,17 @@ export default function DuesBeforeList() {
     [payments, selectedRotaryYear],
   )
 
+  const firstMeetingAt = useMemo(
+    () => getFirstMeetingDate(meetings, now, selectedRotaryYear),
+    [meetings, now, selectedRotaryYear],
+  )
+
   const summary = useMemo(
-    () => getMembersDuesSummary(members, payments, now, selectedRotaryYear),
-    [members, now, payments, selectedRotaryYear],
+    () =>
+      getMembersDuesSummary(members, payments, now, selectedRotaryYear, {
+        firstMeetingAt,
+      }),
+    [firstMeetingAt, members, now, payments, selectedRotaryYear],
   )
 
   const expectedDuesCount = summary.memberSummaries.reduce(
@@ -256,8 +287,8 @@ export default function DuesBeforeList() {
     .sort((left, right) => right.time - left.time)
     .slice(0, 8)
 
-  const isLoading = paymentsLoading || usersLoading
-  const isError = paymentsError || usersError
+  const isLoading = meetingsLoading || paymentsLoading || usersLoading
+  const isError = meetingsError || paymentsError || usersError
   const selectedYearLabel = formatRotaryYearLabel(selectedRotaryYear)
 
   if (isLoading) {
@@ -285,8 +316,8 @@ export default function DuesBeforeList() {
           <h2 className="dues-before-list__title">Sumar cotizații</h2>
           <p className="dues-before-list__description">
             Situația cotizațiilor pentru {formatNumber(members.length)} membri în{' '}
-            {selectedYearLabel.toLowerCase()}, calculată pe baza plăților și scutirilor
-            înregistrate.
+            {selectedYearLabel.toLowerCase()}, calculată de la prima ședință pe baza plăților și
+            scutirilor înregistrate.
           </p>
         </div>
 
