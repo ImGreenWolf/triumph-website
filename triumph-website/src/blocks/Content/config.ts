@@ -1,6 +1,7 @@
 import type { Block, Field } from 'payload'
 
 import {
+    BlocksFeature,
     FixedToolbarFeature,
     HeadingFeature,
     InlineToolbarFeature,
@@ -8,6 +9,14 @@ import {
 } from '@payloadcms/richtext-lexical'
 
 import { link } from '@/fields/link'
+import { Banner } from '../Banner/config'
+import { Archive } from '../ArchiveBlock/config'
+import { CallToAction } from '../CallToAction/config'
+import { EventsBlock } from '../EventsBlock/config'
+import { FormBlock } from '../Form/config'
+import { LogoLoopBlock } from '../LogoLoop/config'
+import { MasonryBlock } from '../Masonry/config'
+import { MediaBlock } from '../MediaBlock/config'
 
 const columnFields: Field[] = [
     {
@@ -43,6 +52,16 @@ const columnFields: Field[] = [
                     HeadingFeature({ enabledHeadingSizes: ['h2', 'h3', 'h4'] }),
                     FixedToolbarFeature(),
                     InlineToolbarFeature(),
+                     BlocksFeature({blocks: [
+                            CallToAction,
+                            MediaBlock,
+                            Archive,
+                            FormBlock,
+                            MasonryBlock,
+                            EventsBlock,
+                            LogoLoopBlock,
+                            Banner
+                        ]})
                 ]
             },
         }),

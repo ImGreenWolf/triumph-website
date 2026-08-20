@@ -7,6 +7,7 @@ import {
   lexicalEditor,
   UnderlineFeature,
   type LinkFields,
+  BlocksFeature,
 } from '@payloadcms/richtext-lexical'
 
 import {
@@ -16,10 +17,12 @@ import {
   TextLineHeightFeature,
   TextFontFamilyFeature,
 } from "payload-lexical-typography";
+import { BlocksFeatureClient } from '@payloadcms/richtext-lexical/client';
 
 
 
 export const defaultLexical = lexicalEditor({
+  
   features: [
     ParagraphFeature(),
     UnderlineFeature(),
@@ -60,6 +63,7 @@ export const defaultLexical = lexicalEditor({
     TextLetterSpacingFeature(),
     TextLineHeightFeature(),
     TextFontFamilyFeature({method: 'combine', fontFamilies: [{label: 'Outline', value: "Bungee Outline"}, {label: 'Lobster', value: 'Lobster'}]}),
+
   ],
 })
 

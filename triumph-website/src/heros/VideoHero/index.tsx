@@ -52,14 +52,14 @@ export const VideoHero: React.FC<Page['hero']> = ({
 }) => {
   return (
     <div className="relative b-0 text-text">
-      <div className="container mb-8 z-10 max-h-[80vh] h-[75vh] overflow-hidden relative flex items-center justify-left text-shadow-lg">
-        <div className="max-w-[36.5rem] md:text-lft">
+      <div className="container mb-8 z-10 max-h-[100vh] h-300 overflow-hidden relative flex items-center justify-start text-shadow-lg">
+        <div className="max-w-[36.5rem] md:text-left">
           {renderTitle(title)}
           {richText && (
             <RichText className="mb-6" data={richText} enableGutter={false} enableProse={false} />
           )}
           {Array.isArray(links) && links.length > 0 && (
-            <ul className="flex md:justify-left gap-4">
+            <ul className="flex md:justify-start gap-4">
               {links.map(({ link }, i) => {
                 return (
                   <li key={i}>
