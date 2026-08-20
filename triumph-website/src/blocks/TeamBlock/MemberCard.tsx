@@ -19,8 +19,8 @@ const cardVariants = {
   },
 } satisfies Variants
 
-export default function Card(props: { member: any; mandateYear?: number; small?: boolean; extraSmall?: boolean }) {
-  const { member, mandateYear, small = false, extraSmall = false } = props
+export default function Card(props: { member: any; displayText?:boolean; mandateYear?: number; small?: boolean; extraSmall?: boolean }) {
+  const { member, mandateYear, small = false, extraSmall = false, displayText=true } = props
   const [flipped, setFlipped] = useState(false)
 
   const toggleFlipped = () => {
@@ -72,7 +72,7 @@ export default function Card(props: { member: any; mandateYear?: number; small?:
           />
 
           <div className='absolute flex items-end inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/70 to-transparent'>
-          <div>
+          {displayText && <div>
             
             <p
               className={cn(
@@ -100,7 +100,7 @@ export default function Card(props: { member: any; mandateYear?: number; small?:
               {member.name}
             </p>
 
-          </div>
+          </div>}
             <Arrow size={extraSmall ? 16 : small ? 20 : 35} className='opacity-70 transition-opacity group-hover:opacity-100 ml-auto' />
             
           </div>

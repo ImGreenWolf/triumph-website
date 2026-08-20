@@ -1264,6 +1264,7 @@ export interface TeamBlock {
   mandates?:
     | {
         year?: number | null;
+        displayText?: boolean | null;
         columns: number;
         members?:
           | {
@@ -2398,6 +2399,7 @@ export interface TeamBlockSelect<T extends boolean = true> {
     | T
     | {
         year?: T;
+        displayText?: T;
         columns?: T;
         members?:
           | T

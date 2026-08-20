@@ -20,6 +20,11 @@ export const TeamBlock: Block = {
                     },
                 },
                 {
+                    name: 'displayText',
+                    type: 'checkbox',
+                    defaultValue: true
+                },
+                {
                     name: 'columns',
                     type: 'number',
                     required: true,

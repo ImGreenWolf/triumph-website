@@ -89,6 +89,7 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
 	                      member.name ? <Card
 	                        key={member.id || memberIndex}
 	                        member={member}
+                          displayText={mandate.displayText || false}
 	                        mandateYear={mandate.year ?? undefined}
 	                        small={isFourCols}
 	                        extraSmall={isFiveCols}
