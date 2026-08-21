@@ -36,6 +36,9 @@ export const ArchiveBlock: React.FC<
               categories: {
                 in: flattenedCategories,
               },
+              _status: {
+                equals: 'published',
+              },
             },
           }
         : {}),
