@@ -98,7 +98,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
         <div className="hidden lg:block relative">
           {/* Image positioned on the right */}
           <div className="absolute right-0 bottom-0 top-0 w-5/12 py-4">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl h-full">
+            <div className="relative rounded-md overflow-hidden shadow-2xl h-full">
               <div className="aspect-[4/5] w-full">
                 {typeof image !== 'string' && image && (
                   <Media 
@@ -114,12 +114,12 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
           {/* Text box - overlaps from the left */}
           <div className="relative w-8/12 z-10 ">
             <div className={cn(
-              "rounded-2xl lg:rounded-3xl",
+              "rounded-md lg:rounded-lg",
               "bg-primary/50 backdrop-blur-xl",
               "border shadow-2xl",
               currentAccent.border
             )}>
-              <div className="absolute inset-0 rounded-2xl lg:rounded-3xl bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 rounded-md lg:rounded-3xl bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
               
               <div className="relative p-6 md:p-8 lg:p-10 space-y-6 md:space-y-8">
                 {/* Title */}
@@ -130,18 +130,18 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                     <MarkOfExcellence className='w-3 h-3' currentAccent={currentAccentName}/>
                     <span className={`text-xs font-semibold uppercase tracking-wider ${currentAccent.text}`}>
                     
-                      About Us
+                      Despre Organizația Noastră
                     </span>
                   </div>
-                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-secondary text-shadow-lg leading-tight">
+                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-secondary-foreground text-shadow-lg leading-tight">
                     {title}
                   </h2>
                 </div>
-                 <MarkOfExcellence className='absolute m-2 bottom-0 left-0 right-0 h-1/2 -z-1 opacity-50 backdrop-blur-xl' currentAccent={currentAccentName} animate/>
+                 <MarkOfExcellence className='absolute m-2 bottom-0 left-0 right-0 h-1/2 -z-1 opacity-10 blur-3xl backdrop-blur-xl bg-black'  animate/>
                 {/* Organization Content */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                   <div className="group/card">
-                    <div className="relative h-full p-6 bg-white  backdrop-blur-lg rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
+                    <div className="relative h-full p-6 bg-white  backdrop-blur-lg rounded-md border border-[#0194ce]/30 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
                       <div className="mb-4">
                         <div className="h-12 mb-3">
                           <img 
@@ -163,8 +163,8 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                   </div>
 
                   <div className="group/card">
-                    <div className="relative h-full overflow-hidden p-6 bg-white/90 backdrop-blur-lg rounded-xl border border-[#d91b5c]/30 shadow-sm shadow-[#d91b5c]/10 hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
-                      <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-[#d91b5c]/10 to-transparent pointer-events-none" />
+                    <div className="relative h-full overflow-hidden p-6 bg-white/90 backdrop-blur-lg rounded-md border border-[#d91b5c]/30 shadow-sm shadow-[#d91b5c]/10 hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
+                      <div className="absolute inset-y-0 right-0 w-1/2  to-transparent pointer-events-none" />
                       <div className="mb-4">
                         <div className="h-12 mb-3">
                           <img 
@@ -186,7 +186,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                   </div>
 
                   <div className="group/card">
-                    <div className="relative h-full p-6 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
+                    <div className="relative h-full p-6 bg-white/80 backdrop-blur-sm rounded-md border border-[#f7a81b]/30 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
                       <div className="mb-4">
                         <div className="h-12 mb-3">
                           <img 
@@ -210,7 +210,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
 
                 {/* Partnership Card */}
                 <div className={cn(
-                  "relative p-6 md:p-8 rounded-2xl overflow-hidden",
+                  "relative p-6 md:p-8 rounded-md overflow-hidden",
                   "backdrop-blur-md shadow-xl",
                   `bg-gradient-to-br ${currentAccent.bg}`,
                   "border border-white/30"
@@ -247,7 +247,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
         {/* Mobile Layout */}
         <div className="block lg:hidden relative">
           {/* Image at the top */}
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+          <div className="relative rounded-md overflow-hidden shadow-2xl">
             <div className="aspect-[4/3] w-full">
               {typeof image !== 'string' && image && (
                 <Media 
@@ -262,12 +262,12 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
           {/* Text box - overlaps from the bottom */}
           <div className="relative -mt-32 sm:-mt-48 z-10 px-4">
             <div className={cn(
-              "rounded-2xl",
+              "rounded-md",
               "bg-foreground/70 backdrop-blur-xl",
               "border shadow-2xl",
               currentAccent.border
             )}>
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 rounded-md bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
               
               <div className="relative p-5 sm:p-6 space-y-5 sm:space-y-6">
                 {/* Title */}
@@ -286,7 +286,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                 {/* Organization Content */}
                 <div className="grid grid-cols-1 gap-5 sm:gap-6">
                   <div className="group/card">
-                    <div className="relative p-4 sm:p-5 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm">
+                    <div className="relative p-4 sm:p-5 bg-white/80 backdrop-blur-sm rounded-md border border-slate-200/50 shadow-sm">
                       <div className="mb-3">
                         <div className="w-30 h-10 mb-2">
                           <img 
@@ -307,7 +307,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                   </div>
 
                   <div className="group/card">
-                    <div className="relative overflow-hidden p-4 sm:p-5 bg-white/90 backdrop-blur-sm rounded-xl border border-[#d91b5c]/30 shadow-sm shadow-[#d91b5c]/10">
+                    <div className="relative overflow-hidden p-4 sm:p-5 bg-white/90 backdrop-blur-sm rounded-md border border-[#d91b5c]/30 shadow-sm shadow-[#d91b5c]/10">
                       <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-[#d91b5c]/10 to-transparent pointer-events-none" />
                       <div className="relative mb-3">
                         <div className="h-11 mb-2">
@@ -329,7 +329,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                   </div>
 
                   <div className="group/card">
-                    <div className="relative p-4 sm:p-5 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm">
+                    <div className="relative p-4 sm:p-5 bg-white/80 backdrop-blur-sm rounded-md border border-slate-200/50 shadow-sm">
                       <div className="mb-3">
                         <div className="w-30 h-10 mb-2">
                           <img 
@@ -352,7 +352,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
 
                 {/* Partnership Card */}
                 <div className={cn(
-                  "relative p-5 rounded-xl overflow-hidden",
+                  "relative p-5 rounded-md overflow-hidden",
                   "backdrop-blur-md shadow-lg",
                   `bg-gradient-to-br ${currentAccent.bg}`,
                   "border border-white/30"

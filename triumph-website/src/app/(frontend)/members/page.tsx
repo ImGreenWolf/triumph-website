@@ -19,6 +19,7 @@ import {
   SettingsIcon,
   ShieldCheck,
   UserCircle,
+  MailIcon,
 } from 'lucide-react'
 import { getPayload } from 'payload'
 
@@ -43,6 +44,7 @@ import TimelineDots from './TimelineDots'
 import { CMSLink } from '@/components/Link'
 import NextMeetingWithCode from './memberCode'
 import { boardRoles } from '@/utilities/membersAccess'
+import { readMailbox } from '@/collections/Users/mailUtils'
 
 const DEFAULT_DUES_INFO_TEXT =
   'Cotizațiile sunt calculate începând cu luna primei ședințe din mandatul curent. Luna curentă este marcată printr-un chip gol și nu este considerată restantă. Restanțele păstrează regula existentă: primele 4 luni sunt evaluate la 21 lei, apoi la 41 lei.'
@@ -104,8 +106,8 @@ export default async function DashboardPage() {
     <div className="halftone-background min-h-screen bg-background text-foreground">
       <PageClient />
 
-      <section className="halftone-background relative overflow-hidden border-b border-white/10 bg-[#0f172c] px-4 pb-10 pt-28 text-white sm:px-6 lg:px-8">
-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#00a2e0]/70 to-transparent" />
+      <section className="halftone-background relative overflow-hidden border-b border-white/10 bg-sidebar px-4 pb-10 pt-28 text-white sm:px-6 lg:px-8">
+        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent/70 to-transparent" />
         <div className="container">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -142,13 +144,13 @@ export default async function DashboardPage() {
             <Attendance member={member} />
             <Dues duesInfoText={dashboard?.duesInfoText} member={member} />
             <NextMeeting member={member} />
-
           </div>
 
-          {/* <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-            <QuickLinks links={dashboard?.quickLinks} />
-            <SupportCard email={dashboard?.supportEmail} />
-          </div> */}
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+            {/* <QuickLinks links={dashboard?.quickLinks} /> */}
+            {/* <SupportCard email={dashboard?.supportEmail} /> */}
+            <EmailAccount user={member} />
+          </div>
         </div>
       </main>
     </div>
@@ -305,7 +307,7 @@ async function Attendance(props: { member: User }) {
 
         <div className="h-2 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-[#00a2e0]"
+            className="h-full rounded-full bg-accent"
             style={{ width: `${Math.min(attendancePercentage, 100)}%` }}
           />
         </div>
@@ -563,16 +565,77 @@ function QuickLinks(props: { links?: MembersDashboard['quickLinks'] }) {
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {links.map((link, index) => (
           <CMSLink key={link.id || `${link.link.label}-${index}`} reference={link.link.reference} url={link.link.url}
-              className="group flex min-h-16 items-center justify-between gap-4 rounded-md border border-border bg-sidebar/60 px-4 py-3 text-sm font-semibold transition hover:border-[#00a2e0]/50 hover:bg-[#00a2e0]/10"
+              className="group flex min-h-16 items-center justify-between gap-4 rounded-md border border-border bg-sidebar/60 px-4 py-3 text-sm font-semibold transition hover:border-accent/50 hover:bg-accent/10"
 
           >
             {link.link.label}
-            <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-[#00a2e0]" />
+            <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-accent" />
           </CMSLink>
           ))}
         </div>
       ) : (
         <EmptyState label="Nu există linkuri configurate." />
+      )}
+    </DashboardPanel>
+  )
+}
+
+async function EmailAccount(props: { user?: User }) {
+  const { user } = props
+  let mails: Awaited<ReturnType<typeof readMailbox>> | undefined
+
+  if (!user?.clubMail) return null
+
+  const canOpenWebmail = Boolean(user.clubMailPassword)
+
+  if (user.clubMailPassword) {
+    mails = await readMailbox(user.clubMail, user.clubMailPassword)
+  }
+
+  return (
+    <DashboardPanel>
+      <PanelHeader
+        description="Acces rapid la contul tău de email Interact."
+        icon={<Mail className="size-5" />}
+        title="Email Interact"
+      />
+      <div className='flex flex-col items-start mt-6'>
+          <div className="rounded-full bg-sidebar/60 px-4 py-2 flex items-center gap-2">
+            <MailIcon size={12} strokeWidth={1}/>
+            <p className="break-all text-xs font-thin">{user.clubMail}</p>
+          </div>
+      
+      
+      {mails && mails.length > 0 && (
+        <div className="mt-2 flex max-w-full flex-col">
+          {mails.slice(0, 3).map((mail, index) => (
+            <div
+              className="flex max-w-full items-center gap-4 bg-sidebar border border-card rounded-sm px-4 py-2"
+              key={mail.uid ?? index}
+            >
+              <span className="max-w-[45%] shrink-0 truncate ">
+                <div className='text-xs'>{mail.date?.toLocaleString('ro-RO')}</div>
+                <div className='font-bold'>{mail.from?.match(/(?<=").*?(?=")/g)?.[0] ?? mail.from}</div>
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm">{mail.subject}</span>
+            </div>
+          ))}
+          <Link href={'/members/webmail'} className='mx-auto text-xs my-2 font-bold text-sidebar uppercase hover:underline'>Vezi Toate</Link>
+        </div>
+      )}
+      </div>
+      {canOpenWebmail ? (
+        <Link
+          className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+          href="/members/webmail"
+          rel="noreferrer"
+          target="_blank"
+        >
+          Deschide Webmail
+          <ExternalLink className="size-4" />
+        </Link>
+      ) : (
+        <EmptyState label="Contul tău de email nu este complet configurat." />
       )}
     </DashboardPanel>
   )
@@ -591,11 +654,11 @@ function SupportCard(props: { email?: string | null }) {
 
       {email ? (
         <a
-          className="mt-6 inline-flex min-h-12 items-center justify-between gap-3 rounded-md border border-border bg-sidebar/60 px-4 py-3 text-sm font-semibold transition hover:border-[#00a2e0]/50 hover:bg-[#00a2e0]/10"
+          className="mt-6 inline-flex min-h-12 items-center justify-between gap-3 rounded-md border border-border bg-sidebar/60 px-4 py-3 text-sm font-semibold transition hover:border-accent/50 hover:bg-accent/10"
           href={`mailto:${email}`}
         >
           <span className="break-all">{email}</span>
-          <Mail className="size-4 shrink-0 text-[#00a2e0]" />
+          <Mail className="size-4 shrink-0 text-accent" />
         </a>
       ) : (
         <EmptyState label="Nu există email de support configurat." />
@@ -640,7 +703,7 @@ function PanelIcon(props: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        'flex size-11 shrink-0 items-center justify-center rounded-md bg-[#00a2e0]/15 text-[#00a2e0]',
+        'flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/15 text-accent',
         className,
       )}
       {...rest}
@@ -694,7 +757,7 @@ function InfoTooltip(props: { text: string }) {
     <div className="group absolute right-5 top-5 inline-flex sm:right-6 sm:top-6">
       <button
         aria-label="Detalii despre cotizații"
-        className="inline-flex size-9 items-center justify-center rounded-md bg-transparent text-muted-foreground transition hover:text-[#00a2e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00a2e0]/50"
+        className="inline-flex size-9 items-center justify-center rounded-md bg-transparent text-muted-foreground transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         type="button"
       >
         <Info className="size-4" />

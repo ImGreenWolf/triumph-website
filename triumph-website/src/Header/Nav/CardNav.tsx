@@ -5,6 +5,7 @@ import { gsap } from 'gsap';
 import { ArrowUpRight as GoArrowUpRight } from 'lucide-react';
 import { CMSLink } from '@/components/Link';
 import { Logo } from '@/components/Logo';
+import Link from 'next/link';
 
 type CardNavLink = {
   label: string;
@@ -197,11 +198,14 @@ const CardNav: React.FC<CardNavProps> = ({
             className="logo-container flex items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 order-1 md:order-none"
             data-theme="dark"
           >
+            <Link href={'/'}>
             {logo ? (
               <img src={logo} alt={logoAlt} className="logo h-[28px]" />
             ) : (
+              
               <Logo className="logo h-[28px] w-auto" />
             )}
+            </Link>
           </div>
 
           {/* <button
@@ -212,7 +216,7 @@ const CardNav: React.FC<CardNavProps> = ({
             Get Started
           </button> */}
           <CMSLink 
-            className={`card-nav-cta-button hidden md:inline-flex border-0 rounded-[calc(0.75rem-0.2rem)] px-4 items-center h-full font-medium cursor-pointer transition-colors duration-300 bg-${buttonBgColor} text-[${buttonTextColor}]`}
+            className={`card-nav-cta-button bg-${buttonBgColor} text-[${buttonTextColor}] hidden md:inline-flex border-0 rounded-[calc(0.75rem-0.2rem)] px-4 items-center h-full font-medium cursor-pointer transition-colors duration-300 `}
             appearance={'ghost'}
             type={'custom'}
             url={buttonUrl}
@@ -228,7 +232,7 @@ const CardNav: React.FC<CardNavProps> = ({
           {(items || []).map((item, idx) => ( // add slice(0,3) to limit
             <div
               key={`${item.label}-${idx}`}
-              className="nav-card select-none relative flex flex-col gap-2 p-[12px_16px] rounded-[calc(0.75rem-0.2rem)] min-w-0 flex-[1_1_auto] h-auto min-h-[60px] md:h-full md:min-h-0 md:flex-[1_1_0%]"
+              className="nav-card select-none relative bg-${buttonBgColor} flex flex-col gap-2 p-[12px_16px] rounded-sm min-w-0 flex-[1_1_auto] h-auto min-h-[60px] md:h-full md:min-h-0 md:flex-[1_1_0%]"
               ref={setCardRef(idx)}
               style={{ backgroundColor: item.bgColor, color: item.textColor }}
               

@@ -37,7 +37,7 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({ data, links }) => {
           <Logo loading="eager" priority="high" className="invert dark:invert-0 max-w-[8em]" />
         </Link>
         <HeaderNav data={data} /> */}
-        <CardNav baseColor='#141e34cc' menuColor='var(--card-foreground)' buttonText={<UserIcon/>} buttonBgColor='background' buttonUrl='/members'
+        <CardNav baseColor='rgb(16 42 49 / 0.88)' buttonTextColor='var(--card-foreground)' menuColor='var(--card-foreground)' buttonText={<UserIcon/>} buttonBgColor='card' buttonUrl='/members'
         className=''
          items={links}/>
          {/* data.navCategory!.map(i => {return {label: i.link.label!, link: i.link.url || getHref(i.link),

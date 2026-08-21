@@ -29,7 +29,7 @@ export const FAQAccordion: React.FC<Props> = ({ items, openFirstItem }) => {
         return (
           <article
             className={cn(
-              'group overflow-hidden rounded-xl border-2 bg-card/75 text-card-foreground transition-all duration-300',
+              'group overflow-hidden rounded-xl border-2 bg-card text-card-foreground transition-all duration-300',
               isOpen
                 ? 'border-accent/60 shadow-[0_18px_48px_rgba(0,0,0,0.12)]'
                 : 'border-border hover:border-accent/35 hover:bg-card',
@@ -52,7 +52,7 @@ export const FAQAccordion: React.FC<Props> = ({ items, openFirstItem }) => {
                 </span>
                 <span
                   className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background/70 text-muted-foreground transition-all duration-300',
+                    'flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-sidebar text-muted-foreground transition-all duration-300',
                     isOpen && 'rotate-45 border-accent/40 bg-accent text-accent-foreground',
                   )}
                 >

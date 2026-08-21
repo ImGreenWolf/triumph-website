@@ -11,6 +11,11 @@ export const MediaBlock: Block = {
             required: true,
 
         },
+        {
+            name: 'enableGutter',
+            type: 'checkbox',
+            defaultValue: true
+        }
     ],
     admin: {
         images: {

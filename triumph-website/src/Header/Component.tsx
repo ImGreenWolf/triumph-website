@@ -16,7 +16,7 @@ async function fetchNav(data: HeaderType): Promise<CardNavItem[]> {
     (data.navCategory || []).map(async (item) => ({
       label: item.link.label,
       link: getHref(item.link),
-      bgColor: 'var(--background)',
+      bgColor: 'var(--card)',
       textColor: 'var(--card-foreground)',
       links: (await fetchLinks(item.collectionSlug as CollectionSlug | null, item.reference)) || [],
     })),

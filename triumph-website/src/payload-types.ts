@@ -889,6 +889,7 @@ export interface ContentBlock {
  */
 export interface MediaBlock {
   media: string | Media;
+  enableGutter?: boolean | null;
   id?: string | null;
   blockName?: string | null;
   blockType: 'mediaBlock';
@@ -2362,6 +2363,7 @@ export interface ContentBlockSelect<T extends boolean = true> {
  */
 export interface MediaBlockSelect<T extends boolean = true> {
   media?: T;
+  enableGutter?: T;
   id?: T;
   blockName?: T;
 }

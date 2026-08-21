@@ -19,7 +19,7 @@ export const FAQBlock: React.FC<FAQBlockProps> = ({
 }) => {
   return (
     <section className="container">
-      <div className="relative overflow-hidden rounded-[2rem] border border-border bg-card text-card-foreground shadow-[0_30px_100px_rgba(0,0,0,0.18)]">
+      <div className="relative overflow-hidden rounded-sm border border-border bg-card text-card-foreground shadow-[0_30px_100px_rgba(0,0,0,0.18)]">
         <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-accent/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-12 size-72 rounded-full bg-accent/10 blur-3xl" />
 

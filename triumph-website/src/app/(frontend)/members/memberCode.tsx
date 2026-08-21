@@ -38,10 +38,10 @@ export default function NextMeetingWithCode(props: NextMeetingWithCodeProps) {
         title="Următoarea întâlnire"
       />
 
-      <div className="mt-6 rounded-lg border border-[#00a2e0]/25 bg-[#00a2e0]/10 p-5">
+      <div className="mt-6 rounded-lg border border-accent/25 bg-accent/10 p-5">
         <div className='flex items-center gap-2 mb-4'>
-          <div className=" inline-flex items-center gap-2 rounded-full border border-[#00a2e0]/25 bg-sidebar/60 px-3 py-1 text-sm font-medium">
-            <Clock3 className="size-4 text-[#00a2e0]" />
+          <div className=" inline-flex items-center gap-2 rounded-full border border-accent/25 bg-sidebar/60 px-3 py-1 text-sm font-medium">
+            <Clock3 className="size-4 text-accent" />
             {nextMeeting.relativeLabel}
             
           </div>
@@ -66,9 +66,9 @@ export default function NextMeetingWithCode(props: NextMeetingWithCodeProps) {
           Vezi întâlnirea
           <ArrowRight className="size-4" />
         </Link>
-        <div className='flex justify-between grow justify-stretch'>
+        <div className='flex justify-between grow justify-stretch gap-2'>
             <button
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-4 text-xs font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-xs font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
             onClick={() => setIsCodeOpen(true)}
             type="button"
             >
@@ -134,7 +134,7 @@ function PanelHeader(props: { title: string; description?: string; icon: ReactNo
 
   return (
     <div className="flex items-start gap-4">
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-md bg-[#00a2e0]/15 text-[#00a2e0]">
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/15 text-accent">
         {icon}
       </div>
       <div>

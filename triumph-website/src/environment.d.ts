@@ -3,6 +3,8 @@ declare global {
     interface ProcessEnv {
       PAYLOAD_SECRET: string
       DATABASE_URL: string
+      CPANEL_API_URL?: string
+      CPANEL_AUTH_TOKEN?: string
       NEXT_PUBLIC_GA4_MEASUREMENT_ID?: string
       NEXT_PUBLIC_SERVER_URL: string
       VERCEL_PROJECT_PRODUCTION_URL: string
