@@ -64,15 +64,15 @@ export default function Card(props: { member: any; displayText?:boolean; mandate
           <MediaElem
             imgClassName={cn(
               'w-full aspect-[3/4] object-cover rounded-2xl',
-              'group-hover:scale-105 duration-300 ease-in-circ',
+              'duration-300 ease-in-circ',
               'select-none'
             )}
             resource={member.picture}
             src={!member.picture ? defaultProfilePicture : undefined}
           />
-
-          <div className='absolute flex items-end inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/70 to-transparent'>
-          {displayText && <div>
+          {displayText && 
+          <div className='absolute flex items-end inset-x-0 bottom-0 -mb-1 p-4 bg-gradient-to-t from-black/70 to-transparent'>
+          <div>
             
             <p
               className={cn(
@@ -100,11 +100,11 @@ export default function Card(props: { member: any; displayText?:boolean; mandate
               {member.name}
             </p>
 
-          </div>}
+          </div>
             <Arrow size={extraSmall ? 16 : small ? 20 : 35} className='opacity-70 transition-opacity group-hover:opacity-100 ml-auto' />
             
           </div>
-
+          }
           
         </div>
 
@@ -136,7 +136,7 @@ export default function Card(props: { member: any; displayText?:boolean; mandate
 
             <p
               className={cn(
-                'indent-2',
+                'indent-2 whitespace-break-spaces',
                 extraSmall ? 'text-[10px] leading-3' : small ? 'text-xs' : 'text-xs md:text-sm '
               )}
             >

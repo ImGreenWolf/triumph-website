@@ -74,7 +74,7 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
                 {/* Members Grid */}
                 <motion.main
                   className={`
-                    mx-auto grid justify-items-center gap-4
+                    mx-auto grid justify-items-center gap-2
                     perspective-midrange
                     not-sm:grid-cols-2!
                   `}
