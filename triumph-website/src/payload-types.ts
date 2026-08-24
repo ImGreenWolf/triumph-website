@@ -1357,7 +1357,7 @@ export interface SectionBlock {
     };
     [k: string]: unknown;
   } | null;
-  alignment?: ('left' | 'center') | null;
+  alignment?: ('left' | 'center' | 'right') | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */

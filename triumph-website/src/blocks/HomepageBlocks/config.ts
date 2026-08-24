@@ -45,8 +45,10 @@ export const SectionIntroBlock: Block = {
             type: 'select',
             defaultValue: 'left',
             options: [
-                { label: 'Left', value: 'left' },
-                { label: 'Center', value: 'center' },
+                { label: 'Stânga', value: 'left' },
+                { label: 'Centru', value: 'center' },
+                { label: 'Dreapta', value: 'right' },
+
             ],
         },
         slugField({useAsSlug: 'eyebrow', checkboxName: 'Use id', name: 'sectionId', required: false})
