@@ -32,12 +32,13 @@ export const VideoHero: React.FC<Page['hero']> = ({
 
   return (
     <div className="relative b-0 text-text -pt-24">
-      <div className="container mb-8 z-10 max-h-[80vh] max-w-[36.5rem] flex-col h-[75vh] overflow-hidden relative flex text-center items-center justify-center text-shadow-lg">
+      <div className="container mb-8 z-10 max-h-[100vh] max-w-[36.5rem] flex-col h-[100vh] overflow-hidden relative flex text-center items-center justify-center text-shadow-lg">
         {title && title?.inputType == 'text' ? <h1 className="text-6xl w-3/4 lg:text-[8em] lg:leading-28 text-center italic mb-8 text-primary">
           {title.text}
         </h1> :
         <Media
         resource={title?.media}
+        className='w-1/2'
         />
         }
         {richText && (
