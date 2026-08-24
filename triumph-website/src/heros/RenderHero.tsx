@@ -6,7 +6,7 @@ import { HighImpactHero } from '@/heros/HighImpact'
 import { LowImpactHero } from '@/heros/LowImpact'
 import { MediumImpactHero } from '@/heros/MediumImpact'
 import { MainHero } from '@/heros/MainHero'
-import { VideoHero } from './VideoHero'
+import { VideoHero } from '@/heros/VideoHero'
 
 const heroes = {
   highImpact: HighImpactHero,

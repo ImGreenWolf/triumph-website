@@ -1,6 +1,7 @@
 import { slugField, type Block, type Field } from 'payload'
 
 import {
+    BlocksFeature,
     FixedToolbarFeature,
     HeadingFeature,
     InlineToolbarFeature,
@@ -8,20 +9,23 @@ import {
 } from '@payloadcms/richtext-lexical'
 
 import { linkGroup } from '@/fields/linkGroup'
+import { defaultLexical } from '@/fields/defaultLexical'
 
 const richTextField = (name: string, label: false | string = false): Field => ({
     name,
     type: 'richText',
-    editor: lexicalEditor({
-        features: ({ rootFeatures }) => {
-            return [
-                ...rootFeatures,
-                HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
-                FixedToolbarFeature(),
-                InlineToolbarFeature(),
-            ]
-        },
-    }),
+    editor: defaultLexical,
+    // lexicalEditor({
+    //     features: ({ rootFeatures }) => {
+    //         return [
+    //             ...rootFeatures,
+    //             HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
+    //             FixedToolbarFeature(),
+    //             InlineToolbarFeature(),
+    //             BlocksFeature()
+    //         ]
+    //     },
+    // }),
     label,
 })
 
@@ -29,7 +33,7 @@ const introContent = richTextField('introContent', 'Intro Content')
 
 export const SectionIntroBlock: Block = {
     slug: 'sectionIntro',
-    interfaceName: 'SectionIntroBlock',
+    interfaceName: 'SectionBlock',
     fields: [
         {
             name: 'eyebrow',

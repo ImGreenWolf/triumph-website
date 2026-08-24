@@ -261,7 +261,7 @@ export interface Page {
     | TeamBlock
     | MasonryBlock
     | EventsBlock
-    | SectionIntroBlock
+    | SectionBlock
     | FeatureGridBlock
     | StatsBlock
     | SplitMediaBlock
@@ -1338,9 +1338,9 @@ export interface EventsBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "SectionIntroBlock".
+ * via the `definition` "SectionBlock".
  */
-export interface SectionIntroBlock {
+export interface SectionBlock {
   eyebrow?: string | null;
   richText?: {
     root: {
@@ -2291,7 +2291,7 @@ export interface PagesSelect<T extends boolean = true> {
         teamBlock?: T | TeamBlockSelect<T>;
         masonryBlock?: T | MasonryBlockSelect<T>;
         eventsBlock?: T | EventsBlockSelect<T>;
-        sectionIntro?: T | SectionIntroBlockSelect<T>;
+        sectionIntro?: T | SectionBlockSelect<T>;
         featureGrid?: T | FeatureGridBlockSelect<T>;
         statsBlock?: T | StatsBlockSelect<T>;
         splitMediaBlock?: T | SplitMediaBlockSelect<T>;
@@ -2456,9 +2456,9 @@ export interface EventsBlockSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "SectionIntroBlock_select".
+ * via the `definition` "SectionBlock_select".
  */
-export interface SectionIntroBlockSelect<T extends boolean = true> {
+export interface SectionBlockSelect<T extends boolean = true> {
   eyebrow?: T;
   richText?: T;
   alignment?: T;
