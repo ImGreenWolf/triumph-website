@@ -7,6 +7,7 @@ import React from 'react'
 
 import { Error } from '../Error'
 import { Width } from '../Width'
+import { fieldLabelClass, requiredClass, textareaClass } from '../styles'
 
 export const Textarea: React.FC<
   TextField & {
@@ -17,17 +18,19 @@ export const Textarea: React.FC<
 > = ({ name, defaultValue, errors, label, register, required, rows = 3, width }) => {
   return (
     <Width width={width}>
-      <Label htmlFor={name}>
+      <Label className={fieldLabelClass} htmlFor={name}>
         {label}
 
         {required && (
-          <span className="required">
+          <span className={requiredClass}>
             * <span className="sr-only">(required)</span>
           </span>
         )}
       </Label>
 
       <TextAreaComponent
+        aria-invalid={Boolean(errors[name])}
+        className={textareaClass}
         defaultValue={defaultValue}
         id={name}
         rows={rows}

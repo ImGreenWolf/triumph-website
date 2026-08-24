@@ -4,9 +4,11 @@ import React, { useId, useState } from 'react'
 import { Plus } from 'lucide-react'
 
 import { cn } from '@/utilities/ui'
+import RichText from '@/components/RichText'
+import { DefaultTypedEditorState } from '@payloadcms/richtext-lexical'
 
 type FAQItem = {
-  answer: string
+  answer: DefaultTypedEditorState
   id?: string | null
   question: string
 }
@@ -70,9 +72,10 @@ export const FAQAccordion: React.FC<Props> = ({ items, openFirstItem }) => {
               id={contentID}
             >
               <div className="overflow-hidden">
-                <p className="border-t border-border/70 px-5 py-5 pl-14 text-sm leading-7 text-muted-foreground md:px-6 md:pl-[4.65rem]">
+                {/* <p className="border-t border-border/70 px-5 py-5 pl-14 text-sm leading-7 text-muted-foreground md:px-6 md:pl-[4.65rem]">
                   {item.answer}
-                </p>
+                </p> */}
+                <RichText enableProse={false} enableGutter={false} className="link:text-accent border-t border-border/70 px-5 py-5 pl-14 text-sm leading-5 text-muted-foreground md:px-6 md:pl-[4.65rem]" data={item.answer}/>
               </div>
             </div>
           </article>

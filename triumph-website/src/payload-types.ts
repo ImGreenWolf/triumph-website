@@ -840,7 +840,7 @@ export interface CallToActionBlock {
 export interface ContentBlock {
   columns?:
     | {
-        size?: ('oneThird' | 'half' | 'twoThirds' | 'full') | null;
+        size?: ('oneThird' | 'half' | 'twoThirds' | 'twoThirdsCentered' | 'full') | null;
         richText?: {
           root: {
             type: string;
@@ -1627,7 +1627,21 @@ export interface FAQBlock {
   faqs?:
     | {
         question: string;
-        answer: string;
+        answer: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        };
         id?: string | null;
       }[]
     | null;

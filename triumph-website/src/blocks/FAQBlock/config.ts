@@ -1,10 +1,12 @@
 import type { Block, Field } from 'payload'
 
 import {
+  defaultEditorLexicalConfig,
   FixedToolbarFeature,
   HeadingFeature,
   InlineToolbarFeature,
   lexicalEditor,
+  LinkFeature,
 } from '@payloadcms/richtext-lexical'
 
 const introContent: Field = {
@@ -68,7 +70,18 @@ export const FAQBlock: Block = {
       minRows: 1,
       fields: [
         { name: 'question', type: 'text', required: true },
-        { name: 'answer', type: 'textarea', required: true },
+        { name: 'answer', type: 'richText', 
+          editor: lexicalEditor({
+            features: ({ rootFeatures }) => {
+              return [
+                ...rootFeatures,
+                HeadingFeature({ enabledHeadingSizes: ['h2', 'h3', 'h4'] }),
+                FixedToolbarFeature(),
+                InlineToolbarFeature(),
+              ]
+            },
+          }),
+          required: true },
       ],
     },
   ],

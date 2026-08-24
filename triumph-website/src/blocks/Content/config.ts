@@ -37,6 +37,10 @@ const columnFields: Field[] = [
                 value: 'twoThirds',
             },
             {
+                label: 'Two Thirds Centered',
+                value: 'twoThirdsCentered',
+            },
+            {
                 label: 'Full',
                 value: 'full',
             },

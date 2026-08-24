@@ -14,6 +14,7 @@ import { Controller } from 'react-hook-form'
 
 import { Error } from '../Error'
 import { Width } from '../Width'
+import { fieldLabelClass, requiredClass, selectTriggerClass } from '../styles'
 
 export const Select: React.FC<
   SelectField & {
@@ -23,10 +24,10 @@ export const Select: React.FC<
 > = ({ name, control, errors, label, options, required, width, defaultValue }) => {
   return (
     <Width width={width}>
-      <Label htmlFor={name}>
+      <Label className={fieldLabelClass} htmlFor={name}>
         {label}
         {required && (
-          <span className="required">
+          <span className={requiredClass}>
             * <span className="sr-only">(required)</span>
           </span>
         )}
@@ -40,7 +41,11 @@ export const Select: React.FC<
 
           return (
             <SelectComponent onValueChange={(val) => onChange(val)} value={controlledValue?.value}>
-              <SelectTrigger className="w-full" id={name}>
+              <SelectTrigger
+                aria-invalid={Boolean(errors[name])}
+                className={selectTriggerClass}
+                id={name}
+              >
                 <SelectValue placeholder={label} />
               </SelectTrigger>
               <SelectContent>

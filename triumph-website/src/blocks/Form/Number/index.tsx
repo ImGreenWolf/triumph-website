@@ -7,6 +7,7 @@ import React from 'react'
 
 import { Error } from '../Error'
 import { Width } from '../Width'
+import { fieldLabelClass, inputClass, requiredClass } from '../styles'
 export const Number: React.FC<
   TextField & {
     errors: Partial<FieldErrorsImpl>
@@ -15,16 +16,18 @@ export const Number: React.FC<
 > = ({ name, defaultValue, errors, label, register, required, width }) => {
   return (
     <Width width={width}>
-      <Label htmlFor={name}>
+      <Label className={fieldLabelClass} htmlFor={name}>
         {label}
 
         {required && (
-          <span className="required">
+          <span className={requiredClass}>
             * <span className="sr-only">(required)</span>
           </span>
         )}
       </Label>
       <Input
+        aria-invalid={Boolean(errors[name])}
+        className={inputClass}
         defaultValue={defaultValue}
         id={name}
         type="number"
