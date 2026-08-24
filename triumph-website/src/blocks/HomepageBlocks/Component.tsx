@@ -16,9 +16,9 @@ const hasMediaObject = (media: unknown) => typeof media === 'object' && media !=
 
 export const SectionIntroBlock: React.FC<SectionIntroBlockProps> = ({ alignment, eyebrow, richText, sectionId }) => {
   return (
-    <section className="container -my-8" id={sectionId ? sectionId : undefined}>
+    <section className="container mt-8" id={sectionId ? sectionId : undefined}>
       <div
-        className={cn('max-w-3xl', {
+        className={cn('max-w-container', {
           'mx-auto text-center': alignment === 'center',
         })}
       >
@@ -27,7 +27,7 @@ export const SectionIntroBlock: React.FC<SectionIntroBlockProps> = ({ alignment,
             {eyebrow}
           </p>
         )}
-        {richText && <RichText data={richText} enableGutter={false}  className='text-foreground'/>}
+        {richText && <RichText data={richText} enableGutter={false}   className='text-foreground text-justify'/>}
       </div>
     </section>
   )

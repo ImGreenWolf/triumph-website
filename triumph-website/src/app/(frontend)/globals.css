@@ -279,7 +279,7 @@ html[data-theme='light'] {
 }
 
 @utility text-outline {
-  -webkit-text-stroke: 0.01em var(--accent);
+  -webkit-text-stroke: 0.01em var(--primary);
 }
 
 @property --pm-background {
