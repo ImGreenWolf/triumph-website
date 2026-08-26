@@ -28,6 +28,7 @@ import {DownloadFilesBlock} from './DownloadBlock/Component'
 import { TimelineBlock } from './TimelineHistory/Component'
 import { ContactBlock } from './ContactBlock/Component'
 import { FAQBlock } from './FAQBlock/Component'
+import { TextLoopBlock } from './TextLoop/Component'
 
 const blockComponents: Partial<
   Record<Page['layout'][number]['blockType'], React.ComponentType<any>>
@@ -55,6 +56,7 @@ const blockComponents: Partial<
   downloadFiles: DownloadFilesBlock,
   eventTimeline: TimelineBlock,
   contactBlock: ContactBlock,
+  textLoop: TextLoopBlock
 }
 
 export const RenderBlocks: React.FC<{

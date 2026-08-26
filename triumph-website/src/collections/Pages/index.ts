@@ -34,6 +34,7 @@ import { TimelineBlock } from '@/blocks/TimelineHistory/Component'
 import { EventTimeline } from '@/blocks/TimelineHistory/config'
 import { ContactBlock } from '@/blocks/ContactBlock/config'
 import { FAQBlock } from '@/blocks/FAQBlock/config'
+import { TextLoop } from '@/blocks/TextLoop/config'
 
 export const Pages: CollectionConfig<'pages'> = {
   slug: 'pages',
@@ -115,6 +116,7 @@ export const Pages: CollectionConfig<'pages'> = {
                 DownloadFilesBlock,
                 EventTimeline,
                 ContactBlock,
+                TextLoop
               ],
               required: true,
               admin: {

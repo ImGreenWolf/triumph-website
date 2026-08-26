@@ -276,6 +276,7 @@ export interface Page {
     | DownloadFilesBlock
     | EventTimelineBlock
     | ContactBlock
+    | TextLoopBlock
   )[];
   meta?: {
     title?: string | null;
@@ -1064,6 +1065,7 @@ export interface EventRegistration {
 export interface FormBlock {
   form: string | Form;
   enableIntro?: boolean | null;
+  introMedia?: (string | null) | Media;
   introContent?: {
     root: {
       type: string;
@@ -1893,6 +1895,22 @@ export interface ContactBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TextLoopBlock".
+ */
+export interface TextLoopBlock {
+  text: string;
+  color: string;
+  textColor: string;
+  width: number;
+  fontSize: number;
+  curviness: number;
+  separator: string;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'textLoop';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "sponsors".
  */
 export interface Sponsor {
@@ -2306,6 +2324,7 @@ export interface PagesSelect<T extends boolean = true> {
         downloadFiles?: T | DownloadFilesBlockSelect<T>;
         eventTimeline?: T | EventTimelineBlockSelect<T>;
         contactBlock?: T | ContactBlockSelect<T>;
+        textLoop?: T | TextLoopBlockSelect<T>;
       };
   meta?:
     | T
@@ -2402,6 +2421,7 @@ export interface ArchiveBlockSelect<T extends boolean = true> {
 export interface FormBlockSelect<T extends boolean = true> {
   form?: T;
   enableIntro?: T;
+  introMedia?: T;
   introContent?: T;
   id?: T;
   blockName?: T;
@@ -2720,6 +2740,21 @@ export interface ContactBlockSelect<T extends boolean = true> {
   supportingLabel?: T;
   supportingTitle?: T;
   supportingText?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TextLoopBlock_select".
+ */
+export interface TextLoopBlockSelect<T extends boolean = true> {
+  text?: T;
+  color?: T;
+  textColor?: T;
+  width?: T;
+  fontSize?: T;
+  curviness?: T;
+  separator?: T;
   id?: T;
   blockName?: T;
 }

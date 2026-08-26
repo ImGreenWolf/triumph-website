@@ -181,7 +181,7 @@ export const GallerySlideshow: React.FC<GallerySlideshowProps> = ({
 
         {/* Thumbnails */}
         {showThumbnails && totalSlides > 1 && (
-          <div className="mt-2 md:mt-4 overflow-x-auto overflow-x-visible scrollbar-hiden">
+          <div className="mt-2 mb-4 md:mt-4 overflow-x-auto overflow-x-visible scrollbar-hiden">
             <div className="flex gap-2 md:gap-3 justify-center min-w-max px-4">
               {validGallery.map((media, index) => (
                 <button

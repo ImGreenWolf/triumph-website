@@ -14,7 +14,7 @@ export const ContentBlock: React.FC<ContentBlockProps> = (props) => {
     half: '6',
     oneThird: '4',
     twoThirds: '8',
-    twoThirdsCentered: '8',
+    twoThirdsCentered: '',
   }
 
   return (
@@ -28,8 +28,8 @@ export const ContentBlock: React.FC<ContentBlockProps> = (props) => {
             return (
               <div
                 className={cn(`col-span-4 lg:col-span-${colsSpanClasses[size!]}`, {
-                  'md:col-span-2': size !== 'full',
-                  // size =="" ? 'text-center' : ""
+                  'md:col-span-2': size !== 'full' && size !== "twoThirdsCentered",
+                  'not-lg:col-span-8 lg:col-start-3! lg:col-end-11! text-center': size == 'twoThirdsCentered'
                 })}
                 key={index}
               >

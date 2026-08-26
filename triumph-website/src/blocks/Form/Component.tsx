@@ -11,7 +11,8 @@ import { AlertCircle, CheckCircle2, LoaderCircle, Send } from 'lucide-react'
 
 import { fields } from './fields'
 import { getClientSideURL } from '@/utilities/getURL'
-
+import { FormBlock as FormBlockProps } from '@/payload-types'
+import { Media } from '@/components/Media'
 export type FormBlockType = {
   blockName?: string
   blockType?: 'formBlock'
@@ -22,7 +23,9 @@ export type FormBlockType = {
 
 export const FormBlock: React.FC<
   {
-    id?: string
+    id?: string,
+    introMedia: FormBlockProps['introMedia']
+
   } & FormBlockType
 > = (props) => {
   const {
@@ -30,6 +33,7 @@ export const FormBlock: React.FC<
     form: formFromProps,
     form: { id: formID, confirmationMessage, confirmationType, redirect, submitButtonLabel } = {},
     introContent,
+    introMedia
   } = props
 
   const formMethods = useForm({
@@ -125,8 +129,15 @@ export const FormBlock: React.FC<
             : 'mx-auto max-w-3xl'
         }
       >
+       
         {hasIntro && (
-          <div className="lg:sticky lg:top-28">
+          <div className="lg:sticky lg:top-28 flex flex-col gap-4">
+             {introMedia && (
+                  <Media
+                    resource={introMedia}
+                    imgClassName='rounded-lg'
+                  />
+              )}
             <RichText
               className="max-w-2xl rounded-lg border border-border bg-card/70 p-5 shadow-sm sm:p-6"
               data={introContent}

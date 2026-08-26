@@ -97,9 +97,9 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
         {/* Desktop Layout */}
         <div className="hidden lg:block relative">
           {/* Image positioned on the right */}
-          <div className="absolute right-0 bottom-0 top-0 w-5/12 py-4">
+          <div className="absolute right-0 bottom-0 top-0 w-full py-4">
             <div className="relative rounded-md overflow-hidden shadow-2xl h-full">
-              <div className="aspect-[4/5] w-full">
+              <div className=" w-full">
                 {typeof image !== 'string' && image && (
                   <Media 
                     resource={image} 
@@ -114,8 +114,8 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
           {/* Text box - overlaps from the left */}
           <div className="relative w-8/12 z-10 ">
             <div className={cn(
-              "rounded-md lg:rounded-lg",
-              "bg-primary/50 backdrop-blur-xl",
+              "",
+              "bg-background/50 backdrop-blur-lg",
               "border shadow-2xl",
               currentAccent.border
             )}>
@@ -133,7 +133,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                       Despre Organizația Noastră
                     </span>
                   </div>
-                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-secondary-foreground text-shadow-lg leading-tight">
+                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground text-shadow-lg leading-tight">
                     {title}
                   </h2>
                 </div>
@@ -263,7 +263,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
           <div className="relative -mt-32 sm:-mt-48 z-10 px-4">
             <div className={cn(
               "rounded-md",
-              "bg-foreground/70 backdrop-blur-xl",
+              "bg-background/70 backdrop-blur-xl",
               "border shadow-2xl",
               currentAccent.border
             )}>
@@ -275,10 +275,10 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                   <div className={`inline-flex items-center gap-2 ${currentAccent.light} px-3 py-1 rounded-full backdrop-blur-sm`}>
                     <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${currentAccent.bg}`} />
                     <span className={`text-xs font-semibold uppercase tracking-wider ${currentAccent.text}`}>
-                      About Us
+                      Despre Organizația Noastră
                     </span>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-secondary leading-tight">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-primary leading-tight">
                     {title}
                   </h2>
                 </div>
@@ -307,8 +307,8 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                   </div>
 
                   <div className="group/card">
-                    <div className="relative overflow-hidden p-4 sm:p-5 bg-white/90 backdrop-blur-sm rounded-md border border-[#d91b5c]/30 shadow-sm shadow-[#d91b5c]/10">
-                      <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-[#d91b5c]/10 to-transparent pointer-events-none" />
+                    <div className="relative overflow-hidden p-4 sm:p-5 bg-white/90 backdrop-blur-sm rounded-md shadow-sm shadow-[#d91b5c]/10">
+                      <div className="absolute inset-y-0 right-0 w-1/2 pointer-events-none" />
                       <div className="relative mb-3">
                         <div className="h-11 mb-2">
                           <img 

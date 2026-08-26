@@ -16,6 +16,7 @@
     "utils": "@/utilities/ui"
   },
   "registries": {
-    "@shadcnblocks": "https://shadcnblocks.com/r/{name}.json"
+    "@shadcnblocks": "https://shadcnblocks.com/r/{name}.json",
+    "@react-bits": "https://reactbits.dev/r/{name}.json"
   }
 }

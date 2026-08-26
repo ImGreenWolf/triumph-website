@@ -5,21 +5,22 @@ import type { HTMLAttributes, ReactNode } from 'react'
 import payloadConfig from '@payload-config'
 import {
   ArrowRight,
+  AtSign,
   CalendarDays,
   ClipboardCheck,
   CheckCircle2,
   CreditCard,
   ExternalLink,
   HelpCircle,
-  ImagePlus,
+  Inbox,
   Info,
+  KeyRound,
   LogOut,
   Mail,
   Megaphone,
   SettingsIcon,
   ShieldCheck,
   UserCircle,
-  MailIcon,
 } from 'lucide-react'
 import { getPayload } from 'payload'
 
@@ -49,19 +50,17 @@ import { readMailbox } from '@/collections/Users/mailUtils'
 const DEFAULT_DUES_INFO_TEXT =
   'Cotizațiile sunt calculate începând cu luna primei ședințe din mandatul curent. Luna curentă este marcată printr-un chip gol și nu este considerată restantă. Restanțele păstrează regula existentă: primele 4 luni sunt evaluate la 21 lei, apoi la 41 lei.'
 
-
-
 const roleLabels: Record<User['role'], string> = {
   aspirer: 'Membru Aspirant',
   active: 'Membru Activ',
-  "vice-president": 'Vice Președinte',
+  'vice-president': 'Vice Președinte',
   president: 'Președinte',
   'pr-director': 'PR Director',
   'hr-director': 'HR Director',
   secretary: 'Secretar',
   tresoursier: 'Trezorier',
-  "past-president": 'Past President',
-  passive: 'Membru Pasiv'
+  'past-president': 'Past President',
+  passive: 'Membru Pasiv',
 }
 
 export default async function DashboardPage() {
@@ -146,7 +145,7 @@ export default async function DashboardPage() {
             <NextMeeting member={member} />
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="grid gap-6">
             {/* <QuickLinks links={dashboard?.quickLinks} /> */}
             {/* <SupportCard email={dashboard?.supportEmail} /> */}
             <EmailAccount user={member} />
@@ -216,13 +215,13 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
             Profile
           </Link>
 
-          <Link
+          {/* <Link
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
             href="/members/gallery/upload"
           >
             <ImagePlus className="size-4" />
             Upload photos
-          </Link>
+          </Link> */}
 
           {boardRoles.includes(member.role as any) && (
             <Link
@@ -233,7 +232,6 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
               Club Admin
             </Link>
           )}
-          
 
           <Link
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-sidebar hover:text-foreground"
@@ -534,7 +532,7 @@ async function NextMeeting(props: { member: User }) {
         email: member.email,
         id: member.id,
         name: member.name,
-        role: member.role
+        role: member.role,
       }}
       attendance={attendanceDocs.docs[0]}
       nextMeeting={{
@@ -564,13 +562,15 @@ function QuickLinks(props: { links?: MembersDashboard['quickLinks'] }) {
       {links?.length ? (
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {links.map((link, index) => (
-          <CMSLink key={link.id || `${link.link.label}-${index}`} reference={link.link.reference} url={link.link.url}
+            <CMSLink
+              key={link.id || `${link.link.label}-${index}`}
+              reference={link.link.reference}
+              url={link.link.url}
               className="group flex min-h-16 items-center justify-between gap-4 rounded-md border border-border bg-sidebar/60 px-4 py-3 text-sm font-semibold transition hover:border-accent/50 hover:bg-accent/10"
-
-          >
-            {link.link.label}
-            <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-accent" />
-          </CMSLink>
+            >
+              {link.link.label}
+              <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-accent" />
+            </CMSLink>
           ))}
         </div>
       ) : (
@@ -583,60 +583,163 @@ function QuickLinks(props: { links?: MembersDashboard['quickLinks'] }) {
 async function EmailAccount(props: { user?: User }) {
   const { user } = props
   let mails: Awaited<ReturnType<typeof readMailbox>> | undefined
+  let mailboxUnavailable = false
 
   if (!user?.clubMail) return null
 
   const canOpenWebmail = Boolean(user.clubMailPassword)
 
   if (user.clubMailPassword) {
-    mails = await readMailbox(user.clubMail, user.clubMailPassword)
+    try {
+      mails = await readMailbox(user.clubMail, user.clubMailPassword)
+    } catch (_error) {
+      mailboxUnavailable = true
+    }
   }
 
+  const recentMails = mails
+    ? [...mails]
+        .sort((mailA, mailB) => {
+          const dateA = mailA.date?.getTime() ?? 0
+          const dateB = mailB.date?.getTime() ?? 0
+
+          return dateB - dateA || (mailB.uid ?? 0) - (mailA.uid ?? 0)
+        })
+        .slice(0, 3)
+    : []
+
   return (
-    <DashboardPanel>
-      <PanelHeader
-        description="Acces rapid la contul tău de email Interact."
-        icon={<Mail className="size-5" />}
-        title="Email Interact"
-      />
-      <div className='flex flex-col items-start mt-6'>
-          <div className="rounded-full bg-sidebar/60 px-4 py-2 flex items-center gap-2">
-            <MailIcon size={12} strokeWidth={1}/>
-            <p className="break-all text-xs font-thin">{user.clubMail}</p>
-          </div>
-      
-      
-      {mails && mails.length > 0 && (
-        <div className="mt-2 flex max-w-full flex-col">
-          {mails.slice(0, 3).map((mail, index) => (
-            <div
-              className="flex max-w-full items-center gap-4 bg-sidebar border border-card rounded-sm px-4 py-2"
-              key={mail.uid ?? index}
-            >
-              <span className="max-w-[45%] shrink-0 truncate ">
-                <div className='text-xs'>{mail.date?.toLocaleString('ro-RO')}</div>
-                <div className='font-bold'>{mail.from?.match(/(?<=").*?(?=")/g)?.[0] ?? mail.from}</div>
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm">{mail.subject}</span>
+    <DashboardPanel className="overflow-hidden p-0">
+      <div className="grid min-w-0 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div className="min-w-0 border-b border-white/10 p-4 sm:p-5 lg:border-b-0 lg:border-r">
+          <PanelHeader
+            description="Acces rapid la contul tău de email Interact."
+            icon={<Mail className="size-5" />}
+            title="Email Interact"
+          />
+
+          <div className="mt-6 flex min-w-0 flex-col gap-4">
+            <div className="min-w-0 rounded-md border border-white/10 bg-sidebar/45 p-4">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Adresa ta</p>
+              <div className="mt-3 flex min-w-0 items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent/15 text-accent">
+                  <AtSign className="size-4" />
+                </span>
+                <p className="min-w-0 break-all text-base font-semibold leading-6">
+                  {user.clubMail}
+                </p>
+              </div>
             </div>
-          ))}
-          <Link href={'/members/webmail'} className='mx-auto text-xs my-2 font-bold text-sidebar uppercase hover:underline'>Vezi Toate</Link>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex min-w-0 items-center gap-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-white/10 text-card-foreground">
+                  <KeyRound className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Acces</p>
+                  <p className="truncate text-sm font-semibold">
+                    {canOpenWebmail ? 'Activ' : 'Neconfigurat'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex min-w-0 items-center gap-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-white/10 text-card-foreground">
+                  <Inbox className="size-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Inbox</p>
+                  <p className="truncate text-sm font-semibold">
+                    {mailboxUnavailable ? 'Indisponibil' : `${mails?.length ?? 0} mesaje`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {canOpenWebmail ? (
+              <Link
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90 sm:w-fit"
+                href="/members/webmail"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Deschide Webmail
+                <ExternalLink className="size-4" />
+              </Link>
+            ) : (
+              <div className="rounded-md border border-dashed border-white/15 p-4 text-sm leading-6 text-muted-foreground">
+                Contul tău de email nu este complet configurat.
+              </div>
+            )}
+          </div>
         </div>
-      )}
+
+        <div className="min-w-0 bg-white/[0.03] p-4 sm:p-5">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
+                Mesaje recente
+              </p>
+              <h3 className="mt-1 text-lg font-semibold leading-tight">Inbox Interact</h3>
+            </div>
+
+            <span className="inline-flex w-fit items-center rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold text-card-foreground">
+              {mailboxUnavailable
+                ? 'Indisponibil'
+                : recentMails.length > 0
+                  ? `${recentMails.length} recente`
+                  : 'Fără mesaje'}
+            </span>
+          </div>
+
+          {recentMails.length > 0 ? (
+            <div className="mt-5 overflow-hidden rounded-md border border-white/10">
+              <div className="divide-y divide-white/10">
+                {recentMails.map((mail, index) => (
+                  <div
+                    className="grid min-w-0 gap-2 bg-sidebar/35 px-3 py-3 transition hover:bg-sidebar/55 sm:grid-cols-[minmax(8rem,13rem)_minmax(0,1fr)] sm:items-center sm:gap-4 sm:px-4"
+                    key={mail.uid ?? index}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">
+                        {formatMailSender(mail.from)}
+                      </p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {formatMailboxDate(mail.date)}
+                      </p>
+                    </div>
+                    <p className="min-w-0 truncate text-sm leading-5 text-card-foreground/85">
+                      {mail.subject || 'Fără subiect'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              className="mt-5"
+              label={
+                mailboxUnavailable
+                  ? 'Nu am putut încărca mesajele recente.'
+                  : 'Nu există mesaje recente în inbox.'
+              }
+            />
+          )}
+
+          {canOpenWebmail && (
+            <Link
+              className="mt-4 inline-flex w-fit items-center gap-2 text-xs font-bold uppercase text-accent transition hover:text-accent/80"
+              href="/members/webmail"
+              rel="noreferrer"
+              target="_blank"
+            >
+              Vezi toate mesajele
+              <ArrowRight className="size-3.5" />
+            </Link>
+          )}
+        </div>
       </div>
-      {canOpenWebmail ? (
-        <Link
-          className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-          href="/members/webmail"
-          rel="noreferrer"
-          target="_blank"
-        >
-          Deschide Webmail
-          <ExternalLink className="size-4" />
-        </Link>
-      ) : (
-        <EmptyState label="Contul tău de email nu este complet configurat." />
-      )}
     </DashboardPanel>
   )
 }
@@ -770,9 +873,14 @@ function InfoTooltip(props: { text: string }) {
   )
 }
 
-function EmptyState(props: { label: string }) {
+function EmptyState(props: { className?: string; label: string }) {
   return (
-    <div className="mt-6 rounded-md border border-dashed border-border p-5 text-sm text-muted-foreground">
+    <div
+      className={cn(
+        'mt-6 rounded-md border border-dashed border-border p-5 text-sm text-muted-foreground',
+        props.className,
+      )}
+    >
       {props.label}
     </div>
   )
@@ -797,6 +905,28 @@ function formatRelativeDay(daysRemaining: number) {
 
 function formatDate(date: string, options: Intl.DateTimeFormatOptions) {
   return new Date(date).toLocaleDateString('ro-RO', options)
+}
+
+function formatMailboxDate(date?: Date) {
+  if (!date) return 'Dată indisponibilă'
+
+  return date.toLocaleString('ro-RO', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+  })
+}
+
+function formatMailSender(from?: string) {
+  if (!from) return 'Expeditor necunoscut'
+
+  const quotedName = from.match(/"([^"]+)"/)?.[1]
+  if (quotedName) return quotedName
+
+  const withoutAddress = from.replace(/<[^>]+>/g, '').trim()
+
+  return withoutAddress || from
 }
 
 function attendanceLabel(status: AttendanceType['status']) {

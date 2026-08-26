@@ -23,6 +23,11 @@ export const FormBlock: Block = {
             label: 'Enable Intro Content',
         },
         {
+            name: "introMedia",
+            type: 'upload',
+            relationTo: 'media',
+        },
+        {
             name: 'introContent',
             type: 'richText',
             admin: {

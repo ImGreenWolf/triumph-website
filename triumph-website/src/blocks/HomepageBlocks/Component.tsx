@@ -16,12 +16,13 @@ const hasMediaObject = (media: unknown) => typeof media === 'object' && media !=
 
 export const SectionIntroBlock: React.FC<SectionIntroBlockProps> = ({ alignment, eyebrow, richText, sectionId }) => {
   return (
-    <section className="container mt-8 -mb-8" id={sectionId ? sectionId : undefined}>
+    <section className="container mt-8 -mb-16" id={sectionId ? sectionId : undefined}>
       <div
         className={cn('max-w-container', {
           'mx-auto text-center': alignment === 'center',
           'text-right': alignment === 'right',
-
+          'text-left': alignment === 'left',
+          
         })}
       >
         {eyebrow && (
@@ -29,7 +30,7 @@ export const SectionIntroBlock: React.FC<SectionIntroBlockProps> = ({ alignment,
             {eyebrow}
           </p>
         )}
-        {richText && <RichText data={richText} enableGutter={false}   className='text-foreground text-justify'/>}
+        {richText && <RichText data={richText} enableGutter={false}   className='text-foreground md:text-justify'/>}
       </div>
     </section>
   )
@@ -89,8 +90,8 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
   const payload = await getPayload({ config: payloadConfig })
   const req = await payload.find({
     collection: 'events',
-    limit: 4,
-    sort: '-createdAt',
+    limit: 5,
+    sort: '-days',
     joins: {
       registrations: {
         count: true
@@ -152,7 +153,7 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
         {hasEventList && (
           <aside
             className={cn(
-              'min-w-0 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm',
+              'min-w-0 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm h-full',
               hasGallery ? 'sm:col-span-2 lg:col-span-1' : 'sm:col-span-2 lg:col-span-2',
             )}
           >

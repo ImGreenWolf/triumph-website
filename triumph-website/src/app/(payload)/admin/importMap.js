@@ -20,6 +20,8 @@ import { YearDescription as YearDescription_6c17d94eb34d5588881b80c92bcd7dee } f
 import { default as default_be3785d49c95f6a08b6af85cb2b33774 } from '@/blocks/TeamBlock/TeamRowComponent'
 import { SlugField as SlugField_2b8867833a34864a02ddf429b0728a40 } from '@payloadcms/next/client'
 import { TextStateFeatureClient as TextStateFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { ColorCell as ColorCell_d94cdae6e85cf07b44c2b6d0fbc6664c } from '@/fields/color-picker'
+import { default as default_d94cdae6e85cf07b44c2b6d0fbc6664c } from '@/fields/color-picker'
 import { OverviewComponent as OverviewComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { MetaTitleComponent as MetaTitleComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { MetaImageComponent as MetaImageComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
@@ -41,8 +43,6 @@ import { default as default_d1196f6b805b3014f5a6ec690096f65b } from '@/component
 import { default as default_9211ed5d83bc075a4af2d632fffc50f6 } from '@/components/payload/MeetingCheckInField'
 import { default as default_00ddf2cc02ad67d8179dbcd1c6ff7a26 } from '@/components/payload/AttendanceBeforeList'
 import { default as default_3f651eb36aa5ec1af9c701d63e974a55 } from '@/components/payload/AbsenceMotivationActionsCell'
-import { ColorCell as ColorCell_d94cdae6e85cf07b44c2b6d0fbc6664c } from '@/fields/color-picker'
-import { default as default_d94cdae6e85cf07b44c2b6d0fbc6664c } from '@/fields/color-picker'
 import { default as default_280ad1110d64255743834609ee7a57ff } from '@/fields/StartTimeField'
 import { default as default_78eecb9397a77c276c7aeb4a87d8ba20 } from '@/fields/EndTimeField'
 import { default as default_d270518c8c9586eea0ec06aed051f6e4 } from '@/components/payload/EventSlotRegistrationsField'
@@ -97,6 +97,8 @@ export const importMap = {
   "@/blocks/TeamBlock/TeamRowComponent#default": default_be3785d49c95f6a08b6af85cb2b33774,
   "@payloadcms/next/client#SlugField": SlugField_2b8867833a34864a02ddf429b0728a40,
   "@payloadcms/richtext-lexical/client#TextStateFeatureClient": TextStateFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  "@/fields/color-picker#ColorCell": ColorCell_d94cdae6e85cf07b44c2b6d0fbc6664c,
+  "@/fields/color-picker#default": default_d94cdae6e85cf07b44c2b6d0fbc6664c,
   "@payloadcms/plugin-seo/client#OverviewComponent": OverviewComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@payloadcms/plugin-seo/client#MetaTitleComponent": MetaTitleComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@payloadcms/plugin-seo/client#MetaImageComponent": MetaImageComponent_a8a977ebc872c5d5ea7ee689724c0860,
@@ -118,8 +120,6 @@ export const importMap = {
   "@/components/payload/MeetingCheckInField#default": default_9211ed5d83bc075a4af2d632fffc50f6,
   "@/components/payload/AttendanceBeforeList#default": default_00ddf2cc02ad67d8179dbcd1c6ff7a26,
   "@/components/payload/AbsenceMotivationActionsCell#default": default_3f651eb36aa5ec1af9c701d63e974a55,
-  "@/fields/color-picker#ColorCell": ColorCell_d94cdae6e85cf07b44c2b6d0fbc6664c,
-  "@/fields/color-picker#default": default_d94cdae6e85cf07b44c2b6d0fbc6664c,
   "@/fields/StartTimeField#default": default_280ad1110d64255743834609ee7a57ff,
   "@/fields/EndTimeField#default": default_78eecb9397a77c276c7aeb4a87d8ba20,
   "@/components/payload/EventSlotRegistrationsField#default": default_d270518c8c9586eea0ec06aed051f6e4,
