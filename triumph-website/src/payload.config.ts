@@ -34,6 +34,7 @@ import { Mandates } from './collections/Mandates'
 import { Comissions } from './collections/Comissions'
 import { Applications } from './collections/Applications'
 import { AspirementConfig } from './globals/AspirementConfig/config'
+import { Documents } from './collections/Documents'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -140,7 +141,8 @@ export default buildConfig({
     GalleryPhotos,
     Mandates,
     Comissions,
-    Applications
+    Applications,
+    Documents
   ],
   cors: allowedOrigins,
   // Payload appends serverURL automatically during config sanitization.

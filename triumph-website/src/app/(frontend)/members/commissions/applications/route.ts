@@ -1,0 +1,853 @@
+import payloadConfig from '@payload-config'
+import { randomBytes } from 'node:crypto'
+import { getPayload, type Payload } from 'payload'
+
+import type { Application, AspirementConfig, Comission, User } from '@/payload-types'
+import {
+  buildRecruitmentEmailHTML,
+  createApplicantParameters,
+  generateInterviewScheduleToken,
+  getCommissionLabel,
+  getInterviewScheduleURL,
+  renderRecruitmentMessage,
+  type RecruitmentApplication,
+} from '@/utilities/aspirementRecruitment'
+import { isBoardMember } from '@/utilities/membersAccess'
+
+type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
+  aspirerUser?: string | User | null
+  coordonatorReviewChecks?: (string | User)[] | null
+  finalMailSentAt?: string | null
+  finalMailSentBy?: string | User | null
+  interviewMailSentAt?: string | null
+  interviewMailSentBy?: string | User | null
+  interviewNotes?:
+    | {
+        author: string | User
+        createdAt: string
+        id?: string | null
+        note: string
+      }[]
+    | null
+  interviewScheduleToken?: string | null
+  interviewScheduleTokenCreatedAt?: string | null
+}
+
+type ExtendedApplication = Application & {
+  reviewProcess?: ExtendedReviewProcess
+}
+
+type ExtendedCommission = Comission & {
+  recruitmentReviews?:
+    | {
+        confirmedAt: string
+        coordinator: string | User
+        id?: string | null
+      }[]
+    | null
+}
+
+type ApplicationStatus = NonNullable<NonNullable<Application['reviewProcess']>['status']>
+
+const reviewStatuses = new Set<ApplicationStatus>(['coordonator-review', 'submission-rejected'])
+const finalMailStatuses = new Set<ApplicationStatus>(['interview-passed', 'interview-rejected'])
+const finalStatuses = new Set<ApplicationStatus>([
+  'interview-passed',
+  'interview-rejected',
+  'absent',
+  'interviewed',
+])
+
+type MailBatchResult = {
+  failed: number
+  failures: {
+    email: string
+    id: string
+    message: string
+    name: string
+  }[]
+  sent: number
+  skipped: number
+  warnings: string[]
+}
+
+export async function PATCH(request: Request) {
+  const payload = await getPayload({ config: payloadConfig })
+  const authentication = await authenticateRequest(request, payload)
+  if ('response' in authentication) return authentication.response
+
+  let input: unknown
+
+  try {
+    input = await request.json()
+  } catch {
+    return Response.json({ message: 'Datele trimise nu sunt valide.' }, { status: 400 })
+  }
+
+  const body = input as Record<string, unknown>
+  const action = normalizeText(body.action)
+  const user = authentication.user
+
+  try {
+    if (action === 'review-submission') {
+      return await reviewSubmission({ body, payload, user })
+    }
+
+    if (action === 'toggle-known') {
+      return await toggleKnownApplicant({ body, payload, user })
+    }
+
+    if (action === 'confirm-review') {
+      return await confirmCoordinatorReview({ body, payload, user })
+    }
+
+    if (action === 'assign-candidate') {
+      return await assignCandidate({ body, payload, user })
+    }
+
+    if (action === 'add-note') {
+      return await addInterviewNote({ body, payload, user })
+    }
+
+    if (action === 'final-decision') {
+      return await finalDecision({ body, payload, user })
+    }
+
+    if (action === 'send-interview-mails') {
+      return await sendInterviewMails({ payload, request, user })
+    }
+
+    if (action === 'send-final-mails') {
+      return await sendFinalMails({ payload, user })
+    }
+
+    return Response.json({ message: 'Actiune necunoscuta.' }, { status: 400 })
+  } catch (error) {
+    return Response.json(
+      {
+        message: error instanceof Error ? error.message : 'Actiunea nu a putut fi salvata.',
+      },
+      { status: getErrorStatus(error) },
+    )
+  }
+}
+
+async function reviewSubmission(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  requireBoard(args.user)
+
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+  const status = normalizeText(args.body.status)
+
+  if (!isReviewStatus(status)) {
+    return Response.json({ message: 'Selecteaza un status valid.' }, { status: 400 })
+  }
+
+  const updated = await updateApplicationReview(args.payload, application, {
+    notes: normalizeOptionalText(args.body.notes) ?? application.reviewProcess?.notes,
+    status,
+  })
+
+  return Response.json({ application: serializeApplicationUpdate(updated) })
+}
+
+async function toggleKnownApplicant(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  const coordinatesCommission = await userCoordinatesAnyCommission(args.payload, args.user)
+
+  if (!coordinatesCommission) {
+    return Response.json(
+      { message: 'Doar coordonatorii pot marca aplicanti cunoscuti.' },
+      { status: 403 },
+    )
+  }
+
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+
+  if (application.reviewProcess?.status !== 'coordonator-review') {
+    return Response.json(
+      { message: 'Candidatul nu este in etapa de verificare a coordonatorilor.' },
+      { status: 409 },
+    )
+  }
+
+  const currentIDs = new Set(
+    (application.reviewProcess.coordonatorIncompatability ?? [])
+      .map(getRelationshipID)
+      .filter(Boolean),
+  )
+  const reviewedIDs = new Set(
+    (application.reviewProcess.coordonatorReviewChecks ?? [])
+      .map(getRelationshipID)
+      .filter(Boolean),
+  )
+  const known = args.body.known === true
+
+  if (known) currentIDs.add(args.user.id)
+  else currentIDs.delete(args.user.id)
+  reviewedIDs.add(args.user.id)
+
+  const updated = await updateApplicationReview(args.payload, application, {
+    coordonatorIncompatability: [...currentIDs],
+    coordonatorReviewChecks: [...reviewedIDs],
+  })
+
+  return Response.json({
+    application: {
+      id: updated.id,
+      knownCoordinatorIds: getKnownCoordinatorIDs(updated),
+      reviewedCoordinatorIds: getReviewedCoordinatorIDs(updated),
+    },
+  })
+}
+
+async function confirmCoordinatorReview(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  const commission = await getCommission(args.payload, normalizeText(args.body.commissionId))
+
+  if (!isCommissionCoordinator(commission, args.user)) {
+    return Response.json(
+      { message: 'Nu poti confirma verificarea pentru aceasta comisie.' },
+      { status: 403 },
+    )
+  }
+
+  await requireAllCoordinatorReviewApplicantsChecked(args.payload, args.user)
+
+  const reviews = (commission.recruitmentReviews ?? []).filter(
+    (review) => getRelationshipID(review.coordinator) !== args.user.id,
+  )
+  reviews.push({
+    confirmedAt: new Date().toISOString(),
+    coordinator: args.user.id,
+  })
+
+  const updated = (await args.payload.update({
+    collection: 'comissions',
+    data: {
+      recruitmentReviews: reviews,
+    },
+    id: commission.id,
+    overrideAccess: true,
+  })) as ExtendedCommission
+
+  return Response.json({
+    commission: {
+      id: updated.id,
+      recruitmentReviews: (updated.recruitmentReviews ?? []).map((review) => ({
+        confirmedAt: review.confirmedAt,
+        coordinatorId: getRelationshipID(review.coordinator),
+      })),
+    },
+  })
+}
+
+async function assignCandidate(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  requireHR(args.user)
+
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+  const commission = await getCommission(args.payload, normalizeText(args.body.commissionId))
+  const interviewDate = normalizeDateInput(args.body.interviewDate)
+
+  const updated = await updateApplicationReview(args.payload, application, {
+    comission: commission.id,
+    interviewDate,
+    status: 'interview',
+  })
+
+  return Response.json({ application: serializeApplicationUpdate(updated) })
+}
+
+async function addInterviewNote(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+  const commission = await getApplicationCommission(args.payload, application)
+
+  if (!canManageAssignedApplication(commission, args.user)) {
+    return Response.json(
+      { message: 'Nu ai permisiunea de a nota acest candidat.' },
+      { status: 403 },
+    )
+  }
+
+  const note = normalizeText(args.body.note)
+  if (!note || note.length > 2000) {
+    return Response.json(
+      { message: 'Nota trebuie sa aiba intre 1 si 2000 caractere.' },
+      { status: 400 },
+    )
+  }
+
+  const updated = await updateApplicationReview(args.payload, application, {
+    interviewNotes: [
+      ...(application.reviewProcess?.interviewNotes ?? []),
+      {
+        author: args.user.id,
+        createdAt: new Date().toISOString(),
+        note,
+      },
+    ],
+  })
+
+  return Response.json({ application: serializeApplicationUpdate(updated) })
+}
+
+async function finalDecision(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+  const commission = await getApplicationCommission(args.payload, application)
+
+  if (!canManageAssignedApplication(commission, args.user)) {
+    return Response.json(
+      { message: 'Nu ai permisiunea de a decide pentru acest candidat.' },
+      { status: 403 },
+    )
+  }
+
+  const status = normalizeText(args.body.status)
+  if (!isFinalStatus(status)) {
+    return Response.json({ message: 'Selecteaza o decizie valida.' }, { status: 400 })
+  }
+
+  const updated = await updateApplicationReview(args.payload, application, {
+    status,
+  })
+
+  return Response.json({
+    application: serializeApplicationUpdate(updated),
+  })
+}
+
+async function sendInterviewMails(args: { payload: Payload; request: Request; user: User }) {
+  requireBoard(args.user)
+
+  const config = (await args.payload.findGlobal({
+    slug: 'aspirementConfig',
+    depth: 0,
+    overrideAccess: true,
+  })) as AspirementConfig
+  const applications = await findApplicationsForMailBatch(args.payload, {
+    status: 'interview',
+  })
+  const pending = applications.filter(
+    (application) => !application.reviewProcess?.interviewMailSentAt,
+  )
+  const result = createMailBatchResult(applications.length - pending.length)
+
+  for (const application of pending) {
+    try {
+      const prepared = await ensureApplicationScheduleToken(args.payload, application)
+      const token = prepared.reviewProcess?.interviewScheduleToken
+      if (!token) throw new Error('Nu s-a putut genera linkul de programare.')
+
+      const scheduleLink = getInterviewScheduleURL(token, args.request)
+      const message = renderRecruitmentMessage({
+        fallback:
+          'Ai fost acceptat pentru etapa de interview. Te rugam sa iti alegi un interval pentru programare.',
+        message: config.recruitment?.['review-accepted-message'],
+        parameters: createApplicantParameters({
+          application: prepared,
+          commissionLabel: getCommissionLabel(prepared.reviewProcess?.comission),
+          scheduleLink,
+        }),
+      })
+
+      await args.payload.sendEmail({
+        html: buildRecruitmentEmailHTML({
+          cta: {
+            href: scheduleLink,
+            label: 'Programeaza interview-ul',
+          },
+          messageHTML: message.html,
+          preheader: 'Ai fost acceptat pentru etapa de interview.',
+          title: 'Invitatie la interview',
+        }),
+        subject: 'Invitatie la interview | Interact Bucuresti Triumph',
+        text: `${message.text}\n\nProgramare: ${scheduleLink}`,
+        to: prepared.email,
+      })
+
+      await updateApplicationReview(args.payload, prepared, {
+        interviewMailSentAt: new Date().toISOString(),
+        interviewMailSentBy: args.user.id,
+      })
+
+      result.sent += 1
+      addPlaceholderWarnings(result, prepared, message.unresolvedPlaceholders)
+    } catch (error) {
+      result.failed += 1
+      result.failures.push({
+        email: application.email,
+        id: application.id,
+        message: error instanceof Error ? error.message : 'Emailul nu a putut fi trimis.',
+        name: application.name,
+      })
+    }
+  }
+
+  return Response.json({ mailBatch: result })
+}
+
+async function sendFinalMails(args: { payload: Payload; user: User }) {
+  requireBoard(args.user)
+
+  const config = (await args.payload.findGlobal({
+    slug: 'aspirementConfig',
+    depth: 0,
+    overrideAccess: true,
+  })) as AspirementConfig
+  const applications = await findApplicationsForMailBatch(args.payload, {
+    status: ['interview-passed', 'interview-rejected'],
+  })
+  const pending = applications.filter((application) => !application.reviewProcess?.finalMailSentAt)
+  const result = createMailBatchResult(applications.length - pending.length)
+
+  for (const application of pending) {
+    try {
+      const accepted = application.reviewProcess?.status === 'interview-passed'
+      const message = renderRecruitmentMessage({
+        fallback: accepted
+          ? 'Felicitari, ai fost acceptat ca aspirant.'
+          : 'Iti multumim pentru participarea la interview. Din pacate, nu ai fost acceptat mai departe.',
+        message: accepted
+          ? config.recruitment?.['interview-accepted-message']
+          : config.recruitment?.['interview-rejected-message'],
+        parameters: createApplicantParameters({
+          application,
+          commissionLabel: getCommissionLabel(application.reviewProcess?.comission),
+        }),
+      })
+
+      await args.payload.sendEmail({
+        html: buildRecruitmentEmailHTML({
+          messageHTML: message.html,
+          preheader: 'Rezultatul interview-ului tau este disponibil.',
+          title: 'Rezultat interview',
+        }),
+        subject: 'Rezultat interview | Interact Bucuresti Triumph',
+        text: message.text,
+        to: application.email,
+      })
+
+      let aspirerUserId = getRelationshipID(application.reviewProcess?.aspirerUser)
+
+      if (accepted) {
+        const commission = await getApplicationCommission(args.payload, application)
+        const aspirerUser = await ensureAspirerUser({
+          application,
+          commission,
+          payload: args.payload,
+        })
+        aspirerUserId = aspirerUser.id
+
+        try {
+          await args.payload.forgotPassword({
+            collection: 'users',
+            data: { email: aspirerUser.email },
+            overrideAccess: true,
+          })
+        } catch (error) {
+          result.warnings.push(
+            `${application.name}: emailul de setare parola nu a putut fi trimis (${
+              error instanceof Error ? error.message : 'eroare necunoscuta'
+            }).`,
+          )
+        }
+      }
+
+      await updateApplicationReview(args.payload, application, {
+        aspirerUser: aspirerUserId || undefined,
+        finalMailSentAt: new Date().toISOString(),
+        finalMailSentBy: args.user.id,
+      })
+
+      result.sent += 1
+      addPlaceholderWarnings(result, application, message.unresolvedPlaceholders)
+    } catch (error) {
+      result.failed += 1
+      result.failures.push({
+        email: application.email,
+        id: application.id,
+        message: error instanceof Error ? error.message : 'Emailul nu a putut fi trimis.',
+        name: application.name,
+      })
+    }
+  }
+
+  return Response.json({ mailBatch: result })
+}
+
+async function ensureAspirerUser(args: {
+  application: ExtendedApplication
+  commission: ExtendedCommission
+  payload: Payload
+}) {
+  const email = args.application.email.trim().toLocaleLowerCase('ro')
+  const existing = await args.payload.find({
+    collection: 'users',
+    depth: 0,
+    limit: 1,
+    overrideAccess: true,
+    pagination: false,
+    where: {
+      email: {
+        equals: email,
+      },
+    },
+  })
+  const user =
+    (existing.docs[0] as User | undefined) ??
+    ((await args.payload.create({
+      collection: 'users',
+      data: {
+        email,
+        joinedAt: new Date().toISOString(),
+        name: args.application.name,
+        password: generateTemporaryPassword(),
+        role: 'aspirer',
+      },
+      overrideAccess: true,
+    })) as User)
+
+  const aspirerIDs = new Set(
+    (args.commission.aspirers ?? []).map(getRelationshipID).filter(Boolean),
+  )
+  aspirerIDs.add(user.id)
+
+  await args.payload.update({
+    collection: 'comissions',
+    data: {
+      aspirers: [...aspirerIDs],
+    },
+    id: args.commission.id,
+    overrideAccess: true,
+  })
+
+  return user
+}
+
+async function getApplication(payload: Payload, id: string) {
+  if (!id) throw Object.assign(new Error('Selecteaza un candidat valid.'), { status: 400 })
+
+  try {
+    return (await payload.findByID({
+      collection: 'applications',
+      depth: 0,
+      id,
+      overrideAccess: true,
+    })) as ExtendedApplication
+  } catch {
+    throw Object.assign(new Error('Candidatul nu a fost gasit.'), { status: 404 })
+  }
+}
+
+async function getCommission(payload: Payload, id: string) {
+  if (!id) throw Object.assign(new Error('Selecteaza o comisie valida.'), { status: 400 })
+
+  try {
+    return (await payload.findByID({
+      collection: 'comissions',
+      depth: 0,
+      id,
+      overrideAccess: true,
+    })) as ExtendedCommission
+  } catch {
+    throw Object.assign(new Error('Comisia nu a fost gasita.'), { status: 404 })
+  }
+}
+
+async function getApplicationCommission(payload: Payload, application: ExtendedApplication) {
+  const commissionID = getRelationshipID(application.reviewProcess?.comission)
+  if (!commissionID)
+    throw Object.assign(new Error('Candidatul nu este asignat unei comisii.'), { status: 400 })
+
+  return getCommission(payload, commissionID)
+}
+
+async function updateApplicationReview(
+  payload: Payload,
+  application: ExtendedApplication,
+  data: Partial<ExtendedReviewProcess>,
+) {
+  return (await payload.update({
+    collection: 'applications',
+    data: {
+      reviewProcess: {
+        ...(application.reviewProcess ?? {}),
+        ...data,
+      },
+    },
+    id: application.id,
+    overrideAccess: true,
+  })) as ExtendedApplication
+}
+
+async function findApplicationsForMailBatch(
+  payload: Payload,
+  args: { status: ApplicationStatus | ApplicationStatus[] },
+) {
+  const result = await payload.find({
+    collection: 'applications',
+    depth: 2,
+    limit: 0,
+    overrideAccess: true,
+    pagination: false,
+    sort: '-createdAt',
+    where: {
+      'reviewProcess.status': Array.isArray(args.status)
+        ? {
+            in: args.status,
+          }
+        : {
+            equals: args.status,
+          },
+    },
+  })
+
+  return result.docs.filter(isRecruitmentApplication)
+}
+
+async function ensureApplicationScheduleToken(
+  payload: Payload,
+  application: RecruitmentApplication,
+) {
+  if (application.reviewProcess?.interviewScheduleToken) return application
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const token = generateInterviewScheduleToken()
+    const existing = await payload.find({
+      collection: 'applications',
+      depth: 0,
+      limit: 1,
+      overrideAccess: true,
+      pagination: false,
+      where: {
+        'reviewProcess.interviewScheduleToken': {
+          equals: token,
+        },
+      },
+    })
+
+    if (existing.docs.length > 0) continue
+
+    return (await updateApplicationReview(payload, application, {
+      interviewScheduleToken: token,
+      interviewScheduleTokenCreatedAt: new Date().toISOString(),
+    })) as RecruitmentApplication
+  }
+
+  throw new Error('Nu s-a putut genera un token unic de programare.')
+}
+
+function createMailBatchResult(skipped: number): MailBatchResult {
+  return {
+    failed: 0,
+    failures: [],
+    sent: 0,
+    skipped,
+    warnings: [],
+  }
+}
+
+function addPlaceholderWarnings(
+  result: MailBatchResult,
+  application: Pick<Application, 'email' | 'name'>,
+  placeholders: string[],
+) {
+  if (placeholders.length === 0) return
+
+  result.warnings.push(
+    `${application.name} (${application.email}): placeholders fara valoare: ${placeholders.join(', ')}.`,
+  )
+}
+
+async function authenticateRequest(request: Request, payload: Payload) {
+  if (request.headers.get('sec-fetch-site') === 'cross-site') {
+    return { response: Response.json({ message: 'Cerere nepermisa.' }, { status: 403 }) }
+  }
+
+  const authHeaders = new Headers(request.headers)
+  authHeaders.delete('origin')
+  if (!authHeaders.has('sec-fetch-site')) {
+    authHeaders.set('sec-fetch-site', 'same-origin')
+  }
+
+  const auth = await payload.auth({ headers: authHeaders })
+
+  if (!auth.user) {
+    return {
+      response: Response.json(
+        { message: 'Sesiunea a expirat. Autentifica-te din nou.' },
+        { status: 401 },
+      ),
+    }
+  }
+
+  return { user: auth.user as User }
+}
+
+async function userCoordinatesAnyCommission(payload: Payload, user: User) {
+  const result = await payload.find({
+    collection: 'comissions',
+    depth: 0,
+    limit: 1,
+    overrideAccess: true,
+    pagination: false,
+    where: {
+      coordinators: {
+        contains: user.id,
+      },
+    },
+  })
+
+  return result.docs.length > 0
+}
+
+async function requireAllCoordinatorReviewApplicantsChecked(payload: Payload, user: User) {
+  const result = await payload.find({
+    collection: 'applications',
+    depth: 0,
+    limit: 0,
+    overrideAccess: true,
+    pagination: false,
+    where: {
+      'reviewProcess.status': {
+        equals: 'coordonator-review',
+      },
+    },
+  })
+  const uncheckedCount = (result.docs as ExtendedApplication[]).filter(
+    (application) => !getReviewedCoordinatorIDs(application).includes(user.id),
+  ).length
+
+  if (uncheckedCount > 0) {
+    throw Object.assign(new Error(`Mai ai ${uncheckedCount} aplicanti fara o optiune selectata.`), {
+      status: 409,
+    })
+  }
+}
+
+function canManageAssignedApplication(commission: ExtendedCommission, user: User) {
+  return isBoardMember(user) || isCommissionCoordinator(commission, user)
+}
+
+function isCommissionCoordinator(commission: ExtendedCommission, user: User) {
+  return (commission.coordinators ?? []).some(
+    (coordinator) => getRelationshipID(coordinator) === user.id,
+  )
+}
+
+function requireBoard(user: User) {
+  if (!isBoardMember(user)) {
+    throw Object.assign(new Error('Doar boardul poate face aceasta actiune.'), { status: 403 })
+  }
+}
+
+function requireHR(user: User) {
+  if (user.role !== 'hr-director') {
+    throw Object.assign(new Error('Doar HR poate asigna candidati la comisii.'), { status: 403 })
+  }
+}
+
+function isReviewStatus(value: string): value is ApplicationStatus {
+  return reviewStatuses.has(value as ApplicationStatus)
+}
+
+function isFinalStatus(value: string): value is ApplicationStatus {
+  return finalStatuses.has(value as ApplicationStatus)
+}
+
+function isRecruitmentApplication(application: Application): application is RecruitmentApplication {
+  const status = application.reviewProcess?.status
+  return status === 'interview' || (status ? finalMailStatuses.has(status) : false)
+}
+
+function serializeApplicationUpdate(application: ExtendedApplication) {
+  return {
+    aspirerUserId: getRelationshipID(application.reviewProcess?.aspirerUser),
+    commissionId: getRelationshipID(application.reviewProcess?.comission),
+    finalMailSentAt: application.reviewProcess?.finalMailSentAt ?? null,
+    id: application.id,
+    interviewDate: application.reviewProcess?.interviewDate ?? null,
+    interviewMailSentAt: application.reviewProcess?.interviewMailSentAt ?? null,
+    interviewNotes: (application.reviewProcess?.interviewNotes ?? []).map((note) => ({
+      authorId: getRelationshipID(note.author),
+      createdAt: note.createdAt,
+      id: note.id ?? `${getRelationshipID(note.author)}-${note.createdAt}`,
+      note: note.note,
+    })),
+    knownCoordinatorIds: getKnownCoordinatorIDs(application),
+    notes: application.reviewProcess?.notes ?? '',
+    reviewedCoordinatorIds: getReviewedCoordinatorIDs(application),
+    status: application.reviewProcess?.status ?? 'submitted',
+  }
+}
+
+function getKnownCoordinatorIDs(application: ExtendedApplication) {
+  return (application.reviewProcess?.coordonatorIncompatability ?? [])
+    .map(getRelationshipID)
+    .filter(Boolean)
+}
+
+function getReviewedCoordinatorIDs(application: ExtendedApplication) {
+  return (application.reviewProcess?.coordonatorReviewChecks ?? [])
+    .map(getRelationshipID)
+    .filter(Boolean)
+}
+
+function getRelationshipID(value: unknown) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && 'id' in value && typeof value.id === 'string') return value.id
+  return ''
+}
+
+function normalizeText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function normalizeOptionalText(value: unknown) {
+  const text = normalizeText(value)
+  return text || undefined
+}
+
+function normalizeDateInput(value: unknown) {
+  const text = normalizeText(value)
+  if (!text) return null
+
+  const date = new Date(text)
+  if (Number.isNaN(date.getTime())) {
+    throw Object.assign(new Error('Data interviului nu este valida.'), { status: 400 })
+  }
+
+  return date.toISOString()
+}
+
+function generateTemporaryPassword() {
+  return randomBytes(18).toString('base64url')
+}
+
+function getErrorStatus(error: unknown) {
+  if (!error || typeof error !== 'object' || !('status' in error)) return 400
+  const status = Number(error.status)
+  return Number.isInteger(status) && status >= 400 && status < 600 ? status : 400
+}

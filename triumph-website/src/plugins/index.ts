@@ -62,7 +62,7 @@ export const plugins: Plugin[] = [
     generateURL,
   }),
   formBuilderPlugin({
-    uploadCollections: ['media'],
+    uploadCollections: ['media', 'documents'],
     fields: {
       payment: false,
       upload: true,

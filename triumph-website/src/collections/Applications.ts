@@ -1,106 +1,180 @@
-import type { CollectionConfig, GlobalConfig } from 'payload'
-import { anyone } from '../access/anyone'
-import { authenticated } from '../access/authenticated'
-import { hasBoardRole, isBoardMember } from '@/utilities/membersAccess'
-
+import type { CollectionConfig } from 'payload'
+import { hasBoardRole } from '@/utilities/membersAccess'
 
 export const Applications: CollectionConfig = {
-    slug: 'applications',
-    access: {
+  slug: 'applications',
+  access: {
     read: hasBoardRole,
     update: hasBoardRole,
-    },
-    admin: {
-        useAsTitle: 'name',
-        group: "Projects",
-    },
-    fields: [
+  },
+  admin: {
+    useAsTitle: 'name',
+    group: 'Projects',
+  },
+  fields: [
     {
-        type: 'collapsible',
-        label: 'Applicant Info',
-        fields: [
-            {
-                name: 'name',
-                type: 'text',
-                required: true
-            },
-            {
-                name: 'email',
-                type: 'email',
-                required: true
-            },
-            {
-                name: 'formSubmission',
-                type: 'relationship',
-                relationTo: 'form-submissions',
-                required: true
-            }
-        ]
+      type: 'collapsible',
+      label: 'Applicant Info',
+      fields: [
+        {
+          name: 'name',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'email',
+          type: 'email',
+          required: true,
+        },
+        {
+          name: 'formSubmission',
+          type: 'relationship',
+          relationTo: 'form-submissions',
+          required: true,
+        },
+      ],
     },
     {
-        name: 'reviewProcess',
-        type: 'group',
-        fields: [
+      name: 'reviewProcess',
+      type: 'group',
+      fields: [
+        {
+          name: 'notes',
+          type: 'textarea',
+        },
+        {
+          name: 'comission',
+          type: 'relationship',
+          relationTo: 'comissions',
+        },
+        {
+          name: 'interviewDate',
+          type: 'date',
+        },
+        {
+          name: 'interviewScheduleToken',
+          type: 'text',
+          admin: {
+            readOnly: true,
+          },
+          index: true,
+        },
+        {
+          name: 'interviewScheduleTokenCreatedAt',
+          type: 'date',
+          admin: {
+            readOnly: true,
+          },
+        },
+        {
+          name: 'interviewMailSentAt',
+          type: 'date',
+          admin: {
+            readOnly: true,
+          },
+        },
+        {
+          name: 'interviewMailSentBy',
+          type: 'relationship',
+          relationTo: 'users',
+          admin: {
+            readOnly: true,
+          },
+        },
+        {
+          name: 'finalMailSentAt',
+          type: 'date',
+          admin: {
+            readOnly: true,
+          },
+        },
+        {
+          name: 'finalMailSentBy',
+          type: 'relationship',
+          relationTo: 'users',
+          admin: {
+            readOnly: true,
+          },
+        },
+        {
+          name: 'interviewNotes',
+          type: 'array',
+          fields: [
             {
-                name: 'notes',
-                type: 'textarea'
+              name: 'author',
+              type: 'relationship',
+              relationTo: 'users',
+              required: true,
             },
             {
-                name: 'comission',
-                type: 'relationship',
-                relationTo: 'comissions'
+              name: 'note',
+              type: 'textarea',
+              required: true,
             },
             {
-                name: 'interviewDate',
-                type: 'date',
+              name: 'createdAt',
+              type: 'date',
+              required: true,
+            },
+          ],
+        },
+        {
+          name: 'coordonatorIncompatability',
+          type: 'relationship',
+          relationTo: 'users',
+          hasMany: true,
+        },
+        {
+          name: 'coordonatorReviewChecks',
+          type: 'relationship',
+          relationTo: 'users',
+          hasMany: true,
+        },
+        {
+          name: 'aspirerUser',
+          type: 'relationship',
+          relationTo: 'users',
+        },
+        {
+          name: 'status',
+          type: 'select',
+          defaultValue: 'submitted',
+          options: [
+            {
+              value: 'submitted',
+              label: 'Neverificat',
             },
             {
-                name: 'coordonatorIncompatability',
-                type: 'relationship',
-                relationTo: 'users',
-                hasMany: true
+              value: 'coordonator-review',
+              label: 'Se asteapta verificarea Coordonatorilor',
             },
             {
-                name: 'status',
-                type: 'select',
-                defaultValue: 'submitted',
-                options: [
-                    {
-                        value: 'submitted',
-                        label: 'Neverificat'
-                    },
-                    {
-                        value: 'coordonator-review',
-                        label: 'Se asteapta verificarea Coordonatorilor'
-                    },
-                    {
-                        value: 'submission-rejected',
-                        label: 'Formular Respins'
-                    },
-                    {
-                        value: 'interview',
-                        label: 'Acceptat pentru Interview'
-                    },
-                    {
-                        value: 'interviewed',
-                        label: 'Se asteapta decizia Coordonatorilor'
-                    },
-                    {
-                        value: 'absent',
-                        label: 'Absent la Interview'
-                    },
-                    {
-                        value: 'interview-passed',
-                        label: 'Acceptat ca aspirant'
-                    },
-                    {
-                        value: 'interview-rejected',
-                        label: 'Respins ca aspirant'
-                    }
-                ]
-            }
-        ]
-    }
-    
-    ]
+              value: 'submission-rejected',
+              label: 'Formular Respins',
+            },
+            {
+              value: 'interview',
+              label: 'Acceptat pentru Interview',
+            },
+            {
+              value: 'interviewed',
+              label: 'Se asteapta decizia Coordonatorilor',
+            },
+            {
+              value: 'absent',
+              label: 'Absent la Interview',
+            },
+            {
+              value: 'interview-passed',
+              label: 'Acceptat ca aspirant',
+            },
+            {
+              value: 'interview-rejected',
+              label: 'Respins ca aspirant',
+            },
+          ],
+        },
+      ],
+    },
+  ],
 }

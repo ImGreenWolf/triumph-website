@@ -6,6 +6,7 @@ import payloadConfig from '@payload-config'
 import {
   ArrowRight,
   AtSign,
+  BriefcaseBusiness,
   CalendarDays,
   ClipboardCheck,
   CheckCircle2,
@@ -44,7 +45,7 @@ import PageClient from './page.client'
 import TimelineDots from './TimelineDots'
 import { CMSLink } from '@/components/Link'
 import NextMeetingWithCode from './memberCode'
-import { boardRoles } from '@/utilities/membersAccess'
+import { boardRoles, isBoardMember } from '@/utilities/membersAccess'
 import { readMailbox } from '@/collections/Users/mailUtils'
 
 const DEFAULT_DUES_INFO_TEXT =
@@ -101,6 +102,21 @@ export default async function DashboardPage() {
       },
     },
   })
+  const hasBoardAccess = isBoardMember(member)
+  const managedCommissions = await payload.find({
+    collection: 'comissions',
+    depth: 0,
+    limit: 1,
+    overrideAccess: true,
+    where: hasBoardAccess
+      ? undefined
+      : {
+          coordinators: {
+            contains: member.id,
+          },
+        },
+  })
+
   return (
     <div className="halftone-background min-h-screen bg-background text-foreground">
       <PageClient />
@@ -136,7 +152,11 @@ export default async function DashboardPage() {
           />
         )}
 
-        <MemberSummary hasManagedEvents={managedEvents.totalDocs > 0} member={member} />
+        <MemberSummary
+          hasManagedCommissions={hasBoardAccess || managedCommissions.totalDocs > 0}
+          hasManagedEvents={managedEvents.totalDocs > 0}
+          member={member}
+        />
 
         <div className="grid gap-4">
           <div className="grid gap-4 lg:auto-rows-fr lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_420px]">
@@ -178,8 +198,12 @@ function Announcement(props: { title?: string | null; message?: string | null })
   )
 }
 
-function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
-  const { hasManagedEvents, member } = props
+function MemberSummary(props: {
+  hasManagedCommissions: boolean
+  hasManagedEvents: boolean
+  member: User
+}) {
+  const { hasManagedCommissions, hasManagedEvents, member } = props
 
   return (
     <section>
@@ -204,6 +228,16 @@ function MemberSummary(props: { hasManagedEvents: boolean; member: User }) {
             >
               <ClipboardCheck className="size-4" />
               Panou PM
+            </Link>
+          )}
+
+          {hasManagedCommissions && (
+            <Link
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-white transition hover:bg-accent"
+              href="/members/commissions"
+            >
+              <BriefcaseBusiness className="size-4" />
+              Panou Comisii
             </Link>
           )}
 

@@ -84,6 +84,7 @@ export interface Config {
     mandates: Mandate;
     comissions: Comission;
     applications: Application;
+    documents: Document;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -109,7 +110,7 @@ export interface Config {
       registrations: 'event-registrations';
     };
     'payload-folders': {
-      documentsAndFolders: 'payload-folders' | 'media';
+      documentsAndFolders: 'payload-folders' | 'media' | 'documents';
     };
   };
   collectionsSelect: {
@@ -130,6 +131,7 @@ export interface Config {
     mandates: MandatesSelect<false> | MandatesSelect<true>;
     comissions: ComissionsSelect<false> | ComissionsSelect<true>;
     applications: ApplicationsSelect<false> | ApplicationsSelect<true>;
+    documents: DocumentsSelect<false> | DocumentsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -415,13 +417,94 @@ export interface FolderInterface {
           relationTo?: 'media';
           value: string | Media;
         }
+      | {
+          relationTo?: 'documents';
+          value: string | Document;
+        }
     )[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  folderType?: 'media'[] | null;
+  folderType?: ('media' | 'documents')[] | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "documents".
+ */
+export interface Document {
+  id: string;
+  folder?: (string | null) | FolderInterface;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    square?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    small?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    medium?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    large?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    xlarge?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    og?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1213,7 +1296,7 @@ export interface Form {
             /**
              * Select which upload collection to store files in
              */
-            uploadCollection: 'media';
+            uploadCollection: 'media' | 'documents';
             /**
              * Restrict allowed file types (e.g., image/*, application/pdf). Leave empty to allow all types.
              */
@@ -2007,6 +2090,16 @@ export interface Comission {
   mandate: string | Mandate;
   coordinators: (string | User)[];
   aspirers?: (string | User)[] | null;
+  /**
+   * Tracks when commission coordinators confirmed their known applicants review.
+   */
+  recruitmentReviews?:
+    | {
+        coordinator: string | User;
+        confirmedAt: string;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2023,7 +2116,23 @@ export interface Application {
     notes?: string | null;
     comission?: (string | null) | Comission;
     interviewDate?: string | null;
+    interviewScheduleToken?: string | null;
+    interviewScheduleTokenCreatedAt?: string | null;
+    interviewMailSentAt?: string | null;
+    interviewMailSentBy?: (string | null) | User;
+    finalMailSentAt?: string | null;
+    finalMailSentBy?: (string | null) | User;
+    interviewNotes?:
+      | {
+          author: string | User;
+          note: string;
+          createdAt: string;
+          id?: string | null;
+        }[]
+      | null;
     coordonatorIncompatability?: (string | User)[] | null;
+    coordonatorReviewChecks?: (string | User)[] | null;
+    aspirerUser?: (string | null) | User;
     status?:
       | (
           | 'submitted'
@@ -2057,10 +2166,16 @@ export interface FormSubmission {
   submissionUploads?:
     | {
         field: string;
-        value: {
-          relationTo: 'media';
-          value: string | Media;
-        }[];
+        value: (
+          | {
+              relationTo: 'media';
+              value: string | Media;
+            }
+          | {
+              relationTo: 'documents';
+              value: string | Document;
+            }
+        )[];
         id?: string | null;
       }[]
     | null;
@@ -2317,6 +2432,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'applications';
         value: string | Application;
+      } | null)
+    | ({
+        relationTo: 'documents';
+        value: string | Document;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -3252,6 +3371,13 @@ export interface ComissionsSelect<T extends boolean = true> {
   mandate?: T;
   coordinators?: T;
   aspirers?: T;
+  recruitmentReviews?:
+    | T
+    | {
+        coordinator?: T;
+        confirmedAt?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }
@@ -3269,11 +3395,119 @@ export interface ApplicationsSelect<T extends boolean = true> {
         notes?: T;
         comission?: T;
         interviewDate?: T;
+        interviewScheduleToken?: T;
+        interviewScheduleTokenCreatedAt?: T;
+        interviewMailSentAt?: T;
+        interviewMailSentBy?: T;
+        finalMailSentAt?: T;
+        finalMailSentBy?: T;
+        interviewNotes?:
+          | T
+          | {
+              author?: T;
+              note?: T;
+              createdAt?: T;
+              id?: T;
+            };
         coordonatorIncompatability?: T;
+        coordonatorReviewChecks?: T;
+        aspirerUser?: T;
         status?: T;
       };
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "documents_select".
+ */
+export interface DocumentsSelect<T extends boolean = true> {
+  folder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        square?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        small?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        medium?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        large?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        xlarge?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        og?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3856,6 +4090,26 @@ export interface AspirementConfig {
       };
       [k: string]: unknown;
     } | null;
+    interviewSchedulingDeadline?: string | null;
+    /**
+     * Adauga o zi pentru a programa interview-uri cu aspirantii.
+     */
+    interviewIntervals?:
+      | {
+          startDateTime?: string | null;
+          endDateTime?: string | null;
+          interviewDuration?: number | null;
+          pauseBetween?: number | null;
+          breaks?:
+            | {
+                startTime?: string | null;
+                endTime?: string | null;
+                id?: string | null;
+              }[]
+            | null;
+          id?: string | null;
+        }[]
+      | null;
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -4020,6 +4274,23 @@ export interface AspirementConfigSelect<T extends boolean = true> {
         'review-rejected-message'?: T;
         'interview-accepted-message'?: T;
         'interview-rejected-message'?: T;
+        interviewSchedulingDeadline?: T;
+        interviewIntervals?:
+          | T
+          | {
+              startDateTime?: T;
+              endDateTime?: T;
+              interviewDuration?: T;
+              pauseBetween?: T;
+              breaks?:
+                | T
+                | {
+                    startTime?: T;
+                    endTime?: T;
+                    id?: T;
+                  };
+              id?: T;
+            };
       };
   updatedAt?: T;
   createdAt?: T;
