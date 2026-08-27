@@ -52,7 +52,7 @@ export const VideoHero: React.FC<Page['hero']> = ({
         
         <div 
           className={cn("mb-8 z-10 overflow-hidden relative",
-                    useVertical ? "flex flex-col justify-center align-items-center h-2/3" :
+                    useVertical ? "flex flex-col text-center text-md justify-center align-items-center h-2/3" :
                     "grid text-right items-center justify-items-end  w-1/3 align-right text-shadow-lg",
                     
           )}
@@ -61,7 +61,7 @@ export const VideoHero: React.FC<Page['hero']> = ({
 
           {richText && (
             <RichText
-              className="mb-6"
+              className="mb-6 text-sm not-md:mx-12"
               data={richText}
               enableGutter={false}
               enableProse={false}
@@ -85,7 +85,7 @@ export const VideoHero: React.FC<Page['hero']> = ({
         </div>
 
       </div>
-      <div className="absolute w-full top-1/2 inset-0 overflow-hidden bg-radial-[at_100%_100%] from-black to-60% to-transparent z-2">
+      <div className="absolute w-full top-1/2 inset-0 overflow-hidden bg-linear-to-t md:bg-radial-[at_100%_100%] from-black to-60% to-transparent z-2">
         <ArrowDown className="absolute w-full bottom-8" stroke="white" />
       </div>
 

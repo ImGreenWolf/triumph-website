@@ -29,7 +29,7 @@ export const ContentBlock: React.FC<ContentBlockProps> = (props) => {
               <div
                 className={cn(`col-span-4 lg:col-span-${colsSpanClasses[size!]}`, {
                   'md:col-span-2': size !== 'full' && size !== "twoThirdsCentered",
-                  'not-lg:col-span-8 lg:col-start-3! lg:col-end-11! text-center': size == 'twoThirdsCentered'
+                  ' lg:col-start-3! lg:col-end-11! text-center': size == 'twoThirdsCentered'
                 })}
                 key={index}
               >

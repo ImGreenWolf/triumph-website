@@ -54,16 +54,6 @@ export const Upload: React.FC<
                   }),
               })}
             />
-            {(accept || maxFileSize) && (
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                {[
-                  accept && `Accepted: ${accept}`,
-                  maxFileSize && `Max: ${formatBytes(maxFileSize)}`,
-                ]
-                  .filter(Boolean)
-                  .join(', ')}
-              </p>
-            )}
           </div>
         </div>
       </div>
