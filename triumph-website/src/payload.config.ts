@@ -30,6 +30,10 @@ import { GalleryPhotos } from './collections/GalleryPhotos'
 import { SiteConfig } from './globals/SiteConfig/config'
 import dashboardLayout from './components/Dashboard/dashboardLayout'
 import dashboardWidgets from './components/Dashboard/dashboardWidgets'
+import { Mandates } from './collections/Mandates'
+import { Comissions } from './collections/Comissions'
+import { Applications } from './collections/Applications'
+import { AspirementConfig } from './globals/AspirementConfig/config'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -134,11 +138,14 @@ export default buildConfig({
     Causes,
     Payments,
     GalleryPhotos,
+    Mandates,
+    Comissions,
+    Applications
   ],
   cors: allowedOrigins,
   // Payload appends serverURL automatically during config sanitization.
   csrf: allowedOrigins.filter((origin) => origin !== serverURL),
-  globals: [Header, Footer, MembersDashboard, SiteConfig],
+  globals: [Header, Footer, MembersDashboard, SiteConfig, AspirementConfig],
   plugins,
   secret: process.env.PAYLOAD_SECRET,
   sharp,

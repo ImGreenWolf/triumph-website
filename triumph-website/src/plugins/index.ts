@@ -3,15 +3,17 @@ import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 import { redirectsPlugin } from '@payloadcms/plugin-redirects'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { searchPlugin } from '@payloadcms/plugin-search'
-import { Plugin } from 'payload'
+import { getPayload, Plugin } from 'payload'
 import { revalidateRedirects } from '@/hooks/revalidateRedirects'
 import { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
 import { searchFields } from '@/search/fieldOverrides'
 import { beforeSyncWithSearch } from '@/search/beforeSync'
 
-import { Page, Post } from '@/payload-types'
+import { FormSubmission, Page, Post } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
+import payloadConfig from '@payload-config'
+import { getCachedGlobal } from '@/utilities/getGlobals'
 
 const searchableCollections = ['posts', 'events'] as const
 
@@ -60,8 +62,12 @@ export const plugins: Plugin[] = [
     generateURL,
   }),
   formBuilderPlugin({
+    uploadCollections: ['media'],
     fields: {
       payment: false,
+      upload: true,
+      date: true,
+      
     },
     formOverrides: {
       fields: ({ defaultFields }) => {
@@ -83,12 +89,22 @@ export const plugins: Plugin[] = [
           return field
         })
       },
+
       admin: {
         group: "Content",
         
       }
     },
     formSubmissionOverrides: {
+      hooks: {
+        afterChange: [
+          ({operation, doc }) => {
+            if(operation == 'create') {
+              createApplication(doc as FormSubmission)
+            }
+          }
+        ]
+      },
       admin: {
         group: "Content"
       }
@@ -109,3 +125,29 @@ export const plugins: Plugin[] = [
     },
   }),
 ]
+
+
+async function createApplication(formSubmission: FormSubmission,) {
+  
+  const payload = await getPayload({config: payloadConfig})
+  const config = await getCachedGlobal('aspirementConfig')()
+  if(config.recruitment?.['recruitment-form'] != formSubmission.form)
+    return;
+  const formData = formSubmission.submissionData
+  const formMap = new Map()
+  formData?.forEach(data => {
+    formMap.set(data.field, data.value)
+  })
+  
+  console.log(formSubmission)
+
+  await payload.create({
+    collection: 'applications',
+    data: {
+      name: formMap.get('firstName') + " " + formMap.get('lastName'),
+      email: formMap.get('email'),
+      formSubmission: formSubmission.id,
+    }
+  })
+
+}

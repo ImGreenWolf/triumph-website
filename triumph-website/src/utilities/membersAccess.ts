@@ -40,3 +40,5 @@ export const isSecretary = (user: Pick<User, 'role'> | null | undefined) => {
 export const hasSecretaryRole: AdminAccess = ({ req }) => {
   return isSecretary(req.user)
 }
+
+

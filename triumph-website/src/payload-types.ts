@@ -81,6 +81,9 @@ export interface Config {
     causes: Cause;
     payments: Payment;
     'gallery-photos': GalleryPhoto;
+    mandates: Mandate;
+    comissions: Comission;
+    applications: Application;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -124,6 +127,9 @@ export interface Config {
     causes: CausesSelect<false> | CausesSelect<true>;
     payments: PaymentsSelect<false> | PaymentsSelect<true>;
     'gallery-photos': GalleryPhotosSelect<false> | GalleryPhotosSelect<true>;
+    mandates: MandatesSelect<false> | MandatesSelect<true>;
+    comissions: ComissionsSelect<false> | ComissionsSelect<true>;
+    applications: ApplicationsSelect<false> | ApplicationsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -144,12 +150,14 @@ export interface Config {
     footer: Footer;
     'members-dashboard': MembersDashboard;
     siteConfig: SiteConfig;
+    aspirementConfig: AspirementConfig;
   };
   globalsSelect: {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
     'members-dashboard': MembersDashboardSelect<false> | MembersDashboardSelect<true>;
     siteConfig: SiteConfigSelect<false> | SiteConfigSelect<true>;
+    aspirementConfig: AspirementConfigSelect<false> | AspirementConfigSelect<true>;
   };
   locale: null;
   widgets: {
@@ -1199,6 +1207,43 @@ export interface Form {
             blockName?: string | null;
             blockType: 'textarea';
           }
+        | {
+            name: string;
+            label?: string | null;
+            /**
+             * Select which upload collection to store files in
+             */
+            uploadCollection: 'media';
+            /**
+             * Restrict allowed file types (e.g., image/*, application/pdf). Leave empty to allow all types.
+             */
+            mimeTypes?:
+              | {
+                  mimeType: string;
+                  id?: string | null;
+                }[]
+              | null;
+            width?: number | null;
+            /**
+             * Maximum file size in bytes. Leave empty for no limit.
+             */
+            maxFileSize?: number | null;
+            required?: boolean | null;
+            multiple?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'upload';
+          }
+        | {
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            defaultValue?: string | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'date';
+          }
       )[]
     | null;
   submitButtonLabel?: string | null;
@@ -1944,6 +1989,86 @@ export interface GalleryPhoto {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "mandates".
+ */
+export interface Mandate {
+  id: string;
+  year: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "comissions".
+ */
+export interface Comission {
+  id: string;
+  commissionNumber: number;
+  mandate: string | Mandate;
+  coordinators: (string | User)[];
+  aspirers?: (string | User)[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "applications".
+ */
+export interface Application {
+  id: string;
+  name: string;
+  email: string;
+  formSubmission: string | FormSubmission;
+  reviewProcess?: {
+    notes?: string | null;
+    comission?: (string | null) | Comission;
+    interviewDate?: string | null;
+    coordonatorIncompatability?: (string | User)[] | null;
+    status?:
+      | (
+          | 'submitted'
+          | 'coordonator-review'
+          | 'submission-rejected'
+          | 'interview'
+          | 'interviewed'
+          | 'absent'
+          | 'interview-passed'
+          | 'interview-rejected'
+        )
+      | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "form-submissions".
+ */
+export interface FormSubmission {
+  id: string;
+  form: string | Form;
+  submissionData?:
+    | {
+        field: string;
+        value: string;
+        id?: string | null;
+      }[]
+    | null;
+  submissionUploads?:
+    | {
+        field: string;
+        value: {
+          relationTo: 'media';
+          value: string | Media;
+        }[];
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "redirects".
  */
 export interface Redirect {
@@ -1969,23 +2094,6 @@ export interface Redirect {
         } | null);
     url?: string | null;
   };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "form-submissions".
- */
-export interface FormSubmission {
-  id: string;
-  form: string | Form;
-  submissionData?:
-    | {
-        field: string;
-        value: string;
-        id?: string | null;
-      }[]
-    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2197,6 +2305,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'gallery-photos';
         value: string | GalleryPhoto;
+      } | null)
+    | ({
+        relationTo: 'mandates';
+        value: string | Mandate;
+      } | null)
+    | ({
+        relationTo: 'comissions';
+        value: string | Comission;
+      } | null)
+    | ({
+        relationTo: 'applications';
+        value: string | Application;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -3116,6 +3236,47 @@ export interface GalleryPhotosSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "mandates_select".
+ */
+export interface MandatesSelect<T extends boolean = true> {
+  year?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "comissions_select".
+ */
+export interface ComissionsSelect<T extends boolean = true> {
+  commissionNumber?: T;
+  mandate?: T;
+  coordinators?: T;
+  aspirers?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "applications_select".
+ */
+export interface ApplicationsSelect<T extends boolean = true> {
+  name?: T;
+  email?: T;
+  formSubmission?: T;
+  reviewProcess?:
+    | T
+    | {
+        notes?: T;
+        comission?: T;
+        interviewDate?: T;
+        coordonatorIncompatability?: T;
+        status?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "redirects_select".
  */
 export interface RedirectsSelect<T extends boolean = true> {
@@ -3239,6 +3400,36 @@ export interface FormsSelect<T extends boolean = true> {
               id?: T;
               blockName?: T;
             };
+        upload?:
+          | T
+          | {
+              name?: T;
+              label?: T;
+              uploadCollection?: T;
+              mimeTypes?:
+                | T
+                | {
+                    mimeType?: T;
+                    id?: T;
+                  };
+              width?: T;
+              maxFileSize?: T;
+              required?: T;
+              multiple?: T;
+              id?: T;
+              blockName?: T;
+            };
+        date?:
+          | T
+          | {
+              name?: T;
+              label?: T;
+              width?: T;
+              required?: T;
+              defaultValue?: T;
+              id?: T;
+              blockName?: T;
+            };
       };
   submitButtonLabel?: T;
   confirmationType?: T;
@@ -3270,6 +3461,13 @@ export interface FormsSelect<T extends boolean = true> {
 export interface FormSubmissionsSelect<T extends boolean = true> {
   form?: T;
   submissionData?:
+    | T
+    | {
+        field?: T;
+        value?: T;
+        id?: T;
+      };
+  submissionUploads?:
     | T
     | {
         field?: T;
@@ -3592,6 +3790,78 @@ export interface SiteConfig {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "aspirementConfig".
+ */
+export interface AspirementConfig {
+  id: string;
+  recruitment?: {
+    'recruitment-form'?: (string | null) | Form;
+    'review-accepted-message'?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+    'review-rejected-message'?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+    'interview-accepted-message'?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+    'interview-rejected-message'?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "header_select".
  */
 export interface HeaderSelect<T extends boolean = true> {
@@ -3733,6 +4003,24 @@ export interface SiteConfigSelect<T extends boolean = true> {
   darkModeIcon?: T;
   faviconIco?: T;
   faviconSvg?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "aspirementConfig_select".
+ */
+export interface AspirementConfigSelect<T extends boolean = true> {
+  recruitment?:
+    | T
+    | {
+        'recruitment-form'?: T;
+        'review-accepted-message'?: T;
+        'review-rejected-message'?: T;
+        'interview-accepted-message'?: T;
+        'interview-rejected-message'?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

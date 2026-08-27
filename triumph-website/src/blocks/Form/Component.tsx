@@ -2,8 +2,8 @@
 import type { FormFieldBlock, Form as FormType } from '@payloadcms/plugin-form-builder/types'
 
 import { useRouter } from 'next/navigation'
-import React, { useCallback, useState } from 'react'
-import { useForm, FormProvider } from 'react-hook-form'
+import React, { useCallback, useMemo, useState } from 'react'
+import { useForm, FormProvider, type FieldValues } from 'react-hook-form'
 import RichText from '@/components/RichText'
 import { Button } from '@/components/ui/button'
 import type { DefaultTypedEditorState } from '@payloadcms/richtext-lexical'
@@ -23,9 +23,8 @@ export type FormBlockType = {
 
 export const FormBlock: React.FC<
   {
-    id?: string,
+    id?: string
     introMedia: FormBlockProps['introMedia']
-
   } & FormBlockType
 > = (props) => {
   const {
@@ -33,11 +32,16 @@ export const FormBlock: React.FC<
     form: formFromProps,
     form: { id: formID, confirmationMessage, confirmationType, redirect, submitButtonLabel } = {},
     introContent,
-    introMedia
+    introMedia,
   } = props
 
+  const defaultValues = useMemo(
+    () => getDefaultValues(formFromProps.fields),
+    [formFromProps.fields],
+  )
+
   const formMethods = useForm({
-    defaultValues: formFromProps.fields,
+    defaultValues,
   })
   const {
     control,
@@ -52,15 +56,27 @@ export const FormBlock: React.FC<
   const router = useRouter()
 
   const onSubmit = useCallback(
-    (data: FormFieldBlock[]) => {
+    (data: FieldValues) => {
       let loadingTimerID: ReturnType<typeof setTimeout>
       const submitForm = async () => {
         setError(undefined)
 
-        const dataToSend = Object.entries(data).map(([name, value]) => ({
-          field: name,
-          value,
-        }))
+        const { dataToSend, uploadEntries } = buildSubmissionData(formFromProps.fields, data)
+        const hasUploadFiles = uploadEntries.some(({ files }) => files.length > 0)
+        const payload = {
+          form: formID,
+          submissionData: dataToSend,
+        }
+
+        const body = hasUploadFiles ? new FormData() : JSON.stringify(payload)
+
+        if (body instanceof FormData) {
+          body.append('_payload', JSON.stringify(payload))
+
+          uploadEntries.forEach(({ files, name }) => {
+            files.forEach((file) => body.append(name, file))
+          })
+        }
 
         // delay loading indicator by 1s
         loadingTimerID = setTimeout(() => {
@@ -69,13 +85,12 @@ export const FormBlock: React.FC<
 
         try {
           const req = await fetch(`${getClientSideURL()}/api/form-submissions`, {
-            body: JSON.stringify({
-              form: formID,
-              submissionData: dataToSend,
-            }),
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            body,
+            headers: hasUploadFiles
+              ? undefined
+              : {
+                  'Content-Type': 'application/json',
+                },
             method: 'POST',
           })
 
@@ -115,7 +130,7 @@ export const FormBlock: React.FC<
 
       void submitForm()
     },
-    [router, formID, redirect, confirmationType],
+    [router, formID, redirect, confirmationType, formFromProps.fields],
   )
 
   const hasIntro = enableIntro && introContent && !hasSubmitted
@@ -129,15 +144,9 @@ export const FormBlock: React.FC<
             : 'mx-auto max-w-3xl'
         }
       >
-       
         {hasIntro && (
           <div className="lg:sticky lg:top-28 flex flex-col gap-4">
-             {introMedia && (
-                  <Media
-                    resource={introMedia}
-                    imgClassName='rounded-lg'
-                  />
-              )}
+            {introMedia && <Media resource={introMedia} imgClassName="rounded-lg" />}
             <RichText
               className="max-w-2xl rounded-lg border border-border bg-card/70 p-5 shadow-sm sm:p-6"
               data={introContent}
@@ -223,4 +232,98 @@ export const FormBlock: React.FC<
       </div>
     </section>
   )
+}
+
+function getDefaultValues(fields?: FormFieldBlock[] | null): FieldValues {
+  return (
+    fields?.reduce<FieldValues>((values, field) => {
+      if (fieldHasName(field) && 'defaultValue' in field && field.defaultValue != null) {
+        const defaultValue =
+          field.blockType === 'date' && typeof field.defaultValue === 'string'
+            ? formatDateDefaultValue(field.defaultValue)
+            : field.defaultValue
+
+        if (defaultValue !== undefined) {
+          values[field.name] = defaultValue
+        }
+      }
+
+      return values
+    }, {}) ?? {}
+  )
+}
+
+function buildSubmissionData(fields: FormFieldBlock[] | null | undefined, data: FieldValues) {
+  const dataToSend: Array<{ field: string; value: string }> = []
+  const uploadEntries: Array<{ files: File[]; name: string }> = []
+
+  fields?.forEach((field) => {
+    if (!fieldHasName(field)) return
+
+    const value = data[field.name]
+    const files = getFilesFromValue(value)
+
+    if (field.blockType === 'upload' || files) {
+      if (files?.length) {
+        uploadEntries.push({
+          files,
+          name: field.name,
+        })
+      }
+
+      return
+    }
+
+    dataToSend.push({
+      field: field.name,
+      value: formatSubmissionValue(value),
+    })
+  })
+
+  return { dataToSend, uploadEntries }
+}
+
+function fieldHasName(field: FormFieldBlock): field is FormFieldBlock & { name: string } {
+  return 'name' in field && typeof field.name === 'string'
+}
+
+function getFilesFromValue(value: unknown): File[] | undefined {
+  if (typeof FileList !== 'undefined' && value instanceof FileList) {
+    return Array.from(value)
+  }
+
+  if (typeof File !== 'undefined' && value instanceof File) {
+    return [value]
+  }
+
+  if (
+    Array.isArray(value) &&
+    value.every((item) => typeof File !== 'undefined' && item instanceof File)
+  ) {
+    return value
+  }
+
+  return undefined
+}
+
+function formatSubmissionValue(value: unknown) {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+
+  return JSON.stringify(value) ?? ''
+}
+
+function formatDateDefaultValue(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10)
+  }
+
+  const date = new globalThis.Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return undefined
+  }
+
+  return date.toISOString().slice(0, 10)
 }
