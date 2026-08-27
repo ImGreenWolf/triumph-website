@@ -1,6 +1,6 @@
 import type { GlobalConfig } from 'payload'
 
-import { hasRole } from '@/utilities/membersAccess'
+import { hasBoardRole, hasRole } from '@/utilities/membersAccess'
 import { revalidateAspirementConfig } from './hooks/revalidateAspirementConfig'
 
 export const AspirementConfig: GlobalConfig = {
@@ -10,7 +10,7 @@ export const AspirementConfig: GlobalConfig = {
   },
   access: {
     read: () => true,
-    update: hasRole(['pr-director', 'president', 'vice-president']),
+    update: hasBoardRole,
   },
   fields: [
     {
@@ -35,6 +35,9 @@ export const AspirementConfig: GlobalConfig = {
             {
               name: 'interview-accepted-message',
               type: 'richText',
+              admin: {
+                description: 'foloseste placeholdere precum {{firstName}}, {{scheduleLink}} sau {{commission}}'
+              }
             },
             {
               name: 'interview-rejected-message',
@@ -56,10 +59,20 @@ export const AspirementConfig: GlobalConfig = {
                 {
                   name: 'startDateTime',
                   type: 'date',
+                  admin: {
+                    date: {
+                      pickerAppearance: 'dayAndTime'
+                    }
+                  }
                 },
                 {
                   name: 'endDateTime',
                   type: 'date',
+                  admin: {
+                    date: {
+                      pickerAppearance: 'dayAndTime'
+                    }
+                  }
                 },
                 {
                   name: 'interviewDuration',
@@ -76,10 +89,20 @@ export const AspirementConfig: GlobalConfig = {
                     {
                       name: 'startTime',
                       type: 'date',
+                      admin: {
+                        date: {
+                          pickerAppearance: 'timeOnly'
+                        }
+                      }
                     },
                     {
                       name: 'endTime',
                       type: 'date',
+                      admin: {
+                        date: {
+                          pickerAppearance: 'timeOnly'
+                        }
+                      }
                     },
                   ],
                 },

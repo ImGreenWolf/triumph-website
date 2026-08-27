@@ -74,10 +74,18 @@ export function generateInterviewSlots(
     const pauseMs = Math.max(0, interval.pauseBetween ?? 0) * 60_000
     const breaks = (interval.breaks ?? [])
       .map((item) => ({
-        end: parseDate(item.endTime),
-        start: parseDate(item.startTime),
+        end: getBreakDateForIntervalDay(intervalStart, item.endTime),
+        start: getBreakDateForIntervalDay(intervalStart, item.startTime),
       }))
       .filter((item): item is { end: Date; start: Date } => Boolean(item.start && item.end))
+      .map((item) =>
+        item.end <= item.start
+          ? {
+              ...item,
+              end: new Date(item.end.getTime() + 24 * 60 * 60_000),
+            }
+          : item,
+      )
 
     for (
       let startMs = intervalStart.getTime();
@@ -326,6 +334,21 @@ function normalizePositiveNumber(value: number | null | undefined) {
 
 function rangesOverlap(leftStart: Date, leftEnd: Date, rightStart: Date, rightEnd: Date) {
   return leftStart < rightEnd && leftEnd > rightStart
+}
+
+function getBreakDateForIntervalDay(intervalStart: Date, value?: string | null) {
+  const breakDate = parseDate(value)
+  if (!breakDate) return null
+
+  return new Date(
+    intervalStart.getFullYear(),
+    intervalStart.getMonth(),
+    intervalStart.getDate(),
+    breakDate.getHours(),
+    breakDate.getMinutes(),
+    breakDate.getSeconds(),
+    breakDate.getMilliseconds(),
+  )
 }
 
 function parseDate(value?: string | null) {

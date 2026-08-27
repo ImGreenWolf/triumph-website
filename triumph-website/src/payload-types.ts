@@ -4060,6 +4060,9 @@ export interface AspirementConfig {
       };
       [k: string]: unknown;
     } | null;
+    /**
+     * foloseste placeholdere precum {{firstName}}, {{scheduleLink}} sau {{commission}}
+     */
     'interview-accepted-message'?: {
       root: {
         type: string;

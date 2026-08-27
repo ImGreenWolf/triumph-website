@@ -260,11 +260,19 @@ async function assignCandidate(args: {
 
   const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
   const commission = await getCommission(args.payload, normalizeText(args.body.commissionId))
-  const interviewDate = normalizeDateInput(args.body.interviewDate)
+
+  if (application.reviewProcess?.status !== 'coordonator-review') {
+    return Response.json(
+      { message: 'Candidatul trebuie sa fie in review-ul coordonatorilor.' },
+      { status: 409 },
+    )
+  }
+
+  assertCommissionReadyForApplicant(commission, application)
 
   const updated = await updateApplicationReview(args.payload, application, {
     comission: commission.id,
-    interviewDate,
+    interviewDate: null,
     status: 'interview',
   })
 
@@ -355,6 +363,9 @@ async function sendInterviewMails(args: { payload: Payload; request: Request; us
 
   for (const application of pending) {
     try {
+      const commission = await getApplicationCommission(args.payload, application)
+      assertCommissionReadyForApplicant(commission, application)
+
       const prepared = await ensureApplicationScheduleToken(args.payload, application)
       const token = prepared.reviewProcess?.interviewScheduleToken
       if (!token) throw new Error('Nu s-a putut genera linkul de programare.')
@@ -366,7 +377,7 @@ async function sendInterviewMails(args: { payload: Payload; request: Request; us
         message: config.recruitment?.['review-accepted-message'],
         parameters: createApplicantParameters({
           application: prepared,
-          commissionLabel: getCommissionLabel(prepared.reviewProcess?.comission),
+          commissionLabel: getCommissionLabel(commission),
           scheduleLink,
         }),
       })
@@ -394,6 +405,16 @@ async function sendInterviewMails(args: { payload: Payload; request: Request; us
       result.sent += 1
       addPlaceholderWarnings(result, prepared, message.unresolvedPlaceholders)
     } catch (error) {
+      if (isEligibilityError(error)) {
+        result.skipped += 1
+        result.warnings.push(
+          `${application.name} (${application.email}): ${
+            error instanceof Error ? error.message : 'Candidatul nu este eligibil pentru email.'
+          }`,
+        )
+        continue
+      }
+
       result.failed += 1
       result.failures.push({
         email: application.email,
@@ -750,6 +771,45 @@ function canManageAssignedApplication(commission: ExtendedCommission, user: User
   return isBoardMember(user) || isCommissionCoordinator(commission, user)
 }
 
+function assertCommissionReadyForApplicant(
+  commission: ExtendedCommission,
+  application: ExtendedApplication,
+) {
+  const coordinatorIDs = (commission.coordinators ?? []).map(getRelationshipID).filter(Boolean)
+
+  if (coordinatorIDs.length === 0) {
+    throw Object.assign(new Error('Comisia nu are coordonatori configurati.'), { status: 400 })
+  }
+
+  const completedCoordinatorIDs = new Set(
+    (commission.recruitmentReviews ?? []).map((review) => getRelationshipID(review.coordinator)),
+  )
+  const pendingCoordinatorCount = coordinatorIDs.filter(
+    (coordinatorID) => !completedCoordinatorIDs.has(coordinatorID),
+  ).length
+
+  if (pendingCoordinatorCount > 0) {
+    throw Object.assign(
+      new Error('Toti coordonatorii comisiei trebuie sa finalizeze review-ul inainte de asignare.'),
+      { status: 409 },
+    )
+  }
+
+  const knownCoordinatorIDs = new Set(getKnownCoordinatorIDs(application))
+  const conflictCount = coordinatorIDs.filter((coordinatorID) =>
+    knownCoordinatorIDs.has(coordinatorID),
+  ).length
+
+  if (conflictCount > 0) {
+    throw Object.assign(
+      new Error(
+        'Candidatul nu poate fi asignat la o comisie unde un coordonator l-a marcat cunoscut.',
+      ),
+      { status: 409 },
+    )
+  }
+}
+
 function isCommissionCoordinator(commission: ExtendedCommission, user: User) {
   return (commission.coordinators ?? []).some(
     (coordinator) => getRelationshipID(coordinator) === user.id,
@@ -830,18 +890,6 @@ function normalizeOptionalText(value: unknown) {
   return text || undefined
 }
 
-function normalizeDateInput(value: unknown) {
-  const text = normalizeText(value)
-  if (!text) return null
-
-  const date = new Date(text)
-  if (Number.isNaN(date.getTime())) {
-    throw Object.assign(new Error('Data interviului nu este valida.'), { status: 400 })
-  }
-
-  return date.toISOString()
-}
-
 function generateTemporaryPassword() {
   return randomBytes(18).toString('base64url')
 }
@@ -850,4 +898,11 @@ function getErrorStatus(error: unknown) {
   if (!error || typeof error !== 'object' || !('status' in error)) return 400
   const status = Number(error.status)
   return Number.isInteger(status) && status >= 400 && status < 600 ? status : 400
+}
+
+function isEligibilityError(error: unknown) {
+  if (!error || typeof error !== 'object' || !('status' in error)) return false
+
+  const status = Number(error.status)
+  return status === 400 || status === 409
 }

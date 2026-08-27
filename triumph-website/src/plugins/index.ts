@@ -130,9 +130,12 @@ export const plugins: Plugin[] = [
 async function createApplication(formSubmission: FormSubmission,) {
   
   const payload = await getPayload({config: payloadConfig})
-  const config = await getCachedGlobal('aspirementConfig')()
-  if(config.recruitment?.['recruitment-form'] != formSubmission.form)
-    return;
+  const config = await payload.findGlobal({slug: 'aspirementConfig'}) //getCachedGlobal('aspirementConfig')()
+  const recruitmentForm = typeof config.recruitment?.['recruitment-form'] == 'string' ? config.recruitment?.['recruitment-form'] : (config.recruitment!)['recruitment-form']!.id;
+  const subbmitedForm = typeof formSubmission.form == 'string' ? formSubmission.form : formSubmission.form.id;
+  
+  if(recruitmentForm != subbmitedForm)
+    return console.log('not recruitment', subbmitedForm, recruitmentForm)
   const formData = formSubmission.submissionData
   const formMap = new Map()
   formData?.forEach(data => {

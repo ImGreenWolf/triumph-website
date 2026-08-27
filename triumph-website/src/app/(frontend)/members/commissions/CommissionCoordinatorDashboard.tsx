@@ -6,7 +6,6 @@ import { motion, useReducedMotion, type Variants } from 'framer-motion'
 import {
   ArrowLeft,
   BriefcaseBusiness,
-  CalendarClock,
   Check,
   CheckCircle2,
   ClipboardCheck,
@@ -160,6 +159,15 @@ const completedRecruitmentStatuses = new Set<ManagedApplicationStatus>([
   'interview-passed',
   'interview-rejected',
   'submission-rejected',
+])
+
+const interviewDistributionStatuses = new Set<ManagedApplicationStatus>([
+  'coordonator-review',
+  'interview',
+  'interviewed',
+  'absent',
+  'interview-passed',
+  'interview-rejected',
 ])
 
 const panelVariants = {
@@ -533,6 +541,8 @@ function Overview(props: {
           value={String(selectedApplications.length)}
         />
       </section>
+
+      <CommissionOverview applications={applications} commissions={commissions} />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.8fr)]">
         <Panel>
@@ -1005,13 +1015,12 @@ function HRAssignmentQueue(props: {
             commissions={commissions}
             key={application.id}
             onOpenDetails={() => onSelectApplication(application.id)}
-            onSave={(commissionId, interviewDate) =>
+            onSave={(commissionId) =>
               onAction(
                 {
                   action: 'assign-candidate',
                   applicationId: application.id,
                   commissionId,
-                  interviewDate,
                 },
                 `assign-${application.id}`,
               )
@@ -1020,6 +1029,137 @@ function HRAssignmentQueue(props: {
         ))}
       </div>
     </Panel>
+  )
+}
+
+function CommissionOverview(props: {
+  applications: ManagedApplication[]
+  commissions: ManagedCommission[]
+}) {
+  const { applications, commissions } = props
+  const distribution = getCommissionDistribution(applications, commissions)
+
+  return (
+    <Panel>
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+        <PanelHeader
+          description="Rezumat pe fiecare comisie: oameni, progres recruitment si distributie fata de target."
+          title="Overview comisii"
+        />
+        <div className="rounded-xl bg-[#f8fafc] px-3 py-2 text-xs font-bold text-[#536071] ring-1 ring-[#e4e8ef]">
+          {distribution.totalCandidates} candidati / {commissions.length || 0} comisii = target{' '}
+          {formatTargetCount(distribution.targetPerCommission)}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+        {distribution.rows.map((row) => (
+          <CommissionOverviewCard key={row.commission.id} row={row} />
+        ))}
+        {distribution.rows.length === 0 && <InlineEmpty text="Nu exista comisii active." />}
+      </div>
+    </Panel>
+  )
+}
+
+function CommissionOverviewCard(props: { row: CommissionDistributionRow }) {
+  const { row } = props
+
+  return (
+    <article className="rounded-xl border border-[#e4e8ef] bg-[#f8fafc] p-4">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+        <div className="min-w-0">
+          <p className="truncate text-base font-black">{row.commission.label}</p>
+          <p className="mt-1 truncate text-xs font-semibold text-[#748094]">
+            {row.commission.mandateLabel}
+          </p>
+        </div>
+        <span
+          className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${
+            row.reviewCompleted
+              ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+              : 'bg-amber-50 text-amber-700 ring-amber-100'
+          }`}
+        >
+          Review {row.completedCoordinatorReviews}/{row.coordinatorCount}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <CommissionOverviewStat label="Coordonatori" value={String(row.coordinatorCount)} />
+        <CommissionOverviewStat label="Aspiranti" value={String(row.aspirerCount)} />
+        <CommissionOverviewStat label="Trimisi" value={String(row.assignedCandidates)} />
+        <CommissionOverviewStat label="Target" value={formatTargetCount(row.target)} />
+        <CommissionOverviewStat
+          label="Diferenta"
+          tone={row.balance > 0 ? 'high' : row.balance < 0 ? 'low' : 'neutral'}
+          value={formatSignedCount(row.balance)}
+        />
+        <CommissionOverviewStat label="Programati" value={String(row.scheduledInterviews)} />
+        <CommissionOverviewStat label="Neprogramati" value={String(row.unscheduledInterviews)} />
+        <CommissionOverviewStat label="Decizii ramase" value={String(row.pendingFinalDecision)} />
+        <CommissionOverviewStat label="Acceptati final" value={String(row.acceptedCandidates)} />
+        <CommissionOverviewStat label="Respinsi final" value={String(row.rejectedCandidates)} />
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <MemberSummary label="Coordonatori" members={row.commission.coordinators} />
+        <MemberSummary label="Aspiranti" members={row.commission.aspirers} />
+      </div>
+    </article>
+  )
+}
+
+function CommissionOverviewStat(props: {
+  label: string
+  tone?: 'high' | 'low' | 'neutral'
+  value: string
+}) {
+  const toneClass =
+    props.tone === 'high'
+      ? 'text-amber-700'
+      : props.tone === 'low'
+        ? 'text-emerald-700'
+        : 'text-[#152039]'
+
+  return (
+    <div className="rounded-lg bg-white px-3 py-2 ring-1 ring-[#edf0f4]">
+      <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-[#748094]">
+        {props.label}
+      </span>
+      <span className={`mt-1 block text-lg font-black ${toneClass}`}>{props.value}</span>
+    </div>
+  )
+}
+
+function MemberSummary(props: { label: string; members: ManagedUser[] }) {
+  return (
+    <div className="rounded-lg bg-white p-3 ring-1 ring-[#edf0f4]">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-[0.08em] text-[#748094]">
+          {props.label}
+        </p>
+        <span className="text-xs font-black">{props.members.length}</span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {props.members.slice(0, 4).map((member) => (
+          <span
+            className="max-w-full truncate rounded-full bg-[#f7f9fc] px-2 py-1 text-[11px] font-bold text-[#536071]"
+            key={member.id}
+          >
+            {member.name}
+          </span>
+        ))}
+        {props.members.length > 4 && (
+          <span className="rounded-full bg-[#f7f9fc] px-2 py-1 text-[11px] font-bold text-[#536071]">
+            +{props.members.length - 4}
+          </span>
+        )}
+        {props.members.length === 0 && (
+          <span className="text-xs font-semibold text-[#8a94a6]">Nimeni inca</span>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -1072,19 +1212,36 @@ function CoordinatorReviewStatus({ commissions }: { commissions: ManagedCommissi
   )
 }
 
+function canAssignApplicantToCommission(
+  application: ManagedApplication,
+  commission: ManagedCommission,
+) {
+  const completedCoordinatorIDs = new Set(
+    commission.recruitmentReviews.map((review) => review.coordinatorId),
+  )
+  const knownCoordinatorIDs = new Set(application.knownCoordinatorIds)
+  const coordinators = commission.coordinators
+
+  return (
+    coordinators.length > 0 &&
+    coordinators.every((coordinator) => completedCoordinatorIDs.has(coordinator.id)) &&
+    coordinators.every((coordinator) => !knownCoordinatorIDs.has(coordinator.id))
+  )
+}
+
 function HRAssignmentRow(props: {
   application: ManagedApplication
   busy: boolean
   commissions: ManagedCommission[]
   onOpenDetails: () => void
-  onSave: (commissionId: string, interviewDate: string) => Promise<unknown>
+  onSave: (commissionId: string) => Promise<unknown>
 }) {
   const { application, busy, commissions, onOpenDetails, onSave } = props
-  const [commissionId, setCommissionId] = useState(
-    application.commissionId || commissions[0]?.id || '',
+  const eligibleCommissions = commissions.filter((commission) =>
+    canAssignApplicantToCommission(application, commission),
   )
-  const [interviewDate, setInterviewDate] = useState(
-    toDateTimeInputValue(application.interviewDate),
+  const [commissionId, setCommissionId] = useState(
+    application.commissionId || eligibleCommissions[0]?.id || '',
   )
   const knownCoordinators = commissions
     .flatMap((commission) => commission.coordinators)
@@ -1095,7 +1252,7 @@ function HRAssignmentRow(props: {
 
   return (
     <article className="rounded-xl border border-[#e4e8ef] bg-white p-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px_220px_auto] xl:items-end">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px_auto] xl:items-end">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <Avatar name={application.name} />
@@ -1108,6 +1265,12 @@ function HRAssignmentRow(props: {
             Cunoscut de:{' '}
             {knownCoordinators.map((coordinator) => coordinator.name).join(', ') || 'nimeni'}
           </p>
+          {eligibleCommissions.length === 0 && (
+            <p className="mt-2 text-xs font-bold text-red-600">
+              Nicio comisie eligibila: coordonatorii trebuie sa finalizeze review-ul si sa nu
+              cunoasca aplicantul.
+            </p>
+          )}
         </div>
         <label className="grid gap-2">
           <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#748094]">
@@ -1115,28 +1278,16 @@ function HRAssignmentRow(props: {
           </span>
           <select
             className="h-11 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-semibold outline-none focus:border-[#00a2e0]"
-            disabled={busy}
+            disabled={busy || eligibleCommissions.length === 0}
             onChange={(event) => setCommissionId(event.target.value)}
             value={commissionId}
           >
-            {commissions.map((commission) => (
+            {eligibleCommissions.map((commission) => (
               <option key={commission.id} value={commission.id}>
                 {commission.label}
               </option>
             ))}
           </select>
-        </label>
-        <label className="grid gap-2">
-          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#748094]">
-            Interview
-          </span>
-          <input
-            className="h-11 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-semibold outline-none focus:border-[#00a2e0]"
-            disabled={busy}
-            onChange={(event) => setInterviewDate(event.target.value)}
-            type="datetime-local"
-            value={interviewDate}
-          />
         </label>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
           <button
@@ -1149,12 +1300,12 @@ function HRAssignmentRow(props: {
           </button>
           <button
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#00a2e0] px-4 text-sm font-bold text-white transition hover:bg-[#008fc7] disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={busy || !commissionId}
-            onClick={() => void onSave(commissionId, interviewDate)}
+            disabled={busy || !commissionId || eligibleCommissions.length === 0}
+            onClick={() => void onSave(commissionId)}
             type="button"
           >
-            <CalendarClock className="size-4" />
-            Asigneaza
+            <Check className="size-4" />
+            Trimite la interview
           </button>
         </div>
       </div>
@@ -1729,6 +1880,91 @@ function calculateMetrics(
   }
 }
 
+type CommissionDistributionRow = {
+  acceptedCandidates: number
+  assignedCandidates: number
+  aspirerCount: number
+  balance: number
+  commission: ManagedCommission
+  completedCoordinatorReviews: number
+  coordinatorCount: number
+  pendingFinalDecision: number
+  rejectedCandidates: number
+  reviewCompleted: boolean
+  scheduledInterviews: number
+  target: number
+  unscheduledInterviews: number
+}
+
+function getCommissionDistribution(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+) {
+  const candidates = applications.filter((application) =>
+    interviewDistributionStatuses.has(application.status),
+  )
+  const targetPerCommission = commissions.length > 0 ? candidates.length / commissions.length : 0
+
+  return {
+    rows: commissions.map((commission) => {
+      const commissionCandidates = candidates.filter(
+        (application) => application.commissionId === commission.id,
+      )
+      const assignedCandidates = commissionCandidates.length
+      const acceptedCandidates = applications.filter(
+        (application) =>
+          application.commissionId === commission.id && application.status === 'interview-passed',
+      ).length
+      const rejectedCandidates = applications.filter(
+        (application) =>
+          application.commissionId === commission.id && application.status === 'interview-rejected',
+      ).length
+      const pendingFinalDecision = applications.filter(
+        (application) =>
+          application.commissionId === commission.id &&
+          ['interview', 'interviewed'].includes(application.status),
+      ).length
+      const scheduledInterviews = commissionCandidates.filter((application) =>
+        Boolean(application.interviewDate),
+      ).length
+      const unscheduledInterviews = commissionCandidates.filter(
+        (application) => application.status === 'interview' && !application.interviewDate,
+      ).length
+      const completedCoordinatorReviews = commission.recruitmentReviews.length
+      const coordinatorCount = commission.coordinators.length
+
+      return {
+        acceptedCandidates,
+        assignedCandidates,
+        aspirerCount: commission.aspirers.length,
+        balance: assignedCandidates - targetPerCommission,
+        commission,
+        completedCoordinatorReviews,
+        coordinatorCount,
+        pendingFinalDecision,
+        rejectedCandidates,
+        reviewCompleted: coordinatorCount > 0 && completedCoordinatorReviews >= coordinatorCount,
+        scheduledInterviews,
+        target: targetPerCommission,
+        unscheduledInterviews,
+      }
+    }),
+    targetPerCommission,
+    totalCandidates: candidates.length,
+  }
+}
+
+function formatTargetCount(value: number) {
+  if (!Number.isFinite(value)) return '0'
+  if (Number.isInteger(value)) return String(value)
+  return value.toFixed(1)
+}
+
+function formatSignedCount(value: number) {
+  const formatted = formatTargetCount(value)
+  return value > 0 ? `+${formatted}` : formatted
+}
+
 function normalizeApplicationPatch(
   patch: ServerApplicationPatch,
   user: ManagedUser,
@@ -1760,17 +1996,6 @@ function formatMailBatchNotice(result: MailBatchResult) {
   ]
   if (result.warnings.length > 0) parts.push(`${result.warnings.length} avertizari`)
   return `Batch email finalizat: ${parts.join(', ')}.`
-}
-
-function toDateTimeInputValue(value: string | null) {
-  if (!value) return ''
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-
-  const offset = date.getTimezoneOffset()
-  const local = new Date(date.getTime() - offset * 60_000)
-  return local.toISOString().slice(0, 16)
 }
 
 function formatDate(value: string) {

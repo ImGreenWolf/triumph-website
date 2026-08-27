@@ -1,11 +1,12 @@
 import type { CollectionConfig } from 'payload'
 import { hasBoardRole } from '@/utilities/membersAccess'
+import { authenticated } from '@/access/authenticated'
 
 export const Applications: CollectionConfig = {
   slug: 'applications',
   access: {
-    read: hasBoardRole,
-    update: hasBoardRole,
+    read: () => true,
+    update: authenticated,
   },
   admin: {
     useAsTitle: 'name',
