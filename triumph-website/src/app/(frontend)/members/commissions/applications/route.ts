@@ -93,6 +93,10 @@ export async function PATCH(request: Request) {
       return await reviewSubmission({ body, payload, user })
     }
 
+    if (action === 'bulk-review-submissions') {
+      return await bulkReviewSubmissions({ body, payload, user })
+    }
+
     if (action === 'toggle-known') {
       return await toggleKnownApplicant({ body, payload, user })
     }
@@ -152,6 +156,61 @@ async function reviewSubmission(args: {
   })
 
   return Response.json({ application: serializeApplicationUpdate(updated) })
+}
+
+async function bulkReviewSubmissions(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  requireHR(args.user)
+
+  const status = normalizeText(args.body.status)
+  if (!isReviewStatus(status)) {
+    return Response.json({ message: 'Selecteaza un status valid.' }, { status: 400 })
+  }
+
+  const applicationIDs = normalizeStringList(args.body.applicationIds)
+  if (applicationIDs.length === 0) {
+    return Response.json({ message: 'Selecteaza cel putin un candidat.' }, { status: 400 })
+  }
+
+  const result = {
+    applications: [] as ReturnType<typeof serializeApplicationUpdate>[],
+    failed: 0,
+    skipped: 0,
+    updated: 0,
+    warnings: [] as string[],
+  }
+
+  for (const applicationID of applicationIDs) {
+    try {
+      const application = await getApplication(args.payload, applicationID)
+
+      if (application.reviewProcess?.status && application.reviewProcess.status !== 'submitted') {
+        result.skipped += 1
+        result.warnings.push(`${application.name}: candidatul nu mai este in etapa de formular.`)
+        continue
+      }
+
+      const updated = await updateApplicationReview(args.payload, application, {
+        notes: normalizeOptionalText(args.body.notes) ?? application.reviewProcess?.notes,
+        status,
+      })
+
+      result.applications.push(serializeApplicationUpdate(updated))
+      result.updated += 1
+    } catch (error) {
+      result.failed += 1
+      result.warnings.push(
+        `${applicationID}: ${
+          error instanceof Error ? error.message : 'Candidatul nu a putut fi actualizat.'
+        }`,
+      )
+    }
+  }
+
+  return Response.json({ bulkReview: result })
 }
 
 async function toggleKnownApplicant(args: {
@@ -888,6 +947,12 @@ function normalizeText(value: unknown) {
 function normalizeOptionalText(value: unknown) {
   const text = normalizeText(value)
   return text || undefined
+}
+
+function normalizeStringList(value: unknown) {
+  if (!Array.isArray(value)) return []
+
+  return value.map(normalizeText).filter(Boolean)
 }
 
 function generateTemporaryPassword() {

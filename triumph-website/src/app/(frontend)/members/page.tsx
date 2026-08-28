@@ -21,6 +21,7 @@ import {
   Megaphone,
   SettingsIcon,
   ShieldCheck,
+  UserCheck,
   UserCircle,
 } from 'lucide-react'
 import { getPayload } from 'payload'
@@ -155,6 +156,7 @@ export default async function DashboardPage() {
         <MemberSummary
           hasManagedCommissions={hasBoardAccess || managedCommissions.totalDocs > 0}
           hasManagedEvents={managedEvents.totalDocs > 0}
+          isHR={member.role === 'hr-director'}
           member={member}
         />
 
@@ -201,9 +203,10 @@ function Announcement(props: { title?: string | null; message?: string | null })
 function MemberSummary(props: {
   hasManagedCommissions: boolean
   hasManagedEvents: boolean
+  isHR: boolean
   member: User
 }) {
-  const { hasManagedCommissions, hasManagedEvents, member } = props
+  const { hasManagedCommissions, hasManagedEvents, isHR, member } = props
 
   return (
     <section>
@@ -238,6 +241,16 @@ function MemberSummary(props: {
             >
               <BriefcaseBusiness className="size-4" />
               Panou Comisii
+            </Link>
+          )}
+
+          {isHR && (
+            <Link
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-white transition hover:bg-accent"
+              href="/members/recruitment"
+            >
+              <UserCheck className="size-4" />
+              Panou HR
             </Link>
           )}
 

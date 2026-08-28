@@ -50,7 +50,7 @@ export const SectionTitleBlock: React.FC<any> = ({ alignment, eyebrow, title, se
           </p>
         )}
         <div className='whitespace-break-spaces'>
-           <h2 className={cn('-mb-16 text-4xl lg:text-6xl')}>
+           <h2 className={cn('-mb-8 text-4xl lg:text-6xl')}>
             {title}
           </h2>
           {/* <h2 className='absolute text-4xl'>
