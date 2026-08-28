@@ -933,6 +933,7 @@ export interface ContentBlock {
   columns?:
     | {
         size?: ('oneThird' | 'half' | 'twoThirds' | 'twoThirdsCentered' | 'full') | null;
+        justifyText?: boolean | null;
         richText?: {
           root: {
             type: string;
@@ -2612,6 +2613,7 @@ export interface ContentBlockSelect<T extends boolean = true> {
     | T
     | {
         size?: T;
+        justifyText?: T;
         richText?: T;
         enableLink?: T;
         link?:

@@ -114,12 +114,12 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
           {/* Text box - overlaps from the left */}
           <div className="relative w-8/12 z-10 ">
             <div className={cn(
-              "",
-              "bg-background/50 backdrop-blur-lg",
+              "rounded-md lg:rounded-3xl",
+              "bg-card/50 backdrop-blur-lg",
               "border shadow-2xl",
               currentAccent.border
             )}>
-              <div className="absolute inset-0 rounded-md lg:rounded-3xl bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
+              <div className="absolute inset-0  bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
               
               <div className="relative p-6 md:p-8 lg:p-10 space-y-6 md:space-y-8">
                 {/* Title */}
@@ -263,7 +263,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
           <div className="relative -mt-32 sm:-mt-48 z-10 px-4">
             <div className={cn(
               "rounded-md",
-              "bg-background/70 backdrop-blur-xl",
+              "bg-card/70 backdrop-blur-xl",
               "border shadow-2xl",
               currentAccent.border
             )}>

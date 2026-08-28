@@ -47,6 +47,10 @@ const columnFields: Field[] = [
         ],
     },
     {
+        name: 'justifyText',
+        type: 'checkbox'
+    },
+    {
         name: 'richText',
         type: 'richText',
         editor: lexicalEditor({

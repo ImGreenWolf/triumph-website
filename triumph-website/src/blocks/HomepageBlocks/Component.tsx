@@ -16,7 +16,7 @@ const hasMediaObject = (media: unknown) => typeof media === 'object' && media !=
 
 export const SectionIntroBlock: React.FC<SectionIntroBlockProps> = ({ alignment, eyebrow, richText, sectionId }) => {
   return (
-    <section className="container mt-8 -mb-16" id={sectionId ? sectionId : undefined}>
+    <section className="container mt-16 -mb-16" id={sectionId ? sectionId : undefined}>
       <div
         className={cn('max-w-container', {
           'mx-auto text-center': alignment === 'center',
@@ -49,8 +49,8 @@ export const SectionTitleBlock: React.FC<any> = ({ alignment, eyebrow, title, se
             {eyebrow}
           </p>
         )}
-        <div className='text-4xl whitespace-break-spaces'>
-           <h2 className={cn('-mb-16 text-6xl')}>
+        <div className='whitespace-break-spaces'>
+           <h2 className={cn('-mb-16 text-4xl lg:text-6xl')}>
             {title}
           </h2>
           {/* <h2 className='absolute text-4xl'>
@@ -108,10 +108,10 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
       {introContent && (
         <RichText className="mx-auto mb-10 max-w-3xl text-center" data={introContent} />
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start">
+      <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start">
         {statsItems.map((stat, index) => (
           <article
-            className="min-w-0 rounded-lg border border-border/70 bg-card p-5 text-card-foreground shadow-sm sm:p-6"
+            className="min-w-0 rounded-lg border border-border/70 bg-card p-4 text-card-foreground shadow-sm sm:p-6"
             key={stat.id || index}
           >
             <div className="flex min-w-0 flex-wrap items-end gap-x-2 gap-y-1 text-accent">
@@ -119,7 +119,7 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
                 to={stat.value}
                 from={0}
                 separator=","
-                className="text-4xl font-bold leading-none tracking-normal tabular-nums sm:text-5xl"
+                className="text-3xl font-bold leading-none tracking-normal tabular-nums sm:text-5xl"
               />
               {stat.unit && (
                 <span className="pb-1 text-xl font-semibold leading-none text-card-foreground/85 sm:text-2xl">
@@ -128,11 +128,11 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
               )}
             </div>
 
-            <div className="mt-4 text-base font-semibold leading-snug [overflow-wrap:anywhere]">
+            <div className="sm:mt-4 text-sm sm:text-base font-semibold leading-snug [overflow-wrap:anywhere]">
               {stat.label}
             </div>
             {stat.description && (
-              <p className="mt-3 text-sm leading-6 text-card-foreground/70 [overflow-wrap:anywhere]">
+              <p className="mt-2 sm:mt-3 text-sm leading-6 text-card-foreground/70 [overflow-wrap:anywhere]">
                 {stat.description}
               </p>
             )}
@@ -153,7 +153,7 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
         {hasEventList && (
           <aside
             className={cn(
-              'min-w-0 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm h-full',
+              'min-w-0 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm h-full not-sm:mt-4',
               hasGallery ? 'sm:col-span-2 lg:col-span-1' : 'sm:col-span-2 lg:col-span-2',
             )}
           >

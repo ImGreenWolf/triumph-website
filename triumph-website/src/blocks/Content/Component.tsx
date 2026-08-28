@@ -23,13 +23,14 @@ export const ContentBlock: React.FC<ContentBlockProps> = (props) => {
         {columns &&
           columns.length > 0 &&
           columns.map((col, index) => {
-            const { enableLink, link, richText, size } = col
+            const { enableLink, link, richText, size, justifyText } = col
 
             return (
               <div
                 className={cn(`col-span-4 lg:col-span-${colsSpanClasses[size!]}`, {
                   'md:col-span-2': size !== 'full' && size !== "twoThirdsCentered",
-                  ' lg:col-start-3! lg:col-end-11! text-center': size == 'twoThirdsCentered'
+                  ' lg:col-start-3! lg:col-end-11! text-center': size == 'twoThirdsCentered',
+                  'text-justify': justifyText
                 })}
                 key={index}
               >
