@@ -1,7 +1,7 @@
 import payloadConfig from '@payload-config'
 import { getPayload } from 'payload'
 
-import type { Application, AspirementConfig } from '@/payload-types'
+import type { Application, AspirementConfig, Comission } from '@/payload-types'
 import {
   generateInterviewSlots,
   type RecruitmentApplication,
@@ -67,7 +67,12 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
     return Response.json({ message: 'Deadline-ul pentru programare a trecut.' }, { status: 409 })
   }
 
-  const slots = generateInterviewSlots(config.recruitment?.interviewIntervals)
+  const commission = await getApplicationCommission(application)
+  if (!commission) {
+    return Response.json({ message: 'Candidatul nu este asignat unei comisii.' }, { status: 409 })
+  }
+
+  const slots = generateInterviewSlots(commission.interviewIntervals)
   const selectedSlot = slots.find((slot) => slot.start === slotStart)
 
   if (!selectedSlot) {
@@ -77,6 +82,7 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
   const taken = await getTakenSlotStarts(
     slots.map((slot) => slot.start),
     application.id,
+    commission.id,
   )
   const current = normalizeDate(application.reviewProcess?.interviewDate)
 
@@ -89,6 +95,7 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
     data: {
       reviewProcess: {
         ...(application.reviewProcess ?? {}),
+        interviewAttendance: 'scheduled',
         interviewDate: selectedSlot.start,
       },
     },
@@ -98,6 +105,7 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
   const updatedTaken = await getTakenSlotStarts(
     slots.map((slot) => slot.start),
     application.id,
+    commission.id,
   )
 
   return Response.json({
@@ -128,7 +136,11 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
     return (result.docs[0] as RecruitmentApplication | undefined) ?? null
   }
 
-  async function getTakenSlotStarts(slotStarts: string[], currentApplicationId: string) {
+  async function getTakenSlotStarts(
+    slotStarts: string[],
+    currentApplicationId: string,
+    commissionId: string,
+  ) {
     if (slotStarts.length === 0) return new Set<string>()
 
     const result = await payload.find({
@@ -138,9 +150,10 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
       overrideAccess: true,
       pagination: false,
       where: {
-        'reviewProcess.interviewDate': {
-          in: slotStarts,
-        },
+        and: [
+          { 'reviewProcess.comission': { equals: commissionId } },
+          { 'reviewProcess.interviewDate': { in: slotStarts } },
+        ],
       },
     })
 
@@ -150,6 +163,27 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
         .map((item) => normalizeDate(item.reviewProcess?.interviewDate))
         .filter((value): value is string => Boolean(value)),
     )
+  }
+
+  async function getApplicationCommission(application: RecruitmentApplication) {
+    const relation = application.reviewProcess?.comission
+    if (relation && typeof relation === 'object' && 'id' in relation) {
+      return relation as Comission
+    }
+
+    const id = typeof relation === 'string' ? relation : ''
+    if (!id) return null
+
+    try {
+      return await payload.findByID({
+        collection: 'comissions',
+        depth: 0,
+        id,
+        overrideAccess: true,
+      })
+    } catch {
+      return null
+    }
   }
 }
 

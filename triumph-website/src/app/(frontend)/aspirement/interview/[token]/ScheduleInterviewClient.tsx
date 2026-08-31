@@ -11,6 +11,7 @@ export type InterviewScheduleSlot = {
   id: string
   isCurrent: boolean
   label: string
+  location?: string
   start: string
 }
 
@@ -38,6 +39,7 @@ export default function ScheduleInterviewClient(props: {
     () => props.currentInterviewDate || props.slots.find((slot) => slot.available)?.start || '',
   )
   const [busy, setBusy] = useState(false)
+  const [withdrawn, setWithdrawn] = useState(false)
   const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null)
   const selected = useMemo(
     () => slots.find((slot) => slot.start === selectedSlot),
@@ -108,6 +110,33 @@ export default function ScheduleInterviewClient(props: {
     }
   }
 
+  async function withdraw() {
+    if (!window.confirm('Esti sigur ca vrei sa te retragi din procesul de selectie?')) return
+
+    setBusy(true)
+    setNotice(null)
+    try {
+      const response = await fetch(
+        `/aspirement/interview/${encodeURIComponent(props.token)}/withdraw`,
+        { method: 'POST' },
+      )
+      const result = (await response.json()) as { message?: string; withdrawn?: boolean }
+      if (!response.ok || !result.withdrawn) {
+        throw new Error(result.message || 'Retragerea nu a putut fi salvata.')
+      }
+
+      setWithdrawn(true)
+      setNotice({ kind: 'success', message: 'Retragerea a fost inregistrata.' })
+    } catch (error) {
+      setNotice({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Retragerea nu a putut fi salvata.',
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#f4f6f8] px-4 py-24 text-[#152039] sm:px-6 lg:px-8">
       <section className="mx-auto grid max-w-5xl gap-6">
@@ -126,8 +155,15 @@ export default function ScheduleInterviewClient(props: {
           )}
         </div>
 
-        {props.unavailableMessage ? (
-          <StatusPanel kind="error" message={props.unavailableMessage} />
+        {props.unavailableMessage || withdrawn ? (
+          <StatusPanel
+            kind={withdrawn ? 'success' : 'error'}
+            message={
+              withdrawn
+                ? 'Retragerea a fost inregistrata. Iti multumim ca ne-ai anuntat.'
+                : props.unavailableMessage || ''
+            }
+          />
         ) : (
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
             <section className="grid gap-5">
@@ -249,6 +285,9 @@ export default function ScheduleInterviewClient(props: {
                 <p className="mt-2 text-sm font-bold">
                   {selected?.label || 'Selecteaza un interval'}
                 </p>
+                {selected?.location && (
+                  <p className="mt-1 text-sm font-medium text-[#748094]">{selected.location}</p>
+                )}
               </div>
               {notice && <StatusPanel kind={notice.kind} message={notice.message} />}
               <button
@@ -259,6 +298,14 @@ export default function ScheduleInterviewClient(props: {
               >
                 <CheckCircle2 className="size-4" />
                 {busy ? 'Se salveaza...' : 'Salveaza programarea'}
+              </button>
+              <button
+                className="mt-5 w-full text-center text-xs font-medium text-[#8a94a6] underline-offset-2 hover:text-[#526071] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={busy}
+                onClick={() => void withdraw()}
+                type="button"
+              >
+                Retrage-te din proces
               </button>
             </aside>
           </div>

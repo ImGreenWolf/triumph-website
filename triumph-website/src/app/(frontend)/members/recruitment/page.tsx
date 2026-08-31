@@ -4,49 +4,28 @@ import { redirect } from 'next/navigation'
 import payloadConfig from '@payload-config'
 import { getPayload } from 'payload'
 
-import type { Application, Comission, FormSubmission, Mandate, User } from '@/payload-types'
+import type {
+  Application,
+  AspirementConfig,
+  Comission,
+  FormSubmission,
+  User,
+} from '@/payload-types'
+import { normalizeInstagramUsername } from '@/utilities/instagram'
+import { normalizeGooglePlace } from '@/utilities/googlePlace'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
-import HRRecruitmentDashboard, {
+import HRRecruitmentWizard, {
   type ManagedApplication,
   type ManagedCommission,
+  type ManagedRecruitmentConfig,
+  type ManagedUpload,
   type ManagedUser,
-} from './HRRecruitmentDashboard'
+} from './HRRecruitmentWizard'
 
 export const metadata: Metadata = {
-  description: 'Command center pentru recruitment HR Interact Bucuresti Triumph.',
-  title: 'Panou HR Recruitment | Interact Bucuresti Triumph',
-}
-
-type ApplicationWithExtendedReview = Application & {
-  reviewProcess?: Application['reviewProcess'] & {
-    aspirerUser?: (string | null) | User
-    coordonatorReviewChecks?: (string | User)[] | null
-    finalMailSentAt?: string | null
-    finalMailSentBy?: string | User | null
-    interviewMailSentAt?: string | null
-    interviewMailSentBy?: string | User | null
-    interviewNotes?:
-      | {
-          author: string | User
-          createdAt: string
-          id?: string | null
-          note: string
-        }[]
-      | null
-    interviewScheduleToken?: string | null
-    interviewScheduleTokenCreatedAt?: string | null
-  }
-}
-
-type CommissionWithReviews = Comission & {
-  recruitmentReviews?:
-    | {
-        confirmedAt: string
-        coordinator: string | User
-        id?: string | null
-      }[]
-    | null
+  description: 'Fluxul de recruitment HR Interact Bucuresti Triumph.',
+  title: 'Recruitment HR | Interact Bucuresti Triumph',
 }
 
 export default async function HRRecruitmentPage() {
@@ -55,18 +34,17 @@ export default async function HRRecruitmentPage() {
 
   if (!auth.user) redirect('/members/login')
 
-  const authUser = auth.user as User
   const member = (await payload.findByID({
     collection: 'users',
     depth: 1,
-    id: authUser.id,
+    id: auth.user.id,
     overrideAccess: false,
-    user: authUser,
+    user: auth.user,
   })) as User
-
   if (member.role !== 'hr-director') redirect('/members')
 
-  const [commissionResult, applicationResult] = await Promise.all([
+  const [config, commissionResult, applicationResult] = await Promise.all([
+    payload.findGlobal({ slug: 'aspirementConfig', depth: 0, overrideAccess: true }),
     payload.find({
       collection: 'comissions',
       depth: 2,
@@ -86,72 +64,142 @@ export default async function HRRecruitmentPage() {
   ])
 
   return (
-    <HRRecruitmentDashboard
-      applications={(applicationResult.docs as ApplicationWithExtendedReview[]).map(
-        serializeApplication,
-      )}
-      commissions={(commissionResult.docs as CommissionWithReviews[]).map(serializeCommission)}
-      user={{
-        email: member.email,
-        id: member.id,
-        name: member.name || member.email,
-        role: member.role,
-      }}
+    <HRRecruitmentWizard
+      applications={(applicationResult.docs as Application[]).map(serializeApplication)}
+      commissions={(commissionResult.docs as Comission[]).map(serializeCommission)}
+      config={serializeConfig(config as AspirementConfig)}
+      user={serializeUser(member) as ManagedUser}
     />
   )
 }
 
-function serializeCommission(commission: CommissionWithReviews): ManagedCommission {
+function serializeConfig(config: AspirementConfig): ManagedRecruitmentConfig {
   return {
-    aspirers: (commission.aspirers ?? []).map(serializeUser).filter(isManagedUser),
-    commissionNumber: commission.commissionNumber,
-    coordinators: commission.coordinators.map(serializeUser).filter(isManagedUser),
-    id: commission.id,
-    label: `Comisia ${commission.commissionNumber}`,
-    mandateLabel: getMandateLabel(commission.mandate),
-    recruitmentReviews: (commission.recruitmentReviews ?? [])
-      .map((review) => ({
-        confirmedAt: review.confirmedAt,
-        coordinatorId: getRelationshipID(review.coordinator),
-      }))
-      .filter((review) => Boolean(review.coordinatorId && review.confirmedAt)),
+    defaultInterviewDate: normalizeDate(config.recruitment?.defaultInterviewDate),
+    interviewSchedulingDeadline: normalizeDate(config.recruitment?.interviewSchedulingDeadline),
+    recruitmentEndDate: normalizeDate(config.recruitment?.recruitmentEndDate),
+    recruitmentStartDate: normalizeDate(config.recruitment?.recruitmentStartDate),
   }
 }
 
-function serializeApplication(application: ApplicationWithExtendedReview): ManagedApplication {
-  const reviewProcess = application.reviewProcess ?? {}
+function serializeCommission(commission: Comission): ManagedCommission {
+  return {
+    commissionNumber: commission.commissionNumber,
+    coordinators: commission.coordinators.map(serializeUser).filter(isManagedUser),
+    id: commission.id,
+    interviewIntervals: (commission.interviewIntervals ?? []).map((interval) => ({
+      breaks: (interval.breaks ?? []).map((item) => ({
+        endTime: normalizeDate(item.endTime),
+        startTime: normalizeDate(item.startTime),
+      })),
+      endDateTime: normalizeDate(interval.endDateTime),
+      interviewDuration: interval.interviewDuration ?? null,
+      location: normalizeGooglePlace(interval.location),
+      pauseBetween: interval.pauseBetween ?? null,
+      startDateTime: normalizeDate(interval.startDateTime),
+    })),
+    label: `Comisia ${commission.commissionNumber}`,
+    recruitmentReviews: (commission.recruitmentReviews ?? []).map((review) => ({
+      confirmedAt: normalizeDate(review.confirmedAt) || review.confirmedAt,
+      coordinatorId: getRelationshipID(review.coordinator),
+    })),
+  }
+}
+
+function serializeApplication(application: Application): ManagedApplication {
+  const review = application.reviewProcess ?? {}
+  const submission =
+    typeof application.formSubmission === 'string' ? null : application.formSubmission
+  const answers = getSubmissionAnswers(submission)
 
   return {
-    aspirerUserId: getRelationshipID(reviewProcess.aspirerUser),
-    commissionId: getRelationshipID(reviewProcess.comission),
+    aspirerUserId: getRelationshipID(review.aspirerUser),
+    commissionId: getRelationshipID(review.comission),
     createdAt: application.createdAt,
     email: application.email,
-    formAnswers: getSubmissionAnswers(application.formSubmission),
-    finalMailSentAt: normalizeDate(reviewProcess.finalMailSentAt),
+    finalMailSentAt: normalizeDate(review.finalMailSentAt),
+    formAnswers: answers,
+    formUploads: getSubmissionUploads(submission),
     id: application.id,
-    interviewDate: normalizeDate(reviewProcess.interviewDate),
-    interviewMailSentAt: normalizeDate(reviewProcess.interviewMailSentAt),
-    interviewNotes: (reviewProcess.interviewNotes ?? []).map((note) => ({
+    instagram: normalizeInstagramUsername(findSubmissionValue(answers, ['insta', 'instagram'])),
+    interviewAttendance: review.interviewAttendance ?? null,
+    interviewDate: normalizeDate(review.interviewDate),
+    interviewMailSentAt: normalizeDate(review.interviewMailSentAt),
+    interviewNotes: (review.interviewNotes ?? []).map((note) => ({
       author: serializeUser(note.author),
       createdAt: note.createdAt,
       id: note.id ?? `${getRelationshipID(note.author)}-${note.createdAt}`,
       note: note.note,
     })),
-    knownCoordinatorIds: (reviewProcess.coordonatorIncompatability ?? [])
+    knownCoordinatorIds: (review.coordonatorIncompatability ?? [])
       .map(getRelationshipID)
       .filter(Boolean),
     name: application.name,
-    notes: reviewProcess.notes ?? '',
-    reviewedCoordinatorIds: (reviewProcess.coordonatorReviewChecks ?? [])
+    notes: review.notes ?? '',
+    phone: findSubmissionValue(answers, ['phone', 'telefon', 'tel']),
+    reviewedCoordinatorIds: (review.coordonatorReviewChecks ?? [])
       .map(getRelationshipID)
       .filter(Boolean),
-    status: reviewProcess.status ?? 'submitted',
+    status: review.status ?? 'submitted',
   }
+}
+
+function getSubmissionAnswers(submission: FormSubmission | null) {
+  const fieldLabels = getSubmissionFieldLabels(submission)
+
+  return (submission?.submissionData ?? []).map((item) => ({
+    field: item.field,
+    label: fieldLabels.get(item.field) || item.field,
+    value: item.value,
+  }))
+}
+
+function getSubmissionUploads(submission: FormSubmission | null): ManagedUpload[] {
+  const fieldLabels = getSubmissionFieldLabels(submission)
+
+  return (submission?.submissionUploads ?? [])
+    .flatMap((entry) =>
+      entry.value.map((relation) => {
+        const file = relation.value
+        if (typeof file === 'string') return null
+
+        return {
+          filename: file.filename || file.id,
+          field: entry.field,
+          id: file.id,
+          label: fieldLabels.get(entry.field) || entry.field,
+          mimeType: file.mimeType || null,
+          previewURL: file.url || null,
+          url: file.url || null,
+        }
+      }),
+    )
+    .filter((upload): upload is ManagedUpload => Boolean(upload))
+}
+
+function getSubmissionFieldLabels(submission: FormSubmission | null) {
+  if (!submission || typeof submission.form === 'string') return new Map<string, string>()
+
+  return new Map(
+    (submission.form.fields ?? []).flatMap((field) => {
+      if (!('name' in field) || typeof field.name !== 'string') return []
+
+      const label = 'label' in field && typeof field.label === 'string' ? field.label.trim() : ''
+      return [[field.name, label || field.name]]
+    }),
+  )
+}
+
+function findSubmissionValue(answers: Array<{ field: string; value: string }>, names: string[]) {
+  const match = answers.find((item) => {
+    const field = item.field.toLocaleLowerCase('ro')
+    return names.some((name) => field.includes(name))
+  })
+  return match?.value ?? ''
 }
 
 function serializeUser(value: string | User | null | undefined): ManagedUser | null {
   if (!value || typeof value === 'string') return null
-
   return {
     email: value.email,
     id: value.id,
@@ -164,30 +212,16 @@ function isManagedUser(value: ManagedUser | null): value is ManagedUser {
   return Boolean(value)
 }
 
-function getSubmissionAnswers(value: string | FormSubmission) {
-  if (!value || typeof value === 'string') return []
-
-  return (value.submissionData ?? []).map((item) => ({
-    field: item.field,
-    value: item.value,
-  }))
-}
-
-function getMandateLabel(value: string | Mandate) {
-  if (!value || typeof value === 'string') return 'Mandat neconfigurat'
-  return `${value.year}`
-}
-
 function getRelationshipID(value: unknown) {
-  if (!value) return ''
   if (typeof value === 'string') return value
-  if (typeof value === 'object' && 'id' in value && typeof value.id === 'string') return value.id
+  if (value && typeof value === 'object' && 'id' in value && typeof value.id === 'string') {
+    return value.id
+  }
   return ''
 }
 
 function normalizeDate(value?: string | null) {
   if (!value) return null
-
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }

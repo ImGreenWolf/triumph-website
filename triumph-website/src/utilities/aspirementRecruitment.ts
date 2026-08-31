@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 
-import type { Application, AspirementConfig, Comission, FormSubmission } from '@/payload-types'
+import type { Application, Comission, FormSubmission } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
 
 type LexicalNode = {
@@ -33,7 +33,17 @@ export type InterviewSlot = {
   end: string
   id: string
   label: string
+  location?: string
   start: string
+}
+
+export type InterviewIntervalInput = {
+  breaks?: Array<{ endTime?: string | null; startTime?: string | null }> | null
+  endDateTime?: string | null
+  interviewDuration?: number | null
+  location?: unknown
+  pauseBetween?: number | null
+  startDateTime?: string | null
 }
 
 type RecruitmentMessageResult = {
@@ -56,9 +66,7 @@ export function getRequestBaseURL(request?: Request) {
   return origin.replace(/\/$/, '')
 }
 
-export function generateInterviewSlots(
-  intervals: NonNullable<AspirementConfig['recruitment']>['interviewIntervals'],
-) {
+export function generateInterviewSlots(intervals: InterviewIntervalInput[] | null | undefined) {
   const slots: InterviewSlot[] = []
 
   for (const interval of intervals ?? []) {
@@ -104,12 +112,65 @@ export function generateInterviewSlots(
         end: end.toISOString(),
         id: isoStart,
         label: formatInterviewSlotLabel(start, end),
+        location: getLocationLabel(interval.location),
         start: isoStart,
       })
     }
   }
 
   return slots.sort((left, right) => left.start.localeCompare(right.start))
+}
+
+export function validateInterviewIntervals(intervals: InterviewIntervalInput[] | null | undefined) {
+  const errors: string[] = []
+  const resolvedIntervals: Array<{ end: Date; index: number; start: Date }> = []
+
+  for (const [index, interval] of (intervals ?? []).entries()) {
+    const intervalStart = parseDate(interval.startDateTime)
+    const intervalEnd = parseDate(interval.endDateTime)
+    const durationMinutes = normalizePositiveNumber(interval.interviewDuration)
+    const label = `Intervalul ${index + 1}`
+
+    if (!intervalStart || !intervalEnd || !durationMinutes || intervalStart >= intervalEnd) {
+      errors.push(`${label} are ore sau durata invalide.`)
+      continue
+    }
+    resolvedIntervals.push({ end: intervalEnd, index, start: intervalStart })
+
+    if (!getLocationLabel(interval.location)) {
+      errors.push(`${label} nu are locatie.`)
+    }
+
+    for (const item of interval.breaks ?? []) {
+      const start = getBreakDateForIntervalDay(intervalStart, item.startTime)
+      const end = getBreakDateForIntervalDay(intervalStart, item.endTime)
+      if (!start || !end || end <= start) {
+        errors.push(`${label} contine o pauza invalida.`)
+        continue
+      }
+      if (start < intervalStart || end > intervalEnd) {
+        errors.push(`${label} contine o pauza in afara programului.`)
+      }
+    }
+  }
+
+  for (let index = 0; index < resolvedIntervals.length; index += 1) {
+    const current = resolvedIntervals[index]
+    for (const candidate of resolvedIntervals.slice(index + 1)) {
+      if (rangesOverlap(current.start, current.end, candidate.start, candidate.end)) {
+        errors.push(`Intervalele ${current.index + 1} si ${candidate.index + 1} se suprapun.`)
+      }
+    }
+  }
+
+  if ((intervals ?? []).length > 0 && generateInterviewSlots(intervals).length === 0) {
+    errors.push('Programul nu produce niciun slot disponibil.')
+  }
+
+  return {
+    errors,
+    valid: errors.length === 0 && generateInterviewSlots(intervals).length > 0,
+  }
 }
 
 export function createApplicantParameters(args: {
@@ -349,6 +410,16 @@ function getBreakDateForIntervalDay(intervalStart: Date, value?: string | null) 
     breakDate.getSeconds(),
     breakDate.getMilliseconds(),
   )
+}
+
+function getLocationLabel(value: unknown) {
+  if (typeof value === 'string') return value.trim()
+  if (value && typeof value === 'object' && 'name' in value) {
+    const name = (value as { name?: unknown }).name
+    return typeof name === 'string' ? name.trim() : ''
+  }
+
+  return ''
 }
 
 function parseDate(value?: string | null) {

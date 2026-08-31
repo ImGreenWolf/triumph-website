@@ -10,9 +10,11 @@ import {
   getCommissionLabel,
   getInterviewScheduleURL,
   renderRecruitmentMessage,
+  validateInterviewIntervals,
   type RecruitmentApplication,
 } from '@/utilities/aspirementRecruitment'
 import { isBoardMember } from '@/utilities/membersAccess'
+import { getEndOfBucharestDay, getStartOfBucharestDay } from '@/utilities/recruitmentWorkflow'
 
 type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
   aspirerUser?: string | User | null
@@ -31,6 +33,7 @@ type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
     | null
   interviewScheduleToken?: string | null
   interviewScheduleTokenCreatedAt?: string | null
+  interviewAttendance?: 'scheduled' | 'late' | 'absent' | 'completed' | null
 }
 
 type ExtendedApplication = Application & {
@@ -49,14 +52,13 @@ type ExtendedCommission = Comission & {
 
 type ApplicationStatus = NonNullable<NonNullable<Application['reviewProcess']>['status']>
 
-const reviewStatuses = new Set<ApplicationStatus>(['coordonator-review', 'submission-rejected'])
-const finalMailStatuses = new Set<ApplicationStatus>(['interview-passed', 'interview-rejected'])
-const finalStatuses = new Set<ApplicationStatus>([
-  'interview-passed',
-  'interview-rejected',
-  'absent',
-  'interviewed',
+const reviewStatuses = new Set<ApplicationStatus>([
+  'coordonator-review',
+  'submission-waitlisted',
+  'submission-rejected',
 ])
+const finalMailStatuses = new Set<ApplicationStatus>(['interview-passed', 'interview-rejected'])
+const finalStatuses = new Set<ApplicationStatus>(['interview-passed', 'interview-rejected'])
 
 type MailBatchResult = {
   failed: number
@@ -71,7 +73,21 @@ type MailBatchResult = {
   warnings: string[]
 }
 
+type RouteScope = 'commissions' | 'recruitment'
+
+const coordinatorActions = new Set([
+  'add-note',
+  'confirm-review',
+  'final-decision',
+  'set-interview-attendance',
+  'toggle-known',
+  'update-commission-schedule',
+])
+
 export async function PATCH(request: Request) {
+  const scope: RouteScope = new URL(request.url).pathname.startsWith('/members/recruitment/')
+    ? 'recruitment'
+    : 'commissions'
   const payload = await getPayload({ config: payloadConfig })
   const authentication = await authenticateRequest(request, payload)
   if ('response' in authentication) return authentication.response
@@ -89,6 +105,8 @@ export async function PATCH(request: Request) {
   const user = authentication.user
 
   try {
+    assertScopeActionAccess(action, user, scope)
+
     if (action === 'review-submission') {
       return await reviewSubmission({ body, payload, user })
     }
@@ -109,8 +127,20 @@ export async function PATCH(request: Request) {
       return await assignCandidate({ body, payload, user })
     }
 
+    if (action === 'update-commission-schedule') {
+      return await updateCommissionSchedule({ body, payload, user })
+    }
+
+    if (action === 'update-recruitment-config') {
+      return await updateRecruitmentConfig({ body, payload, user })
+    }
+
     if (action === 'add-note') {
       return await addInterviewNote({ body, payload, user })
+    }
+
+    if (action === 'set-interview-attendance') {
+      return await setInterviewAttendance({ body, payload, user })
     }
 
     if (action === 'final-decision') {
@@ -149,6 +179,16 @@ async function reviewSubmission(args: {
   if (!isReviewStatus(status)) {
     return Response.json({ message: 'Selecteaza un status valid.' }, { status: 400 })
   }
+  if (
+    !['submitted', 'submission-waitlisted'].includes(
+      application.reviewProcess?.status ?? 'submitted',
+    )
+  ) {
+    return Response.json(
+      { message: 'Doar formularele neprocesate sau din lista de asteptare pot fi revizuite.' },
+      { status: 409 },
+    )
+  }
 
   const updated = await updateApplicationReview(args.payload, application, {
     notes: normalizeOptionalText(args.body.notes) ?? application.reviewProcess?.notes,
@@ -158,12 +198,63 @@ async function reviewSubmission(args: {
   return Response.json({ application: serializeApplicationUpdate(updated) })
 }
 
+async function updateRecruitmentConfig(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  requireBoard(args.user)
+
+  const config = (await args.payload.findGlobal({
+    slug: 'aspirementConfig',
+    depth: 0,
+    overrideAccess: true,
+  })) as AspirementConfig
+  const recruitment = config.recruitment ?? {}
+  const recruitmentStartDate = normalizeConfigDate(args.body.recruitmentStartDate)
+  const recruitmentEndDate = normalizeConfigDate(args.body.recruitmentEndDate)
+  const defaultInterviewDate = normalizeConfigDate(args.body.defaultInterviewDate)
+  const interviewSchedulingDeadline = normalizeConfigDate(args.body.interviewSchedulingDeadline)
+
+  const start = getStartOfBucharestDay(recruitmentStartDate)
+  const end = getEndOfBucharestDay(recruitmentEndDate)
+  if (start && end && start > end) {
+    return Response.json(
+      { message: 'Data de inceput trebuie sa fie inainte de data finala.' },
+      { status: 400 },
+    )
+  }
+
+  const updated = (await args.payload.updateGlobal({
+    slug: 'aspirementConfig',
+    data: {
+      recruitment: {
+        ...recruitment,
+        defaultInterviewDate,
+        interviewSchedulingDeadline,
+        recruitmentEndDate,
+        recruitmentStartDate,
+      },
+    },
+    overrideAccess: true,
+  })) as AspirementConfig
+
+  return Response.json({
+    recruitmentConfig: {
+      defaultInterviewDate: updated.recruitment?.defaultInterviewDate ?? null,
+      interviewSchedulingDeadline: updated.recruitment?.interviewSchedulingDeadline ?? null,
+      recruitmentEndDate: updated.recruitment?.recruitmentEndDate ?? null,
+      recruitmentStartDate: updated.recruitment?.recruitmentStartDate ?? null,
+    },
+  })
+}
+
 async function bulkReviewSubmissions(args: {
   body: Record<string, unknown>
   payload: Payload
   user: User
 }) {
-  requireHR(args.user)
+  requireBoard(args.user)
 
   const status = normalizeText(args.body.status)
   if (!isReviewStatus(status)) {
@@ -211,6 +302,38 @@ async function bulkReviewSubmissions(args: {
   }
 
   return Response.json({ bulkReview: result })
+}
+
+async function updateCommissionSchedule(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  const commission = await getCommission(args.payload, normalizeText(args.body.commissionId))
+  if (!canManageCommissionSchedule(commission, args.user)) {
+    return Response.json(
+      { message: 'Nu ai permisiunea de a edita programul acestei comisii.' },
+      { status: 403 },
+    )
+  }
+
+  const intervals = normalizeInterviewIntervals(args.body.interviewIntervals)
+  const validation = validateInterviewIntervals(intervals)
+  if (!validation.valid && intervals.length > 0) {
+    return Response.json(
+      { message: validation.errors[0] || 'Programul nu este valid.' },
+      { status: 400 },
+    )
+  }
+
+  const updated = (await args.payload.update({
+    collection: 'comissions',
+    data: { interviewIntervals: intervals },
+    id: commission.id,
+    overrideAccess: true,
+  })) as ExtendedCommission
+
+  return Response.json({ commission: serializeCommissionUpdate(updated) })
 }
 
 async function toggleKnownApplicant(args: {
@@ -315,7 +438,7 @@ async function assignCandidate(args: {
   payload: Payload
   user: User
 }) {
-  requireHR(args.user)
+  requireBoard(args.user)
 
   const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
   const commission = await getCommission(args.payload, normalizeText(args.body.commissionId))
@@ -375,6 +498,63 @@ async function addInterviewNote(args: {
   return Response.json({ application: serializeApplicationUpdate(updated) })
 }
 
+async function setInterviewAttendance(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+  const commission = await getApplicationCommission(args.payload, application)
+  if (!canManageAssignedApplication(commission, args.user)) {
+    return Response.json({ message: 'Nu ai permisiunea de a actualiza prezenta.' }, { status: 403 })
+  }
+
+  const attendanceValue = normalizeText(args.body.attendance)
+  if (!['late', 'absent', 'completed'].includes(attendanceValue)) {
+    return Response.json({ message: 'Selecteaza un status de prezenta valid.' }, { status: 400 })
+  }
+  const attendance = attendanceValue as 'late' | 'absent' | 'completed'
+  if (application.reviewProcess?.status !== 'interview') {
+    return Response.json({ message: 'Interview-ul nu mai poate fi actualizat.' }, { status: 409 })
+  }
+
+  if (attendance === 'late' && !application.reviewProcess?.interviewDate) {
+    return Response.json(
+      { message: 'Doar un candidat programat poate fi marcat intarziat.' },
+      { status: 409 },
+    )
+  }
+  if (attendance === 'completed' && !application.reviewProcess?.interviewDate) {
+    return Response.json(
+      { message: 'Candidatul trebuie programat pentru a finaliza interview-ul.' },
+      { status: 409 },
+    )
+  }
+  if (attendance === 'absent' && !application.reviewProcess?.interviewDate) {
+    const config = await args.payload.findGlobal({
+      slug: 'aspirementConfig',
+      depth: 0,
+      overrideAccess: true,
+    })
+    const deadlineValue = config.recruitment?.interviewSchedulingDeadline
+    const deadline = deadlineValue ? new Date(deadlineValue) : null
+    if (!deadline || Number.isNaN(deadline.getTime()) || deadline > new Date()) {
+      return Response.json(
+        { message: 'Un candidat neprogramat poate fi marcat absent doar dupa deadline.' },
+        { status: 409 },
+      )
+    }
+  }
+
+  const updated = await updateApplicationReview(args.payload, application, {
+    interviewAttendance: attendance,
+    status:
+      attendance === 'completed' ? 'interviewed' : attendance === 'absent' ? 'absent' : 'interview',
+  })
+
+  return Response.json({ application: serializeApplicationUpdate(updated) })
+}
+
 async function finalDecision(args: {
   body: Record<string, unknown>
   payload: Payload
@@ -395,6 +575,16 @@ async function finalDecision(args: {
     return Response.json({ message: 'Selecteaza o decizie valida.' }, { status: 400 })
   }
 
+  if (!['interviewed', 'absent'].includes(application.reviewProcess?.status ?? '')) {
+    return Response.json(
+      {
+        message: 'Decizia finala este disponibila doar dupa finalizarea sau absenta la interview.',
+      },
+      { status: 409 },
+    )
+  }
+  await assertCommissionInterviewRoundComplete(args.payload, commission)
+
   const updated = await updateApplicationReview(args.payload, application, {
     status,
   })
@@ -412,6 +602,13 @@ async function sendInterviewMails(args: { payload: Payload; request: Request; us
     depth: 0,
     overrideAccess: true,
   })) as AspirementConfig
+  const schedulingDeadline = config.recruitment?.interviewSchedulingDeadline
+  if (!schedulingDeadline || new Date(schedulingDeadline) <= new Date()) {
+    return Response.json(
+      { message: 'Configureaza un deadline viitor pentru programarea interview-urilor.' },
+      { status: 409 },
+    )
+  }
   const applications = await findApplicationsForMailBatch(args.payload, {
     status: 'interview',
   })
@@ -424,6 +621,15 @@ async function sendInterviewMails(args: { payload: Payload; request: Request; us
     try {
       const commission = await getApplicationCommission(args.payload, application)
       assertCommissionReadyForApplicant(commission, application)
+      const scheduleValidation = validateInterviewIntervals(commission.interviewIntervals)
+      if (!scheduleValidation.valid) {
+        throw Object.assign(
+          new Error(scheduleValidation.errors[0] || 'Programul comisiei nu este valid.'),
+          {
+            status: 409,
+          },
+        )
+      }
 
       const prepared = await ensureApplicationScheduleToken(args.payload, application)
       const token = prepared.reviewProcess?.interviewScheduleToken
@@ -489,6 +695,7 @@ async function sendInterviewMails(args: { payload: Payload; request: Request; us
 
 async function sendFinalMails(args: { payload: Payload; user: User }) {
   requireBoard(args.user)
+  await assertAllInterviewRoundsComplete(args.payload)
 
   const config = (await args.payload.findGlobal({
     slug: 'aspirementConfig',
@@ -538,20 +745,6 @@ async function sendFinalMails(args: { payload: Payload; user: User }) {
           payload: args.payload,
         })
         aspirerUserId = aspirerUser.id
-
-        try {
-          await args.payload.forgotPassword({
-            collection: 'users',
-            data: { email: aspirerUser.email },
-            overrideAccess: true,
-          })
-        } catch (error) {
-          result.warnings.push(
-            `${application.name}: emailul de setare parola nu a putut fi trimis (${
-              error instanceof Error ? error.message : 'eroare necunoscuta'
-            }).`,
-          )
-        }
       }
 
       await updateApplicationReview(args.payload, application, {
@@ -661,6 +854,49 @@ async function getApplicationCommission(payload: Payload, application: ExtendedA
     throw Object.assign(new Error('Candidatul nu este asignat unei comisii.'), { status: 400 })
 
   return getCommission(payload, commissionID)
+}
+
+async function assertCommissionInterviewRoundComplete(
+  payload: Payload,
+  commission: ExtendedCommission,
+) {
+  const result = await payload.find({
+    collection: 'applications',
+    depth: 0,
+    limit: 0,
+    overrideAccess: true,
+    pagination: false,
+    where: {
+      and: [
+        { 'reviewProcess.comission': { equals: commission.id } },
+        { 'reviewProcess.status': { equals: 'interview' } },
+      ],
+    },
+  })
+  if (result.docs.length > 0) {
+    throw Object.assign(
+      new Error('Toate interview-urile comisiei trebuie rezolvate inainte de decizii.'),
+      {
+        status: 409,
+      },
+    )
+  }
+}
+
+async function assertAllInterviewRoundsComplete(payload: Payload) {
+  const result = await payload.find({
+    collection: 'applications',
+    depth: 0,
+    limit: 0,
+    overrideAccess: true,
+    pagination: false,
+    where: {
+      'reviewProcess.status': { in: ['interview', 'interviewed', 'absent'] },
+    },
+  })
+  if (result.docs.length > 0) {
+    throw Object.assign(new Error('Exista candidati fara decizie finala.'), { status: 409 })
+  }
 }
 
 async function updateApplicationReview(
@@ -827,7 +1063,11 @@ async function requireAllCoordinatorReviewApplicantsChecked(payload: Payload, us
 }
 
 function canManageAssignedApplication(commission: ExtendedCommission, user: User) {
-  return isBoardMember(user) || isCommissionCoordinator(commission, user)
+  return !isBoardMember(user) && isCommissionCoordinator(commission, user)
+}
+
+function canManageCommissionSchedule(commission: ExtendedCommission, user: User) {
+  return !isBoardMember(user) && isCommissionCoordinator(commission, user)
 }
 
 function assertCommissionReadyForApplicant(
@@ -881,9 +1121,27 @@ function requireBoard(user: User) {
   }
 }
 
-function requireHR(user: User) {
-  if (user.role !== 'hr-director') {
-    throw Object.assign(new Error('Doar HR poate asigna candidati la comisii.'), { status: 403 })
+function assertScopeActionAccess(action: string, user: User, scope: RouteScope) {
+  if (scope === 'recruitment') {
+    if (user.role !== 'hr-director') {
+      throw Object.assign(new Error('Doar directorul HR poate face aceasta actiune.'), {
+        status: 403,
+      })
+    }
+    return
+  }
+
+  if (isBoardMember(user)) {
+    throw Object.assign(
+      new Error('Boardul poate consulta comisiile, dar nu poate modifica acest spatiu de lucru.'),
+      { status: 403 },
+    )
+  }
+
+  if (!coordinatorActions.has(action)) {
+    throw Object.assign(new Error('Aceasta actiune este disponibila numai in panoul HR.'), {
+      status: 403,
+    })
   }
 }
 
@@ -907,6 +1165,7 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
     finalMailSentAt: application.reviewProcess?.finalMailSentAt ?? null,
     id: application.id,
     interviewDate: application.reviewProcess?.interviewDate ?? null,
+    interviewAttendance: application.reviewProcess?.interviewAttendance ?? null,
     interviewMailSentAt: application.reviewProcess?.interviewMailSentAt ?? null,
     interviewNotes: (application.reviewProcess?.interviewNotes ?? []).map((note) => ({
       authorId: getRelationshipID(note.author),
@@ -918,6 +1177,17 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
     notes: application.reviewProcess?.notes ?? '',
     reviewedCoordinatorIds: getReviewedCoordinatorIDs(application),
     status: application.reviewProcess?.status ?? 'submitted',
+  }
+}
+
+function serializeCommissionUpdate(commission: ExtendedCommission) {
+  return {
+    id: commission.id,
+    interviewIntervals: commission.interviewIntervals ?? [],
+    recruitmentReviews: (commission.recruitmentReviews ?? []).map((review) => ({
+      confirmedAt: review.confirmedAt,
+      coordinatorId: getRelationshipID(review.coordinator),
+    })),
   }
 }
 
@@ -953,6 +1223,46 @@ function normalizeStringList(value: unknown) {
   if (!Array.isArray(value)) return []
 
   return value.map(normalizeText).filter(Boolean)
+}
+
+function normalizeInterviewIntervals(value: unknown) {
+  if (!Array.isArray(value)) return []
+
+  return value.map((item) => {
+    const interval = item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
+    const breaks = Array.isArray(interval.breaks)
+      ? interval.breaks.map((breakItem) => {
+          const entry =
+            breakItem && typeof breakItem === 'object' ? (breakItem as Record<string, unknown>) : {}
+          return {
+            endTime: normalizeOptionalText(entry.endTime) ?? null,
+            startTime: normalizeOptionalText(entry.startTime) ?? null,
+          }
+        })
+      : []
+
+    return {
+      breaks,
+      endDateTime: normalizeOptionalText(interval.endDateTime) ?? null,
+      interviewDuration: normalizeNumber(interval.interviewDuration),
+      location: interval.location ?? null,
+      pauseBetween: normalizeNumber(interval.pauseBetween) ?? 0,
+      startDateTime: normalizeOptionalText(interval.startDateTime) ?? null,
+    }
+  })
+}
+
+function normalizeNumber(value: unknown) {
+  const number = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function normalizeConfigDate(value: unknown) {
+  if (value === null || value === '') return null
+  if (typeof value !== 'string') return null
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
 function generateTemporaryPassword() {

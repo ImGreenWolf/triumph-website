@@ -52,8 +52,10 @@ export type ManagedCommission = {
 export type ManagedApplicationStatus =
   | 'submitted'
   | 'coordonator-review'
+  | 'submission-waitlisted'
   | 'submission-rejected'
   | 'interview'
+  | 'interview-withdrawn'
   | 'interviewed'
   | 'absent'
   | 'interview-passed'
@@ -66,11 +68,13 @@ export type ManagedApplication = {
   email: string
   formAnswers: {
     field: string
+    label: string
     value: string
   }[]
   finalMailSentAt: string | null
   id: string
   interviewDate: string | null
+  interviewAttendance: 'scheduled' | 'late' | 'absent' | 'completed' | null
   interviewMailSentAt: string | null
   interviewNotes: ManagedInterviewNote[]
   knownCoordinatorIds: string[]
@@ -92,10 +96,11 @@ export type ManagedRecruitmentPoolApplicant = {
   instagram: string
   knownCoordinatorIds: string[]
   name: string
+  phone: string
   reviewedCoordinatorIds: string[]
 }
 
-type Tab = 'overview' | 'recruitment' | 'commission'
+type WorkspaceView = 'overview' | 'known-applicants' | 'assigned-candidates' | 'team'
 
 type Notice = {
   kind: 'error' | 'success'
@@ -139,12 +144,6 @@ type ServerApplicationPatch = Omit<ApplicationPatch, 'interviewNotes'> & {
   >
 }
 
-const tabs: Array<{ icon: LucideIcon; label: string; value: Tab }> = [
-  { icon: LayoutDashboard, label: 'Overview', value: 'overview' },
-  { icon: ListChecks, label: 'Recruitment', value: 'recruitment' },
-  { icon: Users, label: 'Comisie', value: 'commission' },
-]
-
 const statusLabels: Record<ManagedApplicationStatus, string> = {
   absent: 'Absent',
   'coordonator-review': 'Review coordonatori',
@@ -153,13 +152,16 @@ const statusLabels: Record<ManagedApplicationStatus, string> = {
   'interview-passed': 'Aspirant acceptat',
   'interview-rejected': 'Respins dupa interview',
   'submission-rejected': 'Formular respins',
+  'submission-waitlisted': 'Lista de asteptare',
   submitted: 'Neverificat',
+  'interview-withdrawn': 'Retras',
 }
 
 const completedRecruitmentStatuses = new Set<ManagedApplicationStatus>([
   'interview-passed',
   'interview-rejected',
   'submission-rejected',
+  'interview-withdrawn',
 ])
 
 const panelVariants = {
@@ -175,7 +177,6 @@ export default function CommissionCoordinatorDashboard(props: {
   applications: ManagedApplication[]
   commissions: ManagedCommission[]
   isBoard: boolean
-  isHR: boolean
   recruitmentPool: ManagedRecruitmentPoolApplicant[]
   user: ManagedUser
 }) {
@@ -183,7 +184,6 @@ export default function CommissionCoordinatorDashboard(props: {
     applications: initialApplications,
     commissions: initialCommissions,
     isBoard,
-    isHR,
     recruitmentPool: initialRecruitmentPool,
     user,
   } = props
@@ -196,7 +196,7 @@ export default function CommissionCoordinatorDashboard(props: {
   const [selectedCommissionId, setSelectedCommissionId] = useState(
     () => initialCommissions[0]?.id ?? '',
   )
-  const [tab, setTab] = useState<Tab>('overview')
+  const [view, setView] = useState<WorkspaceView>('overview')
   const [query, setQuery] = useState('')
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -226,10 +226,6 @@ export default function CommissionCoordinatorDashboard(props: {
         ? applications.filter((application) => application.commissionId === selectedCommission.id)
         : [],
     [applications, selectedCommission],
-  )
-  const metrics = useMemo(
-    () => calculateMetrics(applications, commissions, recruitmentPool),
-    [applications, commissions, recruitmentPool],
   )
   const detailApplication =
     applications.find((application) => application.id === detailApplicationId) ?? null
@@ -333,154 +329,133 @@ export default function CommissionCoordinatorDashboard(props: {
     return <EmptyState userName={user.name} />
   }
 
+  const pendingKnownReview =
+    !isBoard && userCoordinatesSelectedCommission && !selectedCommissionHasUserReview
+  const reviewRemaining = recruitmentPool.filter(
+    (applicant) => !applicant.reviewedCoordinatorIds.includes(user.id),
+  ).length
+  const activeCandidates = selectedApplications.filter((application) =>
+    ['interview', 'interviewed', 'absent'].includes(application.status),
+  )
+  const scheduledCandidates = activeCandidates.filter((application) => application.interviewDate)
+  const unresolvedCandidates = activeCandidates.filter(
+    (application) => application.status === 'interview',
+  )
+  const pendingDecisions = activeCandidates.filter((application) =>
+    ['interviewed', 'absent'].includes(application.status),
+  )
+
   return (
     <div
-      className="pm-dashboard min-h-screen bg-[#f4f6f8] text-[#152039]"
+      className="min-h-screen bg-[#f4f6f8] pt-20 text-[#152039] sm:pt-24"
       data-reduce-motion={prefersReducedMotion ? 'true' : undefined}
     >
-      <section className="halftone-background relative overflow-hidden bg-[#141e34] px-4 pb-6 pt-24 text-white sm:px-6 sm:pb-8 sm:pt-28 lg:px-8">
-        <div className="pointer-events-none absolute bottom-0 left-1/3 h-px w-1/2 bg-gradient-to-r from-transparent via-[#00a2e0] to-transparent" />
-        <div className="relative mx-auto max-w-[1440px]">
-          <div className="mb-5 flex flex-col items-start justify-between gap-2 sm:mb-7 sm:flex-row sm:items-center sm:gap-4">
+      <header className="border-b border-[#dfe5ec] bg-white px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
             <Link
-              className="inline-flex items-center gap-2 text-sm font-medium opacity-65 transition hover:opacity-100"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[#667085] hover:text-[#007fb3]"
               href="/members"
             >
               <ArrowLeft className="size-4" />
               Dashboard membri
             </Link>
-            <p className="text-xs opacity-55 sm:text-sm">
-              Conectat ca <span className="font-semibold">{user.name}</span>
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-[#00a2e0] bg-[#00a2e0]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#56c9f5]">
-                  Coordonatori
-                </span>
-                <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-bold text-white/65">
-                  {isHR ? 'HR' : isBoard ? 'Board' : 'Comisie'}
-                </span>
-              </div>
-              <h1 className="max-w-3xl break-words text-2xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-                {selectedCommission.label}
-              </h1>
-              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm opacity-70">
-                <span className="inline-flex items-center gap-2">
-                  <BriefcaseBusiness className="size-4 text-[#56c9f5]" />
-                  Mandat {selectedCommission.mandateLabel}
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <Users className="size-4 text-[#56c9f5]" />
-                  {selectedCommission.coordinators.length} coordonatori
-                </span>
-              </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded border border-[#bde8f8] bg-[#eefaff] px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-[#007fb3]">
+                {isBoard ? 'Vizualizare board' : 'Spatiu coordonator'}
+              </span>
+              {isBoard && (
+                <span className="text-xs font-semibold text-[#748094]">Doar vizualizare</span>
+              )}
             </div>
-
-            <div className="w-full min-w-0 lg:w-auto lg:min-w-80">
-              <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] opacity-50">
-                Comisie
-              </label>
-              <select
-                className="h-12 w-full rounded-lg border border-white/15 bg-white/[0.08] px-4 text-sm font-semibold outline-none transition focus:border-[#00a2e0]"
-                onChange={(event) => setSelectedCommissionId(event.target.value)}
-                value={selectedCommission.id}
-              >
-                {commissions.map((commission) => (
-                  <option
-                    className="bg-[#f4f6f8] text-[#152039]"
-                    key={commission.id}
-                    value={commission.id}
-                  >
-                    {commission.label} - mandat {commission.mandateLabel}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <h1 className="mt-2 truncate text-2xl font-bold sm:text-3xl">
+              {selectedCommission.label}
+            </h1>
           </div>
-
-          <nav className="-mx-4 mt-6 flex gap-1 overflow-x-auto border-b border-white/10 px-4 sm:mx-0 sm:mt-8 sm:px-0">
-            {tabs.map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  className={`relative inline-flex h-11 shrink-0 items-center gap-2 px-3 text-sm font-semibold transition sm:h-12 sm:px-4 ${
-                    tab === item.value ? 'opacity-100' : 'opacity-50 hover:opacity-80'
-                  }`}
-                  key={item.value}
-                  onClick={() => setTab(item.value)}
-                  type="button"
-                >
-                  <Icon className="size-4" />
-                  {item.label}
-                  {item.value === 'recruitment' && metrics.actionNeeded > 0 && (
-                    <span className="min-w-5 rounded-full bg-[#f7a81b] px-1.5 py-0.5 text-center text-[10px] font-bold text-[#101a31]">
-                      {metrics.actionNeeded}
-                    </span>
-                  )}
-                  {tab === item.value && (
-                    <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#00a2e0]" />
-                  )}
-                </button>
-              )
-            })}
-          </nav>
+          <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+            <select
+              aria-label="Selecteaza comisia"
+              className="h-10 min-w-0 rounded-md border border-[#d9e0e8] bg-white px-3 text-sm font-bold outline-none focus:border-[#00a2e0] sm:w-56"
+              onChange={(event) => {
+                setSelectedCommissionId(event.target.value)
+                setView('overview')
+                setQuery('')
+              }}
+              value={selectedCommission.id}
+            >
+              {commissions.map((commission) => (
+                <option key={commission.id} value={commission.id}>
+                  {commission.label}
+                </option>
+              ))}
+            </select>
+            <Link
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#141e34] px-3 text-sm font-bold text-white hover:bg-[#223254]"
+              href={`/members/commissions/interviews?commission=${selectedCommission.id}`}
+            >
+              <Clock3 className="size-4" />
+              Workspace interview
+            </Link>
+          </div>
         </div>
-      </section>
+      </header>
 
-      <motion.main
-        animate="visible"
-        className="mx-auto max-w-[1440px] px-3 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-9"
-        initial={prefersReducedMotion ? false : 'hidden'}
-        variants={{
-          hidden: { opacity: 0, y: 12 },
-          visible: {
-            opacity: 1,
-            transition: {
-              delayChildren: 0.04,
-              duration: 0.28,
-              ease: [0.22, 1, 0.36, 1],
-              staggerChildren: 0.075,
-            },
-            y: 0,
-          },
-        }}
-      >
-        {notice && <NoticeCard notice={notice} />}
-
-        {tab === 'overview' && (
-          <Overview
-            applications={applications}
-            commissions={commissions}
-            metrics={metrics}
-            selectedApplications={selectedApplications}
-          />
-        )}
-
-        {tab === 'recruitment' && (
-          <Recruitment
-            applications={applications}
-            busyKey={busyKey}
-            commission={selectedCommission}
-            commissions={commissions}
-            hasConfirmedReview={selectedCommissionHasUserReview}
-            isBoard={isBoard}
-            isHR={isHR}
-            onAction={runAction}
-            onSelectApplication={setDetailApplicationId}
-            query={query}
-            recruitmentPool={recruitmentPool}
-            selectedApplications={selectedApplications}
-            setQuery={setQuery}
-            user={user}
-            userCoordinatesCommission={userCoordinatesSelectedCommission}
-          />
-        )}
-
-        {tab === 'commission' && <CommissionDetails commission={selectedCommission} />}
-      </motion.main>
+      <main className="mx-auto grid max-w-[1440px] gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[230px_minmax(0,1fr)] lg:px-8">
+        <CoordinatorSidebar
+          isBoard={isBoard}
+          onChange={setView}
+          pendingDecisions={pendingDecisions.length}
+          pendingKnownReview={pendingKnownReview ? reviewRemaining : 0}
+          unresolvedCandidates={unresolvedCandidates.length}
+          value={view}
+        />
+        <motion.section
+          animate="visible"
+          initial={prefersReducedMotion ? false : 'hidden'}
+          variants={panelVariants}
+        >
+          {notice && <NoticeCard notice={notice} />}
+          {view === 'overview' && (
+            <CoordinatorOverview
+              assignedCandidates={selectedApplications.length}
+              commission={selectedCommission}
+              onOpenAssigned={() => setView('assigned-candidates')}
+              onOpenKnownApplicants={() => setView('known-applicants')}
+              pendingDecisions={pendingDecisions.length}
+              pendingKnownReview={pendingKnownReview ? reviewRemaining : 0}
+              readOnly={isBoard}
+              scheduledCandidates={scheduledCandidates.length}
+              unresolvedCandidates={unresolvedCandidates.length}
+            />
+          )}
+          {view === 'known-applicants' && (
+            <KnownApplicantsTask
+              busyKey={busyKey}
+              canManage={!isBoard && userCoordinatesSelectedCommission}
+              commission={selectedCommission}
+              hasConfirmedReview={selectedCommissionHasUserReview}
+              onAction={runAction}
+              query={query}
+              recruitmentPool={recruitmentPool}
+              setQuery={setQuery}
+              user={user}
+            />
+          )}
+          {view === 'assigned-candidates' && (
+            <AssignedCandidateList
+              applications={selectedApplications}
+              canManage={!isBoard && userCoordinatesSelectedCommission}
+              busyKey={busyKey}
+              commission={selectedCommission}
+              onAction={runAction}
+              onOpenDetails={setDetailApplicationId}
+              query={query}
+              setQuery={setQuery}
+            />
+          )}
+          {view === 'team' && <CommissionDetails commission={selectedCommission} />}
+        </motion.section>
+      </main>
 
       <ApplicationDetailDrawer
         application={detailApplication}
@@ -488,6 +463,472 @@ export default function CommissionCoordinatorDashboard(props: {
       />
     </div>
   )
+}
+
+function CoordinatorSidebar(props: {
+  isBoard: boolean
+  onChange: (view: WorkspaceView) => void
+  pendingDecisions: number
+  pendingKnownReview: number
+  unresolvedCandidates: number
+  value: WorkspaceView
+}) {
+  const items: Array<{
+    badge?: number
+    icon: LucideIcon
+    label: string
+    value: WorkspaceView
+  }> = [
+    { icon: LayoutDashboard, label: 'Overview', value: 'overview' },
+    {
+      badge: props.pendingKnownReview,
+      icon: ListChecks,
+      label: 'Verificare cunoscuti',
+      value: 'known-applicants',
+    },
+    {
+      badge: props.pendingDecisions || props.unresolvedCandidates,
+      icon: UserCheck,
+      label: 'Candidati asignati',
+      value: 'assigned-candidates',
+    },
+    { icon: Users, label: 'Echipa', value: 'team' },
+  ]
+
+  return (
+    <aside className="h-fit rounded-lg border border-[#dfe5ec] bg-white p-2 shadow-[0_8px_30px_rgba(22,34,57,0.04)] lg:sticky lg:top-24">
+      <p className="px-3 pb-2 pt-3 text-[11px] font-black uppercase tracking-[0.1em] text-[#748094]">
+        {props.isBoard ? 'Vizualizare comisie' : 'Spatiu de lucru'}
+      </p>
+      <nav className="grid gap-1">
+        {items.map((item) => {
+          const Icon = item.icon
+          const active = item.value === props.value
+          return (
+            <button
+              className={
+                'flex min-h-10 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-bold transition ' +
+                (active
+                  ? 'bg-[#141e34] text-white'
+                  : 'text-[#526071] hover:bg-[#f4f6f8] hover:text-[#152039]')
+              }
+              key={item.value}
+              onClick={() => props.onChange(item.value)}
+              type="button"
+            >
+              <Icon className="size-4 shrink-0" />
+              <span className="min-w-0 flex-1 break-words">{item.label}</span>
+              {item.badge ? (
+                <span
+                  className={
+                    'min-w-5 rounded-full px-1.5 py-0.5 text-center text-[10px] font-black ' +
+                    (active ? 'bg-white/15 text-white' : 'bg-amber-100 text-amber-800')
+                  }
+                >
+                  {item.badge}
+                </span>
+              ) : null}
+            </button>
+          )
+        })}
+      </nav>
+    </aside>
+  )
+}
+
+function CoordinatorOverview(props: {
+  assignedCandidates: number
+  commission: ManagedCommission
+  onOpenAssigned: () => void
+  onOpenKnownApplicants: () => void
+  pendingDecisions: number
+  pendingKnownReview: number
+  readOnly: boolean
+  scheduledCandidates: number
+  unresolvedCandidates: number
+}) {
+  const nextTask =
+    props.pendingKnownReview > 0
+      ? {
+          action: props.onOpenKnownApplicants,
+          description: props.pendingKnownReview + ' aplicanti necesita o optiune.',
+          label: 'Continua verificarea',
+          title: 'Verifica aplicantii cunoscuti',
+        }
+      : props.pendingDecisions > 0
+        ? {
+            action: props.onOpenAssigned,
+            description: props.pendingDecisions + ' candidati asteapta decizia finala.',
+            label: props.readOnly ? 'Consulta candidatii' : 'Vezi candidatii',
+            title: props.readOnly ? 'Decizii in asteptare' : 'Finalizeaza deciziile',
+          }
+        : props.unresolvedCandidates > 0
+          ? {
+              action: props.onOpenAssigned,
+              description: props.unresolvedCandidates + ' interview-uri sunt inca deschise.',
+              label: 'Vezi candidatii',
+              title: 'Urmareste interview-urile',
+            }
+          : {
+              action: props.onOpenAssigned,
+              description: 'Consulta statusul candidatilor asignati comisiei.',
+              label: 'Deschide lista',
+              title: 'Candidati asignati',
+            }
+
+  return (
+    <div className="grid gap-5">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <Panel>
+          <PanelHeader
+            description="O privire rapida asupra oamenilor si a progresului acestei comisii."
+            title="Comisia ta"
+          />
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <PeopleSummary label="Coordonatori" people={props.commission.coordinators} />
+            <PeopleSummary label="Aspiranti" people={props.commission.aspirers} />
+          </div>
+        </Panel>
+        <Panel className="border-[#bae6f7] bg-[#eefaff]">
+          <p className="text-xs font-black uppercase tracking-[0.1em] text-[#007fb3]">
+            Urmatorul pas
+          </p>
+          <h2 className="mt-2 text-lg font-bold">{nextTask.title}</h2>
+          <p className="mt-2 text-sm text-[#526071]">{nextTask.description}</p>
+          <button
+            className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-[#007fb3] px-3 text-sm font-bold text-white hover:bg-[#006b96]"
+            onClick={nextTask.action}
+            type="button"
+          >
+            {nextTask.label}
+            <ArrowLeft className="size-4 rotate-180" />
+          </button>
+        </Panel>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <ProgressItem label="Asignati" value={String(props.assignedCandidates)} />
+        <ProgressItem label="Programati" value={String(props.scheduledCandidates)} />
+        <ProgressItem label="Nerezolvati" tone="amber" value={String(props.unresolvedCandidates)} />
+        <ProgressItem label="Decizii ramase" tone="blue" value={String(props.pendingDecisions)} />
+      </section>
+    </div>
+  )
+}
+
+function PeopleSummary(props: { label: string; people: ManagedUser[] }) {
+  const visible = props.people.slice(0, 4)
+  const remaining = props.people.length - visible.length
+  return (
+    <div>
+      <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">{props.label}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {visible.map((person) => (
+          <span
+            className="inline-flex max-w-full items-center gap-2 rounded-md bg-[#f4f6f8] px-2 py-1.5 text-xs font-bold text-[#344054]"
+            key={person.id}
+            title={person.email}
+          >
+            <Avatar name={person.name} />
+            <span className="max-w-32 truncate">{person.name}</span>
+          </span>
+        ))}
+        {remaining > 0 && (
+          <span className="inline-flex items-center rounded-md bg-[#f4f6f8] px-2 py-1.5 text-xs font-bold text-[#526071]">
+            +{remaining}
+          </span>
+        )}
+        {props.people.length === 0 && <span className="text-sm text-[#748094]">Nimeni inca</span>}
+      </div>
+    </div>
+  )
+}
+
+function ProgressItem(props: { label: string; tone?: 'amber' | 'blue'; value: string }) {
+  const tone =
+    props.tone === 'amber'
+      ? 'border-amber-200 bg-amber-50 text-amber-800'
+      : props.tone === 'blue'
+        ? 'border-[#bde8f8] bg-[#eefaff] text-[#007fb3]'
+        : 'border-[#dfe5ec] bg-white text-[#152039]'
+  return (
+    <div className={'rounded-md border px-3 py-3 ' + tone}>
+      <p className="text-[11px] font-black uppercase tracking-[0.08em] opacity-70">{props.label}</p>
+      <p className="mt-1 text-2xl font-bold tabular-nums">{props.value}</p>
+    </div>
+  )
+}
+
+function KnownApplicantsTask(props: {
+  busyKey: string | null
+  canManage: boolean
+  commission: ManagedCommission
+  hasConfirmedReview: boolean
+  onAction: <T extends Record<string, unknown>>(body: T, busyLabel: string) => Promise<unknown>
+  query: string
+  recruitmentPool: ManagedRecruitmentPoolApplicant[]
+  setQuery: (query: string) => void
+  user: ManagedUser
+}) {
+  const normalizedQuery = props.query.trim().toLocaleLowerCase('ro')
+  const applicants = props.recruitmentPool.filter((applicant) =>
+    [applicant.name, applicant.phone, applicant.instagram].some((value) =>
+      value.toLocaleLowerCase('ro').includes(normalizedQuery),
+    ),
+  )
+  const remaining = props.recruitmentPool.filter(
+    (applicant) => !applicant.reviewedCoordinatorIds.includes(props.user.id),
+  ).length
+
+  if (!props.canManage) {
+    return (
+      <Panel>
+        <PanelHeader
+          description="Boardul poate consulta stadiul acestei verificari, fara sa modifice marcajele."
+          title="Verificare aplicanti cunoscuti"
+        />
+        <div className="mt-5 rounded-md border border-[#dfe5ec] bg-[#f8fafc] p-4 text-sm text-[#526071]">
+          {props.commission.recruitmentReviews.length}/{props.commission.coordinators.length}{' '}
+          coordonatori au confirmat verificarea pentru aceasta comisie.
+        </div>
+      </Panel>
+    )
+  }
+
+  if (props.hasConfirmedReview) {
+    return (
+      <Panel>
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+          <div>
+            <h2 className="font-bold">Verificarea este confirmata</h2>
+            <p className="mt-1 text-sm text-[#526071]">
+              HR va folosi marcajele tale pentru asignarea candidatilor. Lista comuna nu mai este
+              disponibila.
+            </p>
+          </div>
+        </div>
+      </Panel>
+    )
+  }
+
+  return (
+    <div className="grid gap-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
+            Etapa coordonatori
+          </p>
+          <h2 className="mt-1 text-2xl font-bold">Verificare aplicanti cunoscuti</h2>
+          <p className="mt-1 text-sm text-[#526071]">
+            Marcheaza fiecare aplicant inainte de a confirma verificarea.
+          </p>
+        </div>
+        <SearchField query={props.query} setQuery={props.setQuery} />
+      </div>
+      <Panel className="overflow-hidden p-0" stagger={false}>
+        <div className="flex flex-col gap-3 border-b border-[#e5e9ef] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-bold">
+            {props.recruitmentPool.length - remaining}/{props.recruitmentPool.length} verificati
+          </p>
+          <button
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={remaining > 0 || props.busyKey === 'confirm-' + props.commission.id}
+            onClick={() =>
+              void props.onAction(
+                { action: 'confirm-review', commissionId: props.commission.id },
+                'confirm-' + props.commission.id,
+              )
+            }
+            type="button"
+          >
+            <CheckCircle2 className="size-4" />
+            {remaining > 0 ? remaining + ' ramasi' : 'Confirma verificarea'}
+          </button>
+        </div>
+        <ApplicantPoolList
+          applicants={applicants}
+          busyKey={props.busyKey}
+          onAction={props.onAction}
+          user={props.user}
+        />
+      </Panel>
+    </div>
+  )
+}
+
+function AssignedCandidateList(props: {
+  applications: ManagedApplication[]
+  busyKey: string | null
+  canManage: boolean
+  commission: ManagedCommission
+  onAction: <T extends Record<string, unknown>>(body: T, busyLabel: string) => Promise<unknown>
+  onOpenDetails: (applicationID: string) => void
+  query: string
+  setQuery: (query: string) => void
+}) {
+  const normalizedQuery = props.query.trim().toLocaleLowerCase('ro')
+  const applications = [...props.applications]
+    .filter((application) =>
+      [application.name, application.email, statusLabels[application.status]].some((value) =>
+        value.toLocaleLowerCase('ro').includes(normalizedQuery),
+      ),
+    )
+    .sort((left, right) => Number(isCompletedCandidate(left)) - Number(isCompletedCandidate(right)))
+
+  return (
+    <div className="grid gap-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
+            Recruitment
+          </p>
+          <h2 className="mt-1 text-2xl font-bold">Candidati asignati</h2>
+          <p className="mt-1 text-sm text-[#526071]">
+            {props.canManage
+              ? 'Urmarire si decizii pentru candidatii repartizati de HR.'
+              : 'Statusul candidatilor repartizati acestei comisii.'}
+          </p>
+        </div>
+        <SearchField query={props.query} setQuery={props.setQuery} />
+      </div>
+      <Panel className="overflow-hidden p-0" stagger={false}>
+        <div className="divide-y divide-[#edf0f4]">
+          {applications.map((application) => (
+            <DenseCandidateRow
+              application={application}
+              busyKey={props.busyKey}
+              canManage={props.canManage}
+              commissionID={props.commission.id}
+              key={application.id}
+              onAction={props.onAction}
+              onOpenDetails={props.onOpenDetails}
+            />
+          ))}
+          {applications.length === 0 && (
+            <InlineEmpty text="Nu exista candidati asignati acestei comisii." />
+          )}
+        </div>
+      </Panel>
+    </div>
+  )
+}
+
+function DenseCandidateRow(props: {
+  application: ManagedApplication
+  busyKey: string | null
+  canManage: boolean
+  commissionID: string
+  onAction: <T extends Record<string, unknown>>(body: T, busyLabel: string) => Promise<unknown>
+  onOpenDetails: (applicationID: string) => void
+}) {
+  const { application } = props
+  const canDecide = props.canManage && ['interviewed', 'absent'].includes(application.status)
+  return (
+    <article className="grid gap-3 px-4 py-3.5 xl:grid-cols-[minmax(13rem,1fr)_minmax(12rem,0.75fr)_auto] xl:items-center">
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar name={application.name} />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold">{application.name}</p>
+          <p className="mt-0.5 truncate text-xs text-[#748094]">{application.email}</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge status={application.status} />
+        <span className="rounded-md bg-[#f4f6f8] px-2 py-1 text-xs font-bold text-[#526071]">
+          {candidateInterviewState(application)}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2 xl:justify-end">
+        <button
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-[#d9e0e8] px-3 text-xs font-bold text-[#344054] hover:bg-[#f8fafc]"
+          onClick={() => props.onOpenDetails(application.id)}
+          type="button"
+        >
+          <FileText className="size-3.5" />
+          Detalii
+        </button>
+        <Link
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-[#d9e0e8] px-3 text-xs font-bold text-[#344054] hover:bg-[#f8fafc]"
+          href={'/members/commissions/interviews?commission=' + props.commissionID}
+        >
+          <Clock3 className="size-3.5" />
+          Interview-uri
+        </Link>
+        {canDecide && (
+          <>
+            <button
+              className="inline-flex h-9 items-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-bold text-white disabled:opacity-55"
+              disabled={props.busyKey === 'pass-' + application.id}
+              onClick={() =>
+                void props.onAction(
+                  {
+                    action: 'final-decision',
+                    applicationId: application.id,
+                    status: 'interview-passed',
+                  },
+                  'pass-' + application.id,
+                )
+              }
+              type="button"
+            >
+              <UserCheck className="size-3.5" />
+              Accepta
+            </button>
+            <button
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 disabled:opacity-55"
+              disabled={props.busyKey === 'reject-' + application.id}
+              onClick={() =>
+                void props.onAction(
+                  {
+                    action: 'final-decision',
+                    applicationId: application.id,
+                    status: 'interview-rejected',
+                  },
+                  'reject-' + application.id,
+                )
+              }
+              type="button"
+            >
+              <XCircle className="size-3.5" />
+              Respinge
+            </button>
+          </>
+        )}
+      </div>
+    </article>
+  )
+}
+
+function SearchField(props: { query: string; setQuery: (query: string) => void }) {
+  return (
+    <div className="relative w-full sm:w-72">
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a94a6]" />
+      <input
+        className="h-10 w-full rounded-md border border-[#dce2ea] bg-white pl-9 pr-3 text-sm outline-none focus:border-[#00a2e0]"
+        onChange={(event) => props.setQuery(event.target.value)}
+        placeholder="Cauta candidat"
+        type="search"
+        value={props.query}
+      />
+    </div>
+  )
+}
+
+function isCompletedCandidate(application: ManagedApplication) {
+  return ['interview-passed', 'interview-rejected', 'interview-withdrawn'].includes(
+    application.status,
+  )
+}
+
+function candidateInterviewState(application: ManagedApplication) {
+  if (application.status === 'absent' || application.interviewAttendance === 'absent')
+    return 'Absent'
+  if (application.status === 'interviewed' || application.interviewAttendance === 'completed')
+    return 'Finalizat'
+  if (application.interviewAttendance === 'late') return 'Intarziat'
+  if (application.interviewDate) return formatDate(application.interviewDate)
+  return 'Neprogramat'
 }
 
 function Overview(props: {
@@ -626,7 +1067,7 @@ function Recruitment(props: {
   } = props
   const normalizedQuery = query.trim().toLocaleLowerCase('ro')
   const filteredPool = recruitmentPool.filter((applicant) =>
-    [applicant.name, applicant.instagram].some((value) =>
+    [applicant.name, applicant.phone, applicant.instagram].some((value) =>
       value.toLocaleLowerCase('ro').includes(normalizedQuery),
     ),
   )
@@ -801,9 +1242,8 @@ function ApplicantPoolList(props: {
               <div className="min-w-0">
                 <p className="break-words text-sm font-bold">{applicant.name}</p>
                 <p className="mt-0.5 break-words text-xs text-[#6b7688]">
-                  {applicant.instagram
-                    ? `Instagram: ${applicant.instagram}`
-                    : 'Instagram indisponibil'}
+                  {applicant.phone || 'Telefon indisponibil'} ·{' '}
+                  {applicant.instagram || 'Instagram indisponibil'}
                 </p>
               </div>
             </div>
@@ -1220,48 +1660,59 @@ function AssignedApplicationCard(props: {
 }) {
   const { application, busyKey, onAction, onOpenDetails } = props
   const [note, setNote] = useState('')
+  const canDecide = ['interviewed', 'absent'].includes(application.status)
 
   return (
     <ApplicationCard
       actions={
-        <>
-          <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-            disabled={busyKey === `pass-${application.id}`}
-            onClick={() =>
-              void onAction(
-                {
-                  action: 'final-decision',
-                  applicationId: application.id,
-                  status: 'interview-passed',
-                },
-                `pass-${application.id}`,
-              )
-            }
-            type="button"
+        canDecide ? (
+          <>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+              disabled={busyKey === `pass-${application.id}`}
+              onClick={() =>
+                void onAction(
+                  {
+                    action: 'final-decision',
+                    applicationId: application.id,
+                    status: 'interview-passed',
+                  },
+                  `pass-${application.id}`,
+                )
+              }
+              type="button"
+            >
+              <UserCheck className="size-3.5" />
+              Accepta aspirant
+            </button>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-red-50 px-3 text-xs font-bold text-red-700 ring-1 ring-red-100 transition hover:bg-red-100 disabled:opacity-60"
+              disabled={busyKey === `reject-${application.id}`}
+              onClick={() =>
+                void onAction(
+                  {
+                    action: 'final-decision',
+                    applicationId: application.id,
+                    status: 'interview-rejected',
+                  },
+                  `reject-${application.id}`,
+                )
+              }
+              type="button"
+            >
+              <XCircle className="size-3.5" />
+              Respinge
+            </button>
+          </>
+        ) : (
+          <Link
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#d9dfe7] bg-white px-3 text-xs font-bold text-[#344054] transition hover:bg-[#f8fafc]"
+            href="/members/commissions/interviews"
           >
-            <UserCheck className="size-3.5" />
-            Accepta aspirant
-          </button>
-          <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-red-50 px-3 text-xs font-bold text-red-700 ring-1 ring-red-100 transition hover:bg-red-100 disabled:opacity-60"
-            disabled={busyKey === `reject-${application.id}`}
-            onClick={() =>
-              void onAction(
-                {
-                  action: 'final-decision',
-                  applicationId: application.id,
-                  status: 'interview-rejected',
-                },
-                `reject-${application.id}`,
-              )
-            }
-            type="button"
-          >
-            <XCircle className="size-3.5" />
-            Respinge
-          </button>
-        </>
+            <Clock3 className="size-3.5" />
+            Deschide interview-uri
+          </Link>
+        )
       }
       application={application}
       footer={
@@ -1353,7 +1804,7 @@ function ApplicationCard(props: {
                 {application.formAnswers.map((answer) => (
                   <div className="min-w-0" key={`${application.id}-${answer.field}`}>
                     <dt className="break-words text-[11px] font-bold uppercase text-[#8a94a6]">
-                      {answer.field}
+                      {answer.label}
                     </dt>
                     <dd className="mt-1 break-words text-sm text-[#344054]">
                       {answer.value || '-'}
@@ -1443,7 +1894,7 @@ function ApplicationDetailDrawer(props: {
                   key={answer.field}
                 >
                   <dt className="break-words text-[11px] font-bold uppercase text-[#8a94a6]">
-                    {answer.field}
+                    {answer.label}
                   </dt>
                   <dd className="mt-1 whitespace-pre-wrap break-words text-sm text-[#344054]">
                     {answer.value || '-'}
@@ -1453,6 +1904,16 @@ function ApplicationDetailDrawer(props: {
               {application.formAnswers.length === 0 && <InlineEmpty text="Nu exista raspunsuri." />}
             </dl>
           </section>
+          {application.notes && (
+            <section className="mt-6">
+              <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-[#748094]">
+                Note etape precedente
+              </h3>
+              <p className="mt-3 whitespace-pre-wrap rounded-lg bg-[#f7f9fc] px-3 py-2.5 text-sm text-[#536071]">
+                {application.notes}
+              </p>
+            </section>
+          )}
           <section className="mt-6">
             <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-[#748094]">
               Note interview
@@ -1654,6 +2115,14 @@ function StatusBadge({ status }: { status: ManagedApplicationStatus }) {
     'submission-rejected': {
       className: 'bg-slate-100 text-slate-500 ring-slate-200',
       label: 'Respins',
+    },
+    'submission-waitlisted': {
+      className: 'bg-amber-50 text-amber-700 ring-amber-100',
+      label: 'Asteptare',
+    },
+    'interview-withdrawn': {
+      className: 'bg-slate-100 text-slate-500 ring-slate-200',
+      label: 'Retras',
     },
     submitted: { className: 'bg-slate-100 text-slate-700 ring-slate-200', label: 'Nou' },
   }[status]

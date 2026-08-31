@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import payloadConfig from '@payload-config'
 import { getPayload } from 'payload'
 
-import type { Application, AspirementConfig } from '@/payload-types'
+import type { Application, AspirementConfig, Comission } from '@/payload-types'
 import {
   generateInterviewSlots,
   type RecruitmentApplication,
@@ -53,10 +53,11 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
     overrideAccess: true,
   })) as AspirementConfigWithDeadline
   const deadline = normalizeDate(config.recruitment?.interviewSchedulingDeadline)
+  const commission = await getApplicationCommission(application)
   const unavailableMessage = getUnavailableMessage(application, deadline)
   const slots = await getSerializedSlots({
     application,
-    intervals: config.recruitment?.interviewIntervals,
+    commission,
   })
 
   return (
@@ -89,14 +90,17 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
 
   async function getSerializedSlots(args: {
     application: RecruitmentApplication
-    intervals: NonNullable<AspirementConfig['recruitment']>['interviewIntervals']
+    commission: Comission | null
   }): Promise<InterviewScheduleSlot[]> {
-    const slots = generateInterviewSlots(args.intervals)
+    if (!args.commission) return []
+
+    const slots = generateInterviewSlots(args.commission.interviewIntervals)
     if (slots.length === 0) return []
 
     const taken = await getTakenSlotStarts(
       slots.map((slot) => slot.start),
       args.application.id,
+      args.commission.id,
     )
     const current = normalizeDate(args.application.reviewProcess?.interviewDate)
 
@@ -107,7 +111,11 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
     }))
   }
 
-  async function getTakenSlotStarts(slotStarts: string[], currentApplicationId: string) {
+  async function getTakenSlotStarts(
+    slotStarts: string[],
+    currentApplicationId: string,
+    commissionId: string,
+  ) {
     const result = await payload.find({
       collection: 'applications',
       depth: 0,
@@ -115,9 +123,10 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
       overrideAccess: true,
       pagination: false,
       where: {
-        'reviewProcess.interviewDate': {
-          in: slotStarts,
-        },
+        and: [
+          { 'reviewProcess.comission': { equals: commissionId } },
+          { 'reviewProcess.interviewDate': { in: slotStarts } },
+        ],
       },
     })
 
@@ -127,6 +136,27 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
         .map((item) => normalizeDate(item.reviewProcess?.interviewDate))
         .filter((value): value is string => Boolean(value)),
     )
+  }
+
+  async function getApplicationCommission(application: RecruitmentApplication) {
+    const relation = application.reviewProcess?.comission
+    if (relation && typeof relation === 'object' && 'id' in relation) {
+      return relation as Comission
+    }
+
+    const id = typeof relation === 'string' ? relation : ''
+    if (!id) return null
+
+    try {
+      return await payload.findByID({
+        collection: 'comissions',
+        depth: 0,
+        id,
+        overrideAccess: true,
+      })
+    } catch {
+      return null
+    }
   }
 }
 

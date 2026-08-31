@@ -2056,6 +2056,9 @@ export interface ScrollingGalleryBlock {
  * via the `definition` "AccordionGallery".
  */
 export interface AccordionGallery {
+  showLabels?: boolean | null;
+  oreintation?: ('vertical' | 'horizontal') | null;
+  expandRatio?: number | null;
   items?:
     | {
         label?: string | null;
@@ -2193,6 +2196,7 @@ export interface Application {
     notes?: string | null;
     comission?: (string | null) | Comission;
     interviewDate?: string | null;
+    interviewAttendance?: ('scheduled' | 'late' | 'absent' | 'completed') | null;
     interviewScheduleToken?: string | null;
     interviewScheduleTokenCreatedAt?: string | null;
     interviewMailSentAt?: string | null;
@@ -2214,8 +2218,10 @@ export interface Application {
       | (
           | 'submitted'
           | 'coordonator-review'
+          | 'submission-waitlisted'
           | 'submission-rejected'
           | 'interview'
+          | 'interview-withdrawn'
           | 'interviewed'
           | 'absent'
           | 'interview-passed'
@@ -3091,6 +3097,9 @@ export interface ScrollingGalleryBlockSelect<T extends boolean = true> {
  * via the `definition` "AccordionGallery_select".
  */
 export interface AccordionGallerySelect<T extends boolean = true> {
+  showLabels?: T;
+  oreintation?: T;
+  expandRatio?: T;
   items?:
     | T
     | {
@@ -3526,6 +3535,7 @@ export interface ApplicationsSelect<T extends boolean = true> {
         notes?: T;
         comission?: T;
         interviewDate?: T;
+        interviewAttendance?: T;
         interviewScheduleToken?: T;
         interviewScheduleTokenCreatedAt?: T;
         interviewMailSentAt?: T;
@@ -4161,6 +4171,9 @@ export interface AspirementConfig {
   id: string;
   recruitment?: {
     'recruitment-form'?: (string | null) | Form;
+    recruitmentStartDate?: string | null;
+    recruitmentEndDate?: string | null;
+    defaultInterviewDate?: string | null;
     'review-accepted-message'?: {
       root: {
         type: string;
@@ -4385,6 +4398,9 @@ export interface AspirementConfigSelect<T extends boolean = true> {
     | T
     | {
         'recruitment-form'?: T;
+        recruitmentStartDate?: T;
+        recruitmentEndDate?: T;
+        defaultInterviewDate?: T;
         'review-accepted-message'?: T;
         'review-rejected-message'?: T;
         'interview-accepted-message'?: T;

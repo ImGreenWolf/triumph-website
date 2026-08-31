@@ -69,6 +69,7 @@ export const Comissions: CollectionConfig = {
           name: 'confirmedAt',
           type: 'date',
           required: true,
+          defaultValue: new Date()
         },
       ],
     },

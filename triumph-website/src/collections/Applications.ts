@@ -28,6 +28,10 @@ export const Applications: CollectionConfig = {
           required: true,
         },
         {
+          name: 'instagram',
+          type: 'text',
+        },
+        {
           name: 'formSubmission',
           type: 'relationship',
           relationTo: 'form-submissions',
@@ -51,6 +55,16 @@ export const Applications: CollectionConfig = {
         {
           name: 'interviewDate',
           type: 'date',
+        },
+        {
+          name: 'interviewAttendance',
+          type: 'select',
+          options: [
+            { label: 'Programat', value: 'scheduled' },
+            { label: 'Intarziat', value: 'late' },
+            { label: 'Absent', value: 'absent' },
+            { label: 'Finalizat', value: 'completed' },
+          ],
         },
         {
           name: 'interviewScheduleToken',
@@ -150,12 +164,20 @@ export const Applications: CollectionConfig = {
               label: 'Se asteapta verificarea Coordonatorilor',
             },
             {
+              value: 'submission-waitlisted',
+              label: 'Lista de asteptare',
+            },
+            {
               value: 'submission-rejected',
               label: 'Formular Respins',
             },
             {
               value: 'interview',
               label: 'Acceptat pentru Interview',
+            },
+            {
+              value: 'interview-withdrawn',
+              label: 'Retras din proces',
             },
             {
               value: 'interviewed',

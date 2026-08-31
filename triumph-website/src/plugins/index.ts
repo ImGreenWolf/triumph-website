@@ -3,17 +3,16 @@ import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 import { redirectsPlugin } from '@payloadcms/plugin-redirects'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { searchPlugin } from '@payloadcms/plugin-search'
-import { getPayload, Plugin } from 'payload'
+import { APIError, Plugin, type PayloadRequest } from 'payload'
 import { revalidateRedirects } from '@/hooks/revalidateRedirects'
 import { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
 import { searchFields } from '@/search/fieldOverrides'
 import { beforeSyncWithSearch } from '@/search/beforeSync'
 
-import { FormSubmission, Page, Post } from '@/payload-types'
+import { AspirementConfig, FormSubmission, Page, Post } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
-import payloadConfig from '@payload-config'
-import { getCachedGlobal } from '@/utilities/getGlobals'
+import { getEndOfBucharestDay, getStartOfBucharestDay } from '@/utilities/recruitmentWorkflow'
 
 const searchableCollections = ['posts', 'events'] as const
 
@@ -49,8 +48,8 @@ export const plugins: Plugin[] = [
         afterChange: [revalidateRedirects],
       },
       admin: {
-        group: "Content"
-      }
+        group: 'Content',
+      },
     },
   }),
   nestedDocsPlugin({
@@ -67,7 +66,6 @@ export const plugins: Plugin[] = [
       payment: false,
       upload: true,
       date: true,
-      
     },
     formOverrides: {
       fields: ({ defaultFields }) => {
@@ -91,24 +89,46 @@ export const plugins: Plugin[] = [
       },
 
       admin: {
-        group: "Content",
-        
-      }
+        group: 'Content',
+      },
     },
     formSubmissionOverrides: {
       hooks: {
-        afterChange: [
-          ({operation, doc }) => {
-            if(operation == 'create') {
-              createApplication(doc as FormSubmission)
+        beforeChange: [
+          async ({ data, operation, req }) => {
+            if (operation !== 'create') return data
+
+            const config = (await req.payload.findGlobal({
+              slug: 'aspirementConfig',
+              depth: 0,
+              overrideAccess: true,
+            })) as AspirementConfig
+            const recruitmentForm = getRelationshipID(config.recruitment?.['recruitment-form'])
+            const submittedForm = getRelationshipID(data.form)
+            if (!recruitmentForm || recruitmentForm !== submittedForm) return data
+
+            const now = new Date()
+            const start = getStartOfBucharestDay(config.recruitment?.recruitmentStartDate)
+            const end = getEndOfBucharestDay(config.recruitment?.recruitmentEndDate)
+            if ((start && now < start) || (end && now > end)) {
+              throw new APIError('Perioada de inscrieri s-a incheiat.', 403)
             }
-          }
-        ]
+
+            return data
+          },
+        ],
+        afterChange: [
+          async ({ operation, doc, req }) => {
+            if (operation === 'create') {
+              await createApplication(doc as FormSubmission, req)
+            }
+          },
+        ],
       },
       admin: {
-        group: "Content"
-      }
-    }
+        group: 'Content',
+      },
+    },
   }),
   searchPlugin({
     // Add more collection slugs here to include them in the generated search index.
@@ -119,38 +139,68 @@ export const plugins: Plugin[] = [
         return [...defaultFields, ...searchFields]
       },
       admin: {
-        group: "Content",
-        
-      }
+        group: 'Content',
+      },
     },
   }),
 ]
 
+async function createApplication(formSubmission: FormSubmission, req: PayloadRequest) {
+  const config = (await req.payload.findGlobal({
+    slug: 'aspirementConfig',
+    depth: 0,
+    overrideAccess: true,
+  })) as AspirementConfig
+  const recruitmentForm = getRelationshipID(config.recruitment?.['recruitment-form'])
+  const submittedForm = getRelationshipID(formSubmission.form)
 
-async function createApplication(formSubmission: FormSubmission,) {
-  
-  const payload = await getPayload({config: payloadConfig})
-  const config = await payload.findGlobal({slug: 'aspirementConfig'}) //getCachedGlobal('aspirementConfig')()
-  const recruitmentForm = typeof config.recruitment?.['recruitment-form'] == 'string' ? config.recruitment?.['recruitment-form'] : (config.recruitment!)['recruitment-form']!.id;
-  const subbmitedForm = typeof formSubmission.form == 'string' ? formSubmission.form : formSubmission.form.id;
-  
-  if(recruitmentForm != subbmitedForm)
-    return console.log('not recruitment', subbmitedForm, recruitmentForm)
-  const formData = formSubmission.submissionData
-  const formMap = new Map()
-  formData?.forEach(data => {
-    formMap.set(data.field, data.value)
+  if (!recruitmentForm || recruitmentForm !== submittedForm) return
+
+  const existing = await req.payload.find({
+    collection: 'applications',
+    depth: 0,
+    limit: 1,
+    overrideAccess: true,
+    pagination: false,
+    req,
+    where: {
+      formSubmission: {
+        equals: formSubmission.id,
+      },
+    },
   })
-  
-  console.log(formSubmission)
+  if (existing.docs.length > 0) return
 
-  await payload.create({
+  const formData = formSubmission.submissionData ?? []
+  const formMap = new Map(formData.map((entry) => [entry.field, entry.value]))
+  const firstName = normalizeFormValue(formMap.get('firstName'))
+  const lastName = normalizeFormValue(formMap.get('lastName'))
+  const name = [firstName, lastName].filter(Boolean).join(' ') || 'Candidat fara nume'
+  const email = normalizeFormValue(formMap.get('email'))
+
+  await req.payload.create({
     collection: 'applications',
     data: {
-      name: formMap.get('firstName') + " " + formMap.get('lastName'),
-      email: formMap.get('email'),
+      email,
       formSubmission: formSubmission.id,
-    }
+      name,
+    },
+    overrideAccess: true,
+    req,
   })
+}
 
+function normalizeFormValue(value: unknown) {
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number') return String(value)
+  return ''
+}
+
+function getRelationshipID(value: unknown) {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && 'id' in value) {
+    return typeof value.id === 'string' ? value.id : ''
+  }
+
+  return ''
 }

@@ -2,7 +2,7 @@
 import type { FormFieldBlock, Form as FormType } from '@payloadcms/plugin-form-builder/types'
 
 import { useRouter } from 'next/navigation'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm, FormProvider, type FieldValues } from 'react-hook-form'
 import RichText from '@/components/RichText'
 import { Button } from '@/components/ui/button'
@@ -53,7 +53,39 @@ export const FormBlock: React.FC<
   const [isLoading, setIsLoading] = useState(false)
   const [hasSubmitted, setHasSubmitted] = useState<boolean>()
   const [error, setError] = useState<{ message: string; status?: string } | undefined>()
+  const [recruitmentWindow, setRecruitmentWindow] = useState<{
+    isOpen: boolean
+    isRecruitmentForm: boolean
+    message: string
+  } | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    if (!formID) return
+
+    let active = true
+    void fetch(`/api/aspirement/recruitment-status?formId=${encodeURIComponent(formID)}`)
+      .then(async (response) => {
+        if (!response.ok) return null
+        return (await response.json()) as {
+          isOpen?: boolean
+          isRecruitmentForm?: boolean
+          message?: string
+        }
+      })
+      .then((result) => {
+        if (!active || !result) return
+        setRecruitmentWindow({
+          isOpen: result.isOpen !== false,
+          isRecruitmentForm: result.isRecruitmentForm === true,
+          message: result.message || 'Perioada de inscrieri s-a incheiat.',
+        })
+      })
+
+    return () => {
+      active = false
+    }
+  }, [formID])
 
   const onSubmit = useCallback(
     (data: FieldValues) => {
@@ -189,43 +221,52 @@ export const FormBlock: React.FC<
                 </div>
               )}
 
-              {!isLoading && !hasSubmitted && (
-                <form id={formID} onSubmit={handleSubmit(onSubmit)}>
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-12">
-                    {formFromProps.fields?.map((field, index) => {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const Field: React.FC<any> = fields?.[field.blockType as keyof typeof fields]
-                      if (Field) {
-                        return (
-                          <Field
-                            form={formFromProps}
-                            key={`${field.blockType}-${index}`}
-                            {...field}
-                            {...formMethods}
-                            control={control}
-                            errors={errors}
-                            register={register}
-                          />
-                        )
-                      }
-                      return null
-                    })}
-                  </div>
-
-                  <div className="mt-7 flex justify-end">
-                    <Button
-                      className="h-11 min-w-36 px-5"
-                      disabled={isLoading}
-                      form={formID}
-                      type="submit"
-                      variant="default"
-                    >
-                      {submitButtonLabel}
-                      <Send className="size-4" />
-                    </Button>
-                  </div>
-                </form>
+              {recruitmentWindow?.isRecruitmentForm && !recruitmentWindow.isOpen && (
+                <div className="rounded-md border border-amber-500/25 bg-amber-500/10 p-4 text-sm font-semibold text-amber-800">
+                  {recruitmentWindow.message}
+                </div>
               )}
+
+              {!isLoading &&
+                !hasSubmitted &&
+                !(recruitmentWindow?.isRecruitmentForm && !recruitmentWindow.isOpen) && (
+                  <form id={formID} onSubmit={handleSubmit(onSubmit)}>
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-12">
+                      {formFromProps.fields?.map((field, index) => {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const Field: React.FC<any> =
+                          fields?.[field.blockType as keyof typeof fields]
+                        if (Field) {
+                          return (
+                            <Field
+                              form={formFromProps}
+                              key={`${field.blockType}-${index}`}
+                              {...field}
+                              {...formMethods}
+                              control={control}
+                              errors={errors}
+                              register={register}
+                            />
+                          )
+                        }
+                        return null
+                      })}
+                    </div>
+
+                    <div className="mt-7 flex justify-end">
+                      <Button
+                        className="h-11 min-w-36 px-5"
+                        disabled={isLoading}
+                        form={formID}
+                        type="submit"
+                        variant="default"
+                      >
+                        {submitButtonLabel}
+                        <Send className="size-4" />
+                      </Button>
+                    </div>
+                  </form>
+                )}
             </FormProvider>
           </div>
         </div>

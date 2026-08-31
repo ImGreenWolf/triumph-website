@@ -25,6 +25,36 @@ export const AspirementConfig: GlobalConfig = {
               relationTo: 'forms',
             },
             {
+              name: 'recruitmentStartDate',
+              type: 'date',
+              label: 'Inceput inscrieri',
+              admin: {
+                date: {
+                  pickerAppearance: 'dayOnly',
+                },
+              },
+            },
+            {
+              name: 'recruitmentEndDate',
+              type: 'date',
+              label: 'Final inscrieri',
+              admin: {
+                date: {
+                  pickerAppearance: 'dayOnly',
+                },
+              },
+            },
+            {
+              name: 'defaultInterviewDate',
+              type: 'date',
+              label: 'Data implicita pentru interview-uri',
+              admin: {
+                date: {
+                  pickerAppearance: 'dayOnly',
+                },
+              },
+            },
+            {
               name: 'review-accepted-message',
               type: 'richText',
             },
@@ -36,8 +66,9 @@ export const AspirementConfig: GlobalConfig = {
               name: 'interview-accepted-message',
               type: 'richText',
               admin: {
-                description: 'foloseste placeholdere precum {{firstName}}, {{scheduleLink}} sau {{commission}}'
-              }
+                description:
+                  'foloseste placeholdere precum {{firstName}}, {{scheduleLink}} sau {{commission}}',
+              },
             },
             {
               name: 'interview-rejected-message',
@@ -48,7 +79,6 @@ export const AspirementConfig: GlobalConfig = {
               type: 'date',
               label: 'Deadline programare interview',
             },
-            
           ],
         },
       ],

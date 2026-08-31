@@ -5,6 +5,7 @@ import payloadConfig from '@payload-config'
 import { getPayload, type Where } from 'payload'
 
 import type { Application, Comission, FormSubmission, Mandate, User } from '@/payload-types'
+import { normalizeInstagramUsername } from '@/utilities/instagram'
 import { isBoardMember } from '@/utilities/membersAccess'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
@@ -66,7 +67,6 @@ export default async function CommissionCoordinatorPage() {
     user: authUser,
   })) as User
   const hasBoardAccess = isBoardMember(member)
-  const hasHRAccess = member.role === 'hr-director'
 
   const commissionResult = await payload.find({
     collection: 'comissions',
@@ -91,7 +91,6 @@ export default async function CommissionCoordinatorPage() {
         applications={[]}
         commissions={[]}
         isBoard={false}
-        isHR={false}
         recruitmentPool={[]}
         user={{
           email: member.email,
@@ -148,7 +147,6 @@ export default async function CommissionCoordinatorPage() {
       applications={managedApplications}
       commissions={commissions.map(serializeCommission)}
       isBoard={hasBoardAccess}
-      isHR={hasHRAccess}
       recruitmentPool={recruitmentPool}
       user={{
         email: member.email,
@@ -188,6 +186,7 @@ function serializeApplication(application: ApplicationWithExtendedReview): Manag
     formAnswers: getSubmissionAnswers(application.formSubmission),
     finalMailSentAt: normalizeDate(reviewProcess.finalMailSentAt),
     id: application.id,
+    interviewAttendance: reviewProcess.interviewAttendance ?? null,
     interviewDate: normalizeDate(reviewProcess.interviewDate),
     interviewMailSentAt: normalizeDate(reviewProcess.interviewMailSentAt),
     interviewNotes: (reviewProcess.interviewNotes ?? []).map((note) => ({
@@ -220,10 +219,16 @@ function serializeRecruitmentPoolApplicant(
       .map(getRelationshipID)
       .filter(Boolean),
     name: application.name,
+    phone: getPhone(getSubmissionAnswers(application.formSubmission)),
     reviewedCoordinatorIds: (reviewProcess.coordonatorReviewChecks ?? [])
       .map(getRelationshipID)
       .filter(Boolean),
   }
+}
+
+function getPhone(answers: Array<{ field: string; value: string }>) {
+  const answer = answers.find((item) => /phone|telefon|tel/i.test(item.field))
+  return answer?.value ?? ''
 }
 
 function serializeUser(value: string | User | null | undefined): ManagedUser | null {
@@ -244,21 +249,36 @@ function isManagedUser(value: ManagedUser | null): value is ManagedUser {
 function getSubmissionAnswers(value: string | FormSubmission) {
   if (!value || typeof value === 'string') return []
 
+  const labels = getSubmissionFieldLabels(value)
   return (value.submissionData ?? []).map((item) => ({
     field: item.field,
+    label: labels.get(item.field) || item.field,
     value: item.value,
   }))
 }
 
+function getSubmissionFieldLabels(submission: FormSubmission) {
+  if (typeof submission.form === 'string') return new Map<string, string>()
+
+  return new Map(
+    (submission.form.fields ?? []).flatMap((field) => {
+      if (!('name' in field) || typeof field.name !== 'string') return []
+
+      const label = 'label' in field && typeof field.label === 'string' ? field.label.trim() : ''
+      return [[field.name, label || field.name]]
+    }),
+  )
+}
+
 function getInstagram(answers: Array<{ field: string; value: string }>) {
   const answer = answers.find((item) => item.field.toLocaleLowerCase('ro').includes('insta'))
-  if (answer?.value) return answer.value
+  if (answer?.value) return normalizeInstagramUsername(answer.value)
 
   const handle = answers
     .map((item) => item.value)
     .find((value) => /^@?[a-z0-9._]{2,30}$/i.test(value.trim()) && value.includes('.'))
 
-  return handle ?? ''
+  return normalizeInstagramUsername(handle)
 }
 
 function getMandateLabel(value: string | Mandate) {
