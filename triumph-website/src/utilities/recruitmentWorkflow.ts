@@ -1,4 +1,4 @@
-import { validateInterviewIntervals, type InterviewIntervalInput } from './aspirementRecruitment'
+import { validateInterviewIntervals, type InterviewIntervalInput } from './interviewSchedule'
 
 export const recruitmentSteps = [
   { key: 'forms', label: 'Review formulare', number: 1 },

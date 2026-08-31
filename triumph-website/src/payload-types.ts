@@ -2191,6 +2191,7 @@ export interface Application {
   id: string;
   name: string;
   email: string;
+  instagram?: string | null;
   formSubmission: string | FormSubmission;
   reviewProcess?: {
     notes?: string | null;
@@ -3528,6 +3529,7 @@ export interface ComissionsSelect<T extends boolean = true> {
 export interface ApplicationsSelect<T extends boolean = true> {
   name?: T;
   email?: T;
+  instagram?: T;
   formSubmission?: T;
   reviewProcess?:
     | T
