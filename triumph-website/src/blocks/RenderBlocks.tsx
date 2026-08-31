@@ -29,6 +29,8 @@ import { TimelineBlock } from './TimelineHistory/Component'
 import { ContactBlock } from './ContactBlock/Component'
 import { FAQBlock } from './FAQBlock/Component'
 import { TextLoopBlock } from './TextLoop/Component'
+import { AccordionGallery } from './AccordionGallery/Component'
+import { ScrollingGallery } from './ScrollingGallery/Component'
 
 const blockComponents: Partial<
   Record<Page['layout'][number]['blockType'], React.ComponentType<any>>
@@ -56,7 +58,9 @@ const blockComponents: Partial<
   downloadFiles: DownloadFilesBlock,
   eventTimeline: TimelineBlock,
   contactBlock: ContactBlock,
-  textLoop: TextLoopBlock
+  textLoop: TextLoopBlock,
+  accordionGallery: AccordionGallery,
+  scrollingGallery: ScrollingGallery
 }
 
 export const RenderBlocks: React.FC<{

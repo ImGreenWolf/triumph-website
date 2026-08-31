@@ -1,15 +1,66 @@
 import React from 'react'
 import { Media } from '@/components/Media'
-import { AboutUsBlock as AboutUsProps } from '@/payload-types'
+import type { AboutUsBlock as AboutUsProps } from '@/payload-types'
 import RichText from '@/components/RichText'
 import { cn } from '@/utilities/ui'
 import MarkOfExcellence from '@/components/ui/MarkOfExcellence'
 
 type RichTextData = AboutUsProps['interactContent']
+type AccentName = 'blue' | 'royal' | 'gold' | 'cranberry'
 
 type AboutUsBlockProps = AboutUsProps & {
   rotaractContent?: RichTextData
 }
+
+const accentStyles = {
+  blue: {
+    bg: 'bg-[#0194ce]',
+    bgOnDark: 'bg-[#00a2e0]',
+    text: 'text-[#0194ce]',
+    textOnDark: 'text-[#72d8ff]',
+    soft: 'bg-[#0194ce]/15',
+    border: 'border-[#0194ce]',
+    ring: 'ring-[#0194ce]/25',
+  },
+  royal: {
+    bg: 'bg-[#003366]',
+    bgOnDark: 'bg-[#6aa4ee]',
+    text: 'text-[#003366]',
+    textOnDark: 'text-[#9cc5ff]',
+    soft: 'bg-[#003366]/15',
+    border: 'border-[#003366]',
+    ring: 'ring-[#003366]/25',
+  },
+  gold: {
+    bg: 'bg-[#f7a81b]',
+    bgOnDark: 'bg-[#f7a81b]',
+    text: 'text-[#f7a81b]',
+    textOnDark: 'text-[#f7c866]',
+    soft: 'bg-[#f7a81b]/15',
+    border: 'border-[#f7a81b]',
+    ring: 'ring-[#f7a81b]/25',
+  },
+  cranberry: {
+    bg: 'bg-[#d91b5c]',
+    bgOnDark: 'bg-[#d91b5c]',
+    text: 'text-[#d91b5c]',
+    textOnDark: 'text-[#ff7aa8]',
+    soft: 'bg-[#d91b5c]/15',
+    border: 'border-[#d91b5c]',
+    ring: 'ring-[#d91b5c]/25',
+  },
+} satisfies Record<
+  AccentName,
+  {
+    bg: string
+    bgOnDark: string
+    text: string
+    textOnDark: string
+    soft: string
+    border: string
+    ring: string
+  }
+>
 
 const defaultRichText = (text: string): RichTextData =>
   ({
@@ -57,338 +108,134 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
   image,
   accentColor = 'blue',
 }) => {
-  const accentStyles = {
-    blue: {
-      bg: 'from-[#0194ce] to-[#017bb0]',
-      text: 'text-[#0194ce]',
-      light: 'bg-[#0194ce]/15',
-      border: 'border-[#0194ce]/30',
-    },
-    royal: {
-      bg: 'from-[#003366] to-[#002244]',
-      text: 'text-[#003366]',
-      light: 'bg-[#003366]/15',
-      border: 'border-[#003366]/30',
-    },
-    gold: {
-      bg: 'from-[#f7a81b] to-[#e09600]',
-      text: 'text-[#f7a81b]',
-      light: 'bg-[#f7a81b]/15',
-      border: 'border-[#f7a81b]/30',
-    },
-    cranberry: {
-      bg: 'from-[#d91b5c] to-[#b7124a]',
-      text: 'text-[#d91b5c]',
-      light: 'bg-[#d91b5c]/15',
-      border: 'border-[#d91b5c]/30',
-    },
-  }
-
-  const currentAccentName = (accentColor ?? 'blue') as keyof typeof accentStyles
+  const currentAccentName = (accentColor ?? 'blue') as AccentName
   const currentAccent = accentStyles[currentAccentName] ?? accentStyles.blue
+  const organizationCards = [
+    {
+      accent: accentStyles.blue,
+      content: interactContent,
+      logo: '/interact.png',
+      mark: 'blue',
+      name: 'Interact',
+    },
+    {
+      accent: accentStyles.cranberry,
+      content: rotaractContent,
+      logo: '/rotaract.png',
+      mark: 'cranberry',
+      name: 'Rotaract',
+    },
+    {
+      accent: accentStyles.gold,
+      content: rotaryContent,
+      logo: '/rotary.png',
+      mark: 'gold',
+      name: 'Rotary',
+    },
+  ] satisfies {
+    accent: (typeof accentStyles)[AccentName]
+    content: RichTextData
+    logo: string
+    mark: AccentName
+    name: string
+  }[]
 
   return (
-    <section className="relative py-4 md:py-8 lg:py-16 px-4 sm:px-6 lg:px-12 bg-foreground overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-slate-100 to-transparent rounded-full blur-3xl -z-10" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-slate-100 to-transparent rounded-full blur-3xl -z-10" />
-      
-      <div className="max-w-400 mx-auto">
-        {/* Desktop Layout */}
-        <div className="hidden lg:block relative">
-          {/* Image positioned on the right */}
-          <div className="absolute right-0 bottom-0 top-0 w-full py-4">
-            <div className="relative rounded-md overflow-hidden shadow-2xl h-full">
-              <div className=" w-full">
-                {typeof image !== 'string' && image && (
-                  <Media 
-                    resource={image} 
-                    fill 
-                    imgClassName="object-cover w-full h-full" 
-                  />
+    <section className="relative overflow-hidden bg-card py-14 text-card-foreground md:py-20">
+      <div
+        aria-hidden
+        className="halftone-background pointer-events-none absolute inset-0 opacity-20 [--halftone-color:var(--accent)]"
+      />
+      <div aria-hidden className={cn('absolute inset-x-0 top-0 h-1', currentAccent.bgOnDark)} />
+
+      <div className="container relative">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:items-end">
+          <div className="min-w-0">
+            <div className="mb-5 flex items-center gap-3">
+              <span className={cn('h-px w-10', currentAccent.bgOnDark)} />
+              <span
+                className={cn(
+                  'flex size-8 items-center justify-center rounded-md',
+                  currentAccent.soft,
                 )}
-              </div>
+              >
+                <MarkOfExcellence className="size-4" currentAccent={currentAccentName} />
+              </span>
+              <p
+                className={cn(
+                  'text-xs font-semibold uppercase tracking-normal',
+                  currentAccent.textOnDark,
+                )}
+              >
+                Despre organizația noastră
+              </p>
+            </div>
+
+            <h2 className="max-w-3xl text-4xl font-bold leading-tight text-card-foreground md:text-6xl">
+              {title}
+            </h2>
+
+            <div className="mt-8 max-w-xl border-l border-card-foreground/20 pl-5">
+              <p className="text-sm font-semibold uppercase tracking-normal text-accent">
+                Parteneriatul
+              </p>
+              <RichText
+                enableProse={false}
+                enableGutter={false}
+                data={relationshipContent}
+                className="mt-3 text-sm leading-6 text-card-foreground/75 [&_a]:text-accent [&_a]:underline-offset-4 [&_p]:my-0 [&_p+p]:mt-3 [&_strong]:text-white"
+              />
             </div>
           </div>
 
-          {/* Text box - overlaps from the left */}
-          <div className="relative w-8/12 z-10 ">
-            <div className={cn(
-              "rounded-md lg:rounded-3xl",
-              "bg-card/50 backdrop-blur-lg",
-              "border shadow-2xl",
-              currentAccent.border
-            )}>
-              <div className="absolute inset-0  bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
-              
-              <div className="relative p-6 md:p-8 lg:p-10 space-y-6 md:space-y-8">
-                {/* Title */}
-                <div className="space-y-3 md:space-y-4">
-                  <div className={`inline-flex items-center gap-1 ${currentAccent.light} px-3 py-1 rounded-full backdrop-blur-sm`}>
-                    {/* <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${currentAccent.bg}`} /> */}
-                   
-                    <MarkOfExcellence className='w-3 h-3' currentAccent={currentAccentName}/>
-                    <span className={`text-xs font-semibold uppercase tracking-wider ${currentAccent.text}`}>
-                    
-                      Despre Organizația Noastră
-                    </span>
-                  </div>
-                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground text-shadow-lg leading-tight">
-                    {title}
-                  </h2>
-                </div>
-                 <MarkOfExcellence className='absolute m-2 bottom-0 left-0 right-0 h-1/2 -z-1 opacity-10 blur-3xl backdrop-blur-xl bg-black'  animate/>
-                {/* Organization Content */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-                  <div className="group/card">
-                    <div className="relative h-full p-6 bg-white  backdrop-blur-lg rounded-md border border-[#0194ce]/30 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
-                      <div className="mb-4">
-                        <div className="h-12 mb-3">
-                          <img 
-                            src="/interact.png" 
-                            alt="Interact" 
-                            className=" h-full object-contain"
-                            loading="lazy"
-                          />
-                        </div>
-                      </div>
-                      <RichText 
-                        enableProse={false} 
-                        enableGutter={false} 
-                        data={interactContent} 
-                        className="text-slate-600 text-sm md:text-base leading-relaxed" 
-                      />
-                     
-                    </div>
-                  </div>
-
-                  <div className="group/card">
-                    <div className="relative h-full overflow-hidden p-6 bg-white/90 backdrop-blur-lg rounded-md border border-[#d91b5c]/30 shadow-sm shadow-[#d91b5c]/10 hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
-                      <div className="absolute inset-y-0 right-0 w-1/2  to-transparent pointer-events-none" />
-                      <div className="mb-4">
-                        <div className="h-12 mb-3">
-                          <img 
-                            src="/rotaract.png" 
-                            alt="Rotaract" 
-                            className="relative h-full max-w-full object-contain object-left"
-                            loading="lazy"
-                          />
-                        </div>
-                      </div>
-                      <RichText 
-                        enableProse={false} 
-                        enableGutter={false} 
-                        data={rotaractContent} 
-                        className="relative text-slate-700 text-sm md:text-base leading-relaxed [&_strong]:text-[#d91b5c]" 
-                      />
-                     
-                    </div>
-                  </div>
-
-                  <div className="group/card">
-                    <div className="relative h-full p-6 bg-white/80 backdrop-blur-sm rounded-md border border-[#f7a81b]/30 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/95">
-                      <div className="mb-4">
-                        <div className="h-12 mb-3">
-                          <img 
-                            src="/rotary.png" 
-                            alt="Rotary" 
-                            className="h-full object-contain"
-                            loading="lazy"
-                          />
-                        </div>
-                      </div>
-                      <RichText 
-                        enableProse={false} 
-                        enableGutter={false} 
-                        data={rotaryContent} 
-                        className="text-slate-600 text-sm md:text-base leading-relaxed" 
-                      />
-                     
-                    </div>
-                  </div>
-                </div>
-
-                {/* Partnership Card */}
-                <div className={cn(
-                  "relative p-6 md:p-8 rounded-md overflow-hidden",
-                  "backdrop-blur-md shadow-xl",
-                  `bg-gradient-to-br ${currentAccent.bg}`,
-                  "border border-white/30"
-                )}>
-                  <div className="absolute inset-0 bg-white/15 backdrop-blur-[2px]" />
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute inset-0" style={{
-                      backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 1px)`,
-                      backgroundSize: '24px 24px'
-                    }} />
-                  </div>
-                  
-                  <div className="relative z-10 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-0.5 bg-white/60 rounded-full" />
-                      <h4 className="text-base md:text-lg font-bold uppercase tracking-wider text-white">
-                        The Partnership
-                      </h4>
-                      <div className="w-8 h-0.5 bg-white/60 rounded-full" />
-                    </div>
-                    <RichText 
-                      enableProse={false} 
-                      enableGutter={false} 
-                      data={relationshipContent} 
-                      className="text-white/95 text-sm md:text-base leading-relaxed [&_a]:text-white [&_a]:underline [&_a:hover]:no-underline" 
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <figure className="relative aspect-[4/3] overflow-hidden rounded-lg border border-card-foreground/15 bg-card-foreground/10 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+            {typeof image !== 'string' && image && (
+              <Media resource={image} fill imgClassName="h-full w-full object-cover" />
+            )}
+            <figcaption className="absolute inset-x-0 bottom-0 border-t border-white/15 bg-card/85 px-4 py-3 text-xs font-semibold uppercase tracking-normal text-card-foreground backdrop-blur-md">
+              Interact / Rotaract / Rotary
+            </figcaption>
+          </figure>
         </div>
 
-        {/* Mobile Layout */}
-        <div className="block lg:hidden relative">
-          {/* Image at the top */}
-          <div className="relative rounded-md overflow-hidden shadow-2xl">
-            <div className="aspect-[4/3] w-full">
-              {typeof image !== 'string' && image && (
-                <Media 
-                  resource={image} 
-                  fill 
-                  imgClassName="object-cover w-full h-full" 
-                />
+        <div className="mt-8 grid gap-3 md:grid-cols-3">
+          {organizationCards.map((card) => (
+            <article
+              className={cn(
+                'relative min-w-0 overflow-hidden rounded-lg border bg-white p-5 text-[#141e34] shadow-sm ring-1 transition duration-300 hover:-translate-y-1 hover:shadow-xl md:p-6',
+                card.accent.border,
+                card.accent.ring,
               )}
-            </div>
-          </div>
-
-          {/* Text box - overlaps from the bottom */}
-          <div className="relative -mt-32 sm:-mt-48 z-10 px-4">
-            <div className={cn(
-              "rounded-md",
-              "bg-card/70 backdrop-blur-xl",
-              "border shadow-2xl",
-              currentAccent.border
-            )}>
-              <div className="absolute inset-0 rounded-md bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
-              
-              <div className="relative p-5 sm:p-6 space-y-5 sm:space-y-6">
-                {/* Title */}
-                <div className="space-y-2 sm:space-y-3">
-                  <div className={`inline-flex items-center gap-2 ${currentAccent.light} px-3 py-1 rounded-full backdrop-blur-sm`}>
-                    <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${currentAccent.bg}`} />
-                    <span className={`text-xs font-semibold uppercase tracking-wider ${currentAccent.text}`}>
-                      Despre Organizația Noastră
-                    </span>
-                  </div>
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-primary leading-tight">
-                    {title}
-                  </h2>
+              key={card.name}
+            >
+              <div aria-hidden className={cn('absolute inset-x-0 top-0 h-1', card.accent.bg)} />
+              <div className="mb-6 flex min-h-12 items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <img
+                    src={card.logo}
+                    alt={card.name}
+                    className="h-10 max-w-36 object-contain object-left"
+                    loading="lazy"
+                  />
                 </div>
-                
-                {/* Organization Content */}
-                <div className="grid grid-cols-1 gap-5 sm:gap-6">
-                  <div className="group/card">
-                    <div className="relative p-4 sm:p-5 bg-white/80 backdrop-blur-sm rounded-md border border-slate-200/50 shadow-sm">
-                      <div className="mb-3">
-                        <div className="w-30 h-10 mb-2">
-                          <img 
-                            src="/interact.png" 
-                            alt="Interact" 
-                            className="w-full h-full object-contain"
-                            loading="lazy"
-                          />
-                        </div>
-                      </div>
-                      <RichText 
-                        enableProse={false} 
-                        enableGutter={false} 
-                        data={interactContent} 
-                        className="text-slate-600 text-sm leading-relaxed" 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="group/card">
-                    <div className="relative overflow-hidden p-4 sm:p-5 bg-white/90 backdrop-blur-sm rounded-md shadow-sm shadow-[#d91b5c]/10">
-                      <div className="absolute inset-y-0 right-0 w-1/2 pointer-events-none" />
-                      <div className="relative mb-3">
-                        <div className="h-11 mb-2">
-                          <img 
-                            src="/rotaract.png" 
-                            alt="Rotaract" 
-                            className="h-full max-w-full object-contain object-left"
-                            loading="lazy"
-                          />
-                        </div>
-                      </div>
-                      <RichText 
-                        enableProse={false} 
-                        enableGutter={false} 
-                        data={rotaractContent} 
-                        className="relative text-slate-700 text-sm leading-relaxed [&_strong]:text-[#d91b5c]" 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="group/card">
-                    <div className="relative p-4 sm:p-5 bg-white/80 backdrop-blur-sm rounded-md border border-slate-200/50 shadow-sm">
-                      <div className="mb-3">
-                        <div className="w-30 h-10 mb-2">
-                          <img 
-                            src="/rotary.png" 
-                            alt="Rotary" 
-                            className="w-full h-full object-contain"
-                            loading="lazy"
-                          />
-                        </div>
-                      </div>
-                      <RichText 
-                        enableProse={false} 
-                        enableGutter={false} 
-                        data={rotaryContent} 
-                        className="text-slate-600 text-sm leading-relaxed" 
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Partnership Card */}
-                <div className={cn(
-                  "relative p-5 rounded-md overflow-hidden",
-                  "backdrop-blur-md shadow-lg",
-                  `bg-gradient-to-br ${currentAccent.bg}`,
-                  "border border-white/30"
-                )}>
-                  <div className="absolute inset-0 bg-white/15 backdrop-blur-[2px]" />
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute inset-0" style={{
-                      backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 1px)`,
-                      backgroundSize: '20px 20px'
-                    }} />
-                  </div>
-                  
-                  <div className="relative z-10 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-0.5 bg-white/60 rounded-full" />
-                      <h4 className="text-sm font-bold uppercase tracking-wider text-white">
-                        The Partnership
-                      </h4>
-                      <div className="w-6 h-0.5 bg-white/60 rounded-full" />
-                    </div>
-                    <RichText 
-                      enableProse={false} 
-                      enableGutter={false} 
-                      data={relationshipContent} 
-                      className="text-white/95 text-sm leading-relaxed [&_a]:text-white [&_a]:underline [&_a:hover]:no-underline" 
-                    />
-                  </div>
-                </div>
+                <span
+                  className={cn(
+                    'flex size-8 shrink-0 items-center justify-center rounded-md',
+                    card.accent.soft,
+                  )}
+                >
+                  <MarkOfExcellence className="size-4" currentAccent={card.mark} />
+                </span>
               </div>
-            </div>
-          </div>
+              <RichText
+                enableProse={false}
+                enableGutter={false}
+                data={card.content}
+                className="text-sm leading-6 text-[#4f5b6e] [&_a]:font-semibold [&_a]:text-[#00a2e0] [&_a]:underline-offset-4 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold [&_p]:my-0 [&_p+p]:mt-3 [&_strong]:text-[#141e34]"
+              />
+            </article>
+          ))}
         </div>
-        
-        {/* Decorative floating glass elements */}
-        <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-gradient-to-br from-white/30 to-transparent blur-3xl pointer-events-none -z-10 hidden lg:block" />
-        <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full bg-gradient-to-tr from-white/30 to-transparent blur-3xl pointer-events-none -z-10 hidden lg:block" />
       </div>
     </section>
   )

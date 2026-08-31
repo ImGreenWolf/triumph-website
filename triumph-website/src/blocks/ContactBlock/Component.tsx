@@ -10,6 +10,7 @@ import {
   Calendar,
   Clock,
   Globe,
+  InstagramIcon,
   Mail,
   MapPin,
   MessageCircle,
@@ -29,6 +30,7 @@ const contactIcons: Record<string, LucideIcon> = {
   phone: Phone,
   send: Send,
   users: Users,
+  instagram: InstagramIcon
 }
 
 const isExternalHref = (href?: string | null) => Boolean(href?.startsWith('http'))

@@ -1,5 +1,7 @@
 import type { Access, CollectionConfig } from 'payload'
 import { hasBoardRole } from '@/utilities/membersAccess'
+import LocationSelectorField from '@/fields/location-selector'
+import { locationField } from '@/fields/location-selector/field'
 
 const canReadCommission: Access = ({ req }) => {
   if (hasBoardRole({ req })) return true
@@ -67,6 +69,67 @@ export const Comissions: CollectionConfig = {
           name: 'confirmedAt',
           type: 'date',
           required: true,
+        },
+      ],
+    },
+    {
+      name: 'interviewIntervals',
+      type: 'array',
+      label: 'Intervalele pentru Interview',
+      admin: {
+        description: 'Adauga o zi pentru a programa interview-uri cu aspirantii.',
+      },
+      fields: [
+        locationField({label: 'interviewLocation'}),
+        {
+          name: 'startDateTime',
+          type: 'date',
+          admin: {
+            date: {
+              pickerAppearance: 'dayAndTime'
+            }
+          }
+        },
+        {
+          name: 'endDateTime',
+          type: 'date',
+          admin: {
+            date: {
+              pickerAppearance: 'dayAndTime'
+            }
+          }
+        },
+        {
+          name: 'interviewDuration',
+          type: 'number',
+        },
+        {
+          name: 'pauseBetween',
+          type: 'number',
+        },
+        {
+          name: 'breaks',
+          type: 'array',
+          fields: [
+            {
+              name: 'startTime',
+              type: 'date',
+              admin: {
+                date: {
+                  pickerAppearance: 'timeOnly'
+                }
+              }
+            },
+            {
+              name: 'endTime',
+              type: 'date',
+              admin: {
+                date: {
+                  pickerAppearance: 'timeOnly'
+                }
+              }
+            },
+          ],
         },
       ],
     },

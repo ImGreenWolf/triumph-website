@@ -18,6 +18,8 @@ const contactIconOptions = [
   { label: 'Calendar', value: 'calendar' },
   { label: 'People', value: 'users' },
   { label: 'Building', value: 'building' },
+  { label: 'Instagram', value: 'instagram' },
+
 ]
 
 const richTextField = (name: string, label: string): Field => ({

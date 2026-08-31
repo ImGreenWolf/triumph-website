@@ -287,6 +287,8 @@ export interface Page {
     | EventTimelineBlock
     | ContactBlock
     | TextLoopBlock
+    | ScrollingGalleryBlock
+    | AccordionGallery
   )[];
   meta?: {
     title?: string | null;
@@ -2009,7 +2011,8 @@ export interface ContactBlock {
           | 'globe'
           | 'calendar'
           | 'users'
-          | 'building';
+          | 'building'
+          | 'instagram';
         description?: string | null;
         newTab?: boolean | null;
         id?: string | null;
@@ -2037,6 +2040,51 @@ export interface TextLoopBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'textLoop';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ScrollingGalleryBlock".
+ */
+export interface ScrollingGalleryBlock {
+  images?: (string | Media)[] | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'scrollingGallery';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "AccordionGallery".
+ */
+export interface AccordionGallery {
+  items?:
+    | {
+        label?: string | null;
+        link: {
+          type?: ('reference' | 'custom') | null;
+          newTab?: boolean | null;
+          reference?:
+            | ({
+                relationTo: 'pages';
+                value: string | Page;
+              } | null)
+            | ({
+                relationTo: 'posts';
+                value: string | Post;
+              } | null);
+          url?: string | null;
+          label: string;
+          /**
+           * Choose how the link should be rendered.
+           */
+          appearance?: ('default' | 'outline') | null;
+        };
+        image?: (string | null) | Media;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'accordionGallery';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2098,6 +2146,34 @@ export interface Comission {
     | {
         coordinator: string | User;
         confirmedAt: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Adauga o zi pentru a programa interview-uri cu aspirantii.
+   */
+  interviewIntervals?:
+    | {
+        location?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        startDateTime?: string | null;
+        endDateTime?: string | null;
+        interviewDuration?: number | null;
+        pauseBetween?: number | null;
+        breaks?:
+          | {
+              startTime?: string | null;
+              endTime?: string | null;
+              id?: string | null;
+            }[]
+          | null;
         id?: string | null;
       }[]
     | null;
@@ -2565,6 +2641,8 @@ export interface PagesSelect<T extends boolean = true> {
         eventTimeline?: T | EventTimelineBlockSelect<T>;
         contactBlock?: T | ContactBlockSelect<T>;
         textLoop?: T | TextLoopBlockSelect<T>;
+        scrollingGallery?: T | ScrollingGalleryBlockSelect<T>;
+        accordionGallery?: T | AccordionGallerySelect<T>;
       };
   meta?:
     | T
@@ -3001,6 +3079,40 @@ export interface TextLoopBlockSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ScrollingGalleryBlock_select".
+ */
+export interface ScrollingGalleryBlockSelect<T extends boolean = true> {
+  images?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "AccordionGallery_select".
+ */
+export interface AccordionGallerySelect<T extends boolean = true> {
+  items?:
+    | T
+    | {
+        label?: T;
+        link?:
+          | T
+          | {
+              type?: T;
+              newTab?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              appearance?: T;
+            };
+        image?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "posts_select".
  */
 export interface PostsSelect<T extends boolean = true> {
@@ -3378,6 +3490,23 @@ export interface ComissionsSelect<T extends boolean = true> {
     | {
         coordinator?: T;
         confirmedAt?: T;
+        id?: T;
+      };
+  interviewIntervals?:
+    | T
+    | {
+        location?: T;
+        startDateTime?: T;
+        endDateTime?: T;
+        interviewDuration?: T;
+        pauseBetween?: T;
+        breaks?:
+          | T
+          | {
+              startTime?: T;
+              endTime?: T;
+              id?: T;
+            };
         id?: T;
       };
   updatedAt?: T;
@@ -4096,25 +4225,6 @@ export interface AspirementConfig {
       [k: string]: unknown;
     } | null;
     interviewSchedulingDeadline?: string | null;
-    /**
-     * Adauga o zi pentru a programa interview-uri cu aspirantii.
-     */
-    interviewIntervals?:
-      | {
-          startDateTime?: string | null;
-          endDateTime?: string | null;
-          interviewDuration?: number | null;
-          pauseBetween?: number | null;
-          breaks?:
-            | {
-                startTime?: string | null;
-                endTime?: string | null;
-                id?: string | null;
-              }[]
-            | null;
-          id?: string | null;
-        }[]
-      | null;
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -4280,22 +4390,6 @@ export interface AspirementConfigSelect<T extends boolean = true> {
         'interview-accepted-message'?: T;
         'interview-rejected-message'?: T;
         interviewSchedulingDeadline?: T;
-        interviewIntervals?:
-          | T
-          | {
-              startDateTime?: T;
-              endDateTime?: T;
-              interviewDuration?: T;
-              pauseBetween?: T;
-              breaks?:
-                | T
-                | {
-                    startTime?: T;
-                    endTime?: T;
-                    id?: T;
-                  };
-              id?: T;
-            };
       };
   updatedAt?: T;
   createdAt?: T;

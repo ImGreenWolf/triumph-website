@@ -142,7 +142,7 @@ export default buildConfig({
     Mandates,
     Comissions,
     Applications,
-    Documents
+    Documents,
   ],
   cors: allowedOrigins,
   // Payload appends serverURL automatically during config sanitization.
