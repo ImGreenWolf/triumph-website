@@ -23,7 +23,7 @@ export const Comissions: CollectionConfig = {
   indexes: [{ unique: true, fields: ['commissionNumber', 'mandate'] }],
   admin: {
     useAsTitle: 'commissionNumber',
-    group: 'Projects',
+    group: 'Recruitment',
   },
   fields: [
     {

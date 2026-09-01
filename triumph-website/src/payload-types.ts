@@ -606,7 +606,7 @@ export interface User {
     | 'pr-director'
     | 'hr-director'
     | 'secretary'
-    | 'tresoursier';
+    | 'treasurer';
   joinedAt: string;
   /**
    * Members can set this once from their profile page.
@@ -767,6 +767,7 @@ export interface User {
   };
   updatedAt: string;
   createdAt: string;
+  deletedAt?: string | null;
   email: string;
   resetPasswordToken?: string | null;
   resetPasswordExpiration?: string | null;
@@ -1289,6 +1290,10 @@ export interface Form {
             width?: number | null;
             defaultValue?: string | null;
             required?: boolean | null;
+            /**
+             * Lasa gol pentru nelimitat. Limita este aplicata la formularul public.
+             */
+            maxWords?: number | null;
             id?: string | null;
             blockName?: string | null;
             blockType: 'textarea';
@@ -3288,6 +3293,7 @@ export interface UsersSelect<T extends boolean = true> {
   absenceMotivations?: T;
   updatedAt?: T;
   createdAt?: T;
+  deletedAt?: T;
   email?: T;
   resetPasswordToken?: T;
   resetPasswordExpiration?: T;
@@ -3774,6 +3780,7 @@ export interface FormsSelect<T extends boolean = true> {
               width?: T;
               defaultValue?: T;
               required?: T;
+              maxWords?: T;
               id?: T;
               blockName?: T;
             };

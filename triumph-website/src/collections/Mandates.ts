@@ -11,7 +11,7 @@ export const Mandates: CollectionConfig = {
     },
     admin: {
         useAsTitle: 'year',
-        group: "Projects",
+        group: "Club Administration",
     },
     fields: [
     {

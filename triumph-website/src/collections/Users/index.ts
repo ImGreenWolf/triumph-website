@@ -127,7 +127,7 @@ export const Users: CollectionConfig = {
       return Boolean(req.user?.id && id && String(req.user.id) === String(id))
     },
   },
-  
+  trash: true,
   admin: {
     defaultColumns: ['name', 'email', 'joinedAt','attendance', 'payments'],
     useAsTitle: 'name',
@@ -424,7 +424,7 @@ export const Users: CollectionConfig = {
         },
         {
           label: 'Trezorier',
-          value: 'tresoursier',
+          value: 'treasurer',
         },
       ],
       access: {

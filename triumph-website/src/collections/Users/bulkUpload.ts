@@ -34,11 +34,13 @@ export type MemberBulkUploadResult = {
 const allowedRoles = new Set<UserCreateData['role']>([
   'aspirer',
   'active',
+  'passive',
   'president',
+  'vice-president',
   'pr-director',
   'hr-director',
   'secretary',
-  'tresoursier',
+  'treasurer',
 ])
 
 const headerAliases = {

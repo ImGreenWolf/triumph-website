@@ -69,7 +69,7 @@ export const plugins: Plugin[] = [
     },
     formOverrides: {
       fields: ({ defaultFields }) => {
-        return defaultFields.map((field) => {
+        const fields = defaultFields.map((field) => {
           if ('name' in field && field.name === 'confirmationMessage') {
             return {
               ...field,
@@ -86,6 +86,36 @@ export const plugins: Plugin[] = [
           }
           return field
         })
+
+        return fields.map((field) => {
+          if (!('name' in field) || field.name !== 'fields' || field.type !== 'blocks') {
+            return field
+          }
+
+          return {
+            ...field,
+            blocks: field.blocks.map((block) => {
+              if (block.slug !== 'textarea') return block
+
+              return {
+                ...block,
+                fields: [
+                  ...block.fields,
+                  {
+                    admin: {
+                      description:
+                        'Lasa gol pentru nelimitat. Limita este aplicata la formularul public.',
+                    },
+                    label: 'Limita de cuvinte',
+                    min: 1,
+                    name: 'maxWords',
+                    type: 'number',
+                  },
+                ],
+              }
+            }),
+          }
+        })
       },
 
       admin: {
@@ -97,6 +127,8 @@ export const plugins: Plugin[] = [
         beforeChange: [
           async ({ data, operation, req }) => {
             if (operation !== 'create') return data
+
+            await validateTextareaWordLimits(data, req)
 
             const config = (await req.payload.findGlobal({
               slug: 'aspirementConfig',
@@ -188,6 +220,43 @@ async function createApplication(formSubmission: FormSubmission, req: PayloadReq
     overrideAccess: true,
     req,
   })
+}
+
+async function validateTextareaWordLimits(data: Partial<FormSubmission>, req: PayloadRequest) {
+  const formID = getRelationshipID(data.form)
+  if (!formID) return
+
+  const form = await req.payload.findByID({
+    collection: 'forms',
+    depth: 0,
+    id: formID,
+    overrideAccess: true,
+  })
+  const limits = new Map(
+    ((form.fields ?? []) as Array<{ blockType?: string; maxWords?: unknown; name?: unknown }>)
+      .filter(
+        (field): field is { blockType: 'textarea'; maxWords: number; name: string } =>
+          field.blockType === 'textarea' &&
+          typeof field.name === 'string' &&
+          typeof field.maxWords === 'number' &&
+          Number.isInteger(field.maxWords) &&
+          field.maxWords > 0,
+      )
+      .map((field) => [field.name, field.maxWords]),
+  )
+
+  for (const item of data.submissionData ?? []) {
+    const limit = limits.get(item.field)
+    if (!limit || typeof item.value !== 'string') continue
+
+    if (countWords(item.value) > limit) {
+      throw new APIError(`Campul "${item.field}" poate avea cel mult ${limit} cuvinte.`, 400)
+    }
+  }
+}
+
+function countWords(value: string) {
+  return value.trim().split(/\s+/).filter(Boolean).length
 }
 
 function normalizeFormValue(value: unknown) {

@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
     loadPaths: ['./node_modules/@payloadcms/ui/dist/scss/'],
   },
   output: 'standalone',
+  serverExternalPackages: ['heic-convert'],
   images: {
     maximumResponseBody: 100_000_000,
     localPatterns: [
@@ -57,7 +58,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(dirname),
   },
-  
 }
 
 export default withPayload(nextConfig, { devBundleServerPackages: false })

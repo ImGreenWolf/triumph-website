@@ -5,6 +5,9 @@ import { revalidateAspirementConfig } from './hooks/revalidateAspirementConfig'
 
 export const AspirementConfig: GlobalConfig = {
   slug: 'aspirementConfig',
+  admin: {
+    group: 'Recruitment'
+  },
   hooks: {
     afterChange: [revalidateAspirementConfig],
   },

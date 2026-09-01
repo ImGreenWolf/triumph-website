@@ -10,7 +10,7 @@ export const Applications: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'name',
-    group: 'Projects',
+    group: 'Recruitment',
   },
   fields: [
     {
