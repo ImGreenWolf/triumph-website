@@ -164,6 +164,7 @@
   --success: oklch(28% 0.1 200deg);
   --warning: oklch(35% 0.08 70deg);
   --error: oklch(45% 0.1 25deg);
+  --radius: 0.625rem;
 }
 
 @theme inline {
