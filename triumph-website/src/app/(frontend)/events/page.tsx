@@ -3,8 +3,7 @@ import type { Metadata } from 'next/types'
 import { EventsPageContent } from './EventsPageContent'
 import { queryEventsPage } from './queryEvents'
 
-export const dynamic = 'force-static'
-export const revalidate = 600
+export const dynamic = 'force-dynamic'
 
 export default async function Page() {
   const eventsPage = await queryEventsPage()

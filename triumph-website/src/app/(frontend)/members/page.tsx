@@ -60,7 +60,7 @@ const roleLabels: Record<User['role'], string> = {
   'pr-director': 'PR Director',
   'hr-director': 'HR Director',
   secretary: 'Secretar',
-  tresoursier: 'Trezorier',
+  treasurer: 'Trezorier',
   'past-president': 'Past President',
   passive: 'Membru Pasiv',
 }

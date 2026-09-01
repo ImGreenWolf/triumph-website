@@ -188,6 +188,7 @@ const statusLabels: Record<ManagedApplicationStatus, string> = {
 
 export default function HRRecruitmentWizard(props: {
   applications: ManagedApplication[]
+  canOpenCommissionView: boolean
   commissions: ManagedCommission[]
   config: ManagedRecruitmentConfig
   user: ManagedUser
@@ -311,13 +312,29 @@ export default function HRRecruitmentWizard(props: {
               <p className="mt-5 text-xs font-black uppercase tracking-[0.14em] text-[#56c9f5]">
                 HR recruitment
               </p>
+              {props.canOpenCommissionView && (
+                <nav
+                  aria-label="Alege spatiul de lucru"
+                  className="mt-3 inline-flex max-w-full overflow-x-auto rounded-md border border-white/15 bg-white/[0.06] p-1 text-xs font-bold"
+                >
+                  <span className="inline-flex h-8 shrink-0 items-center rounded bg-white px-3 text-[#141e34]">
+                    Vedere generala
+                  </span>
+                  <Link
+                    className="inline-flex h-8 shrink-0 items-center rounded px-3 text-white/70 hover:bg-white/10 hover:text-white"
+                    href="/members/commissions"
+                  >
+                    Vedere comisie
+                  </Link>
+                </nav>
+              )}
               <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Fluxul de selectie</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
                 Fiecare etapa se deschide dupa ce toate conditiile din etapa anterioara sunt
                 indeplinite.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
               <HeaderStat label="Formulare" value={String(workflow.metrics.submitted)} />
               <HeaderStat label="Asignati" value={String(workflow.metrics.assigned)} />
               <HeaderStat label="Programati" value={String(workflow.metrics.scheduled)} />
@@ -435,18 +452,18 @@ function WizardSidebar(props: {
   workflow: ReturnType<typeof getRecruitmentWorkflowState>
 }) {
   return (
-    <aside className="h-fit rounded-lg border border-[#dfe5ec] bg-white p-2 shadow-[0_8px_30px_rgba(22,34,57,0.04)] lg:sticky lg:top-24">
+    <aside className="h-fit overflow-hidden rounded-lg border border-[#dfe5ec] bg-white p-2 shadow-[0_8px_30px_rgba(22,34,57,0.04)] lg:sticky lg:top-24">
       <p className="px-3 pb-2 pt-3 text-xs font-black uppercase tracking-[0.12em] text-[#748094]">
         Etape recruitment
       </p>
-      <nav className="grid gap-1">
+      <nav className="flex gap-1 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
         {recruitmentSteps.map((step, index) => {
           const gate = props.workflow.gates[step.key]
           const locked = index > props.maximumStepIndex
           const active = props.activeStep === step.key
           return (
             <button
-              className={`flex w-full min-w-0 items-center gap-3 rounded-md px-3 py-2 text-left transition ${
+              className={`flex min-h-12 min-w-52 shrink-0 items-center gap-3 rounded-md px-3 py-2 text-left transition lg:w-full lg:min-w-0 ${
                 active
                   ? 'bg-[#141e34] text-white'
                   : locked
@@ -475,7 +492,7 @@ function WizardSidebar(props: {
                   step.number
                 )}
               </span>
-              <span className="min-w-0 flex-1 break-words">
+              <span className="min-w-0 flex-1">
                 <span className="block break-words text-sm font-bold leading-tight">
                   {step.label}
                 </span>
@@ -874,7 +891,7 @@ function CommissionScheduleEditor(props: {
             {intervals.length} {intervals.length === 1 ? 'interval' : 'intervale'} configurate
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             className="inline-flex h-9 items-center gap-2 rounded-md border border-[#cdd5df] bg-white px-3 text-xs font-bold"
             onClick={addInterval}
@@ -947,7 +964,7 @@ function CommissionScheduleEditor(props: {
               <div className="mt-2 grid gap-2">
                 {interval.breaks.map((breakItem, breakIndex) => (
                   <div
-                    className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2"
+                    className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
                     key={breakIndex}
                   >
                     <TimeInput
@@ -970,7 +987,7 @@ function CommissionScheduleEditor(props: {
                     />
                     <button
                       aria-label="Sterge pauza"
-                      className="mt-5 inline-flex size-9 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+                      className="inline-flex size-9 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 sm:mt-5"
                       onClick={() =>
                         updateInterval(index, {
                           breaks: interval.breaks.filter(
@@ -1467,7 +1484,7 @@ function StepFooter(props: {
           <p className="text-sm font-semibold text-emerald-700">Etapa este completa.</p>
         )}
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {previous && (
           <button
             className="inline-flex h-9 items-center gap-2 rounded-md border border-[#dfe5ec] px-3 text-xs font-bold"

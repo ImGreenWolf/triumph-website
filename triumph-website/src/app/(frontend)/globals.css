@@ -86,7 +86,7 @@
   }
 }
 
-:root {
+/* :root {
   --background: oklch(97.614% 0.00011 271.152);
   --background-detail: oklch(90.826% 0.00215 14.553);
   --foreground: #141e34;
@@ -124,9 +124,10 @@
   --success: oklch(78% 0.08 200deg);
   --warning: oklch(89% 0.1 75deg);
   --error: oklch(75% 0.15 25deg);
-}
+} */
 
-[data-theme='dark'] {
+/* [data-theme='dark'] { */
+:root {
   --background: #102a31;
   --background-detail: #15213f;
   --foreground: oklch(98.5% 0 0deg);

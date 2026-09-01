@@ -53,7 +53,12 @@ export default async function CommissionInterviewsPage({ searchParams }: Args) {
     sort: 'commissionNumber',
     where: board ? undefined : { coordinators: { contains: user.id } },
   })
-  const commissions = commissionResult.docs as Comission[]
+  const accessibleCommissions = commissionResult.docs as Comission[]
+  const coordinatedCommissions = accessibleCommissions.filter((commission) =>
+    commission.coordinators.some((coordinator) => getRelationshipID(coordinator) === user.id),
+  )
+  const useCoordinatorWorkspace = user.role === 'hr-director' && coordinatedCommissions.length > 0
+  const commissions = useCoordinatorWorkspace ? coordinatedCommissions : accessibleCommissions
   const commissionIDs = commissions.map((commission) => commission.id)
   const applicationWhere: Where = {
     'reviewProcess.comission': { in: commissionIDs },
@@ -85,7 +90,7 @@ export default async function CommissionInterviewsPage({ searchParams }: Args) {
       commissions={commissions.map(serializeCommission)}
       defaultInterviewDate={normalizeDate(config.recruitment?.defaultInterviewDate)}
       initialCommissionId={selectedID}
-      isReadOnly={board}
+      isReadOnly={board && !useCoordinatorWorkspace}
       schedulingDeadline={normalizeDate(config.recruitment?.interviewSchedulingDeadline)}
       user={serializeUser(user)}
     />

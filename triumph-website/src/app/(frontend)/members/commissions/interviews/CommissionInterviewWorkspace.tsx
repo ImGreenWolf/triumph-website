@@ -661,7 +661,7 @@ function FinalDecisionPanel(props: {
               </p>
             </div>
             {!props.isReadOnly && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   className="inline-flex h-9 items-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-bold text-white disabled:opacity-55"
                   disabled={props.busyKey === `pass-${application.id}`}
@@ -789,7 +789,10 @@ function ScheduleSettings(props: {
                   </div>
                   <div className="mt-2 grid gap-2">
                     {interval.breaks.map((item, breakIndex) => (
-                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2" key={breakIndex}>
+                      <div
+                        className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                        key={breakIndex}
+                      >
                         <TimeField
                           label="De la"
                           onChange={(value) =>
@@ -806,7 +809,7 @@ function ScheduleSettings(props: {
                         />
                         <button
                           aria-label="Sterge pauza"
-                          className="mt-5 inline-flex size-9 items-center justify-center rounded-md border border-red-200 text-red-600"
+                          className="inline-flex size-9 items-center justify-center rounded-md border border-red-200 text-red-600 sm:mt-5"
                           onClick={() =>
                             update(index, {
                               breaks: interval.breaks.filter(

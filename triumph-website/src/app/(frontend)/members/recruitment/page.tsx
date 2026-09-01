@@ -66,6 +66,9 @@ export default async function HRRecruitmentPage() {
   return (
     <HRRecruitmentWizard
       applications={(applicationResult.docs as Application[]).map(serializeApplication)}
+      canOpenCommissionView={(commissionResult.docs as Comission[]).some((commission) =>
+        commission.coordinators.some((coordinator) => getRelationshipID(coordinator) === member.id),
+      )}
       commissions={(commissionResult.docs as Comission[]).map(serializeCommission)}
       config={serializeConfig(config as AspirementConfig)}
       user={serializeUser(member) as ManagedUser}

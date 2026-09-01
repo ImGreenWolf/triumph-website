@@ -36,7 +36,7 @@ const roleLabels: Record<User['role'], string> = {
   president: 'Președinte',
   'pr-director': 'PR Director',
   secretary: 'Secretar',
-  tresoursier: 'Trezorier',
+  treasurer: 'Trezorier',
   'vice-president': 'Vice Președinte',
 }
 
@@ -143,8 +143,7 @@ function CheckInHero(props: { meeting?: Meeting; operator: User }) {
             </div>
 
             <p className="mt-4 max-w-2xl text-sm leading-6 text-white/70 sm:text-base">
-              Check-in de prezență pentru ședințele clubului. | {' '}
-              {operator.name || operator.email}.
+              Check-in de prezență pentru ședințele clubului. | {operator.name || operator.email}.
             </p>
           </div>
 
@@ -224,10 +223,10 @@ function MeetingOverview(props: {
               label="Așteptați"
               value={expectedCount}
             />
-             <MetricCard
+            <MetricCard
               icon={<UsersRound className="size-4" />}
               label="Rata"
-              value={`${Math.round(checkedInCount/expectedCount*100)}%`}
+              value={`${Math.round((checkedInCount / expectedCount) * 100)}%`}
             />
             {/* <MetricCard
               icon={<CheckCircle2 className="size-4" />}

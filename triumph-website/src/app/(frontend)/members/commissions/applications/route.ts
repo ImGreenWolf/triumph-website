@@ -1063,11 +1063,11 @@ async function requireAllCoordinatorReviewApplicantsChecked(payload: Payload, us
 }
 
 function canManageAssignedApplication(commission: ExtendedCommission, user: User) {
-  return !isBoardMember(user) && isCommissionCoordinator(commission, user)
+  return canUseCoordinatorWorkspace(user) && isCommissionCoordinator(commission, user)
 }
 
 function canManageCommissionSchedule(commission: ExtendedCommission, user: User) {
-  return !isBoardMember(user) && isCommissionCoordinator(commission, user)
+  return canUseCoordinatorWorkspace(user) && isCommissionCoordinator(commission, user)
 }
 
 function assertCommissionReadyForApplicant(
@@ -1131,7 +1131,7 @@ function assertScopeActionAccess(action: string, user: User, scope: RouteScope) 
     return
   }
 
-  if (isBoardMember(user)) {
+  if (!canUseCoordinatorWorkspace(user)) {
     throw Object.assign(
       new Error('Boardul poate consulta comisiile, dar nu poate modifica acest spatiu de lucru.'),
       { status: 403 },
@@ -1143,6 +1143,10 @@ function assertScopeActionAccess(action: string, user: User, scope: RouteScope) 
       status: 403,
     })
   }
+}
+
+function canUseCoordinatorWorkspace(user: User) {
+  return !isBoardMember(user) || user.role === 'hr-director'
 }
 
 function isReviewStatus(value: string): value is ApplicationStatus {

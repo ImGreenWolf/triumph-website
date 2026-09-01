@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 
 import { cn } from '@/utilities/ui'
 import { GeistMono } from 'geist/font/mono'
-import { Montserrat, Poppins, Bungee_Outline, Lobster} from 'next/font/google'
 import { GeistSans } from 'geist/font/sans'
 import React from 'react'
 
@@ -25,15 +24,28 @@ import { GoogleAnalytics } from '@/lib/ga4'
 const getMediaURL = (media?: Media | string | null) =>
   typeof media === 'string' ? media : media?.url
 
-const mainFont = 
-// localFont({src: [
-//   {path: '../../../public/fonts/fonnts.com-Mont_ExtraLight_DEMO.ttf', weight: '400', style: 'normal'},
-//   {path: '../../../public/fonts/fonnts.com-Mont_Bold.ttf', weight: '600', style: 'normal'}
-// ]}) 
+const mainFont = localFont({
+  src: [
+    { path: '../../../public/fonts/fonnts.com-Mont_Regular.ttf', weight: '400', style: 'normal' },
+    { path: '../../../public/fonts/fonnts.com-Mont_Bold.ttf', weight: '700', style: 'normal' },
+  ],
+  display: 'swap',
+})
 
-Poppins({weight: ['600', '300', '400', '800', '500', '200'], subsets: ['latin', 'latin-ext'],});
-export const outlineFont = Bungee_Outline({weight: '400', subsets: ['latin', 'latin-ext'],})
-export const fancyFont = Lobster({weight: '400', subsets: ['latin', 'latin-ext'],})
+// Keep the existing font exports without requiring network access during builds.
+export const outlineFont = localFont({
+  src: '../../../public/fonts/fonnts.com-Mont_Blanc_ExtraBold.ttf',
+  weight: '800',
+  display: 'swap',
+})
+export const fancyFont = localFont({
+  src: '../../../public/fonts/fonnts.com-Mont_Blanc_Bold_Italic.ttf',
+  weight: '700',
+  style: 'italic',
+  display: 'swap',
+})
+
+export const dynamic = 'force-dynamic'
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { isEnabled } = await draftMode()
   const config = await getCachedGlobal('siteConfig', 1)()
@@ -47,7 +59,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html className={cn(GeistSans.variable, GeistMono.variable, mainFont.className)} lang="en" suppressHydrationWarning>
+    <html
+      className={cn(GeistSans.variable, GeistMono.variable, mainFont.className)}
+      lang="en"
+      suppressHydrationWarning
+    >
       <head>
         <InitTheme />
         <link href={icoUrl || '/favicon.ico'} rel="icon" sizes="32x32" />

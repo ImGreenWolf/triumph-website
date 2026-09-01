@@ -49,7 +49,7 @@ const roleLabels: Record<string, string> = {
   president: 'President',
   'pr-director': 'PR Director',
   secretary: 'Secretary',
-  tresoursier: 'Treasurer',
+  treasurer: 'Treasurer',
 }
 
 const fileInputClassName =
@@ -108,7 +108,9 @@ const PageClient: React.FC<{ member: ProfileMember }> = ({ member }) => {
       {
         icon: Mail,
         label: 'Adresa Email Interact',
-        value: profile.clubMail ? profile.clubMail : 'Adresa ta de mail inca nu este disponibila, contacteazǎ secretarul!',
+        value: profile.clubMail
+          ? profile.clubMail
+          : 'Adresa ta de mail inca nu este disponibila, contacteazǎ secretarul!',
       },
       {
         icon: Lock,

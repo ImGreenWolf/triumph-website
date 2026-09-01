@@ -1,6 +1,6 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 
-import { nodemailerAdapter, } from '@payloadcms/email-nodemailer'
+import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import nodemailer from 'nodemailer'
 import sharp from 'sharp'
 import path from 'path'
@@ -74,7 +74,7 @@ export default buildConfig({
         // dashboard: {
         //   Component: '@/components/Dashboard'
         // }
-      }
+      },
       // The `BeforeDashboard` component renders the 'welcome' block that you see after logging into your admin panel.
       // Feel free to delete this at any time. Simply remove the line below
     },
@@ -158,6 +158,7 @@ export default buildConfig({
   email: nodemailerAdapter({
     defaultFromAddress: 'hello@interact-triumph.org',
     defaultFromName: 'Interact Bucureşti Triumph',
+    skipVerify: process.env.NEXT_PHASE === 'phase-production-build',
     transport: nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT as number | undefined,
@@ -165,7 +166,7 @@ export default buildConfig({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-    })
+    }),
   }),
   jobs: {
     access: {

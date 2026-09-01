@@ -6,7 +6,13 @@ import { Media } from '@/components/Media'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import RichText from '@/components/RichText'
 import { EventHero } from '@/heros/EventHero'
-import type { Event, EventRegistration, GalleryPhoto, Media as MediaType, User } from '@/payload-types'
+import type {
+  Event,
+  EventRegistration,
+  GalleryPhoto,
+  Media as MediaType,
+  User,
+} from '@/payload-types'
 import {
   getContrastTextColor,
   getEventLocation,
@@ -45,22 +51,6 @@ import { DocumentIcon } from '@payloadcms/ui'
 
 export const dynamic = 'force-dynamic'
 
-export async function generateStaticParams() {
-  const payload = await getPayload({ config: configPromise })
-  const events = await payload.find({
-    collection: 'events',
-    draft: false,
-    limit: 1000,
-    overrideAccess: false,
-    pagination: false,
-    select: {
-      slug: true,
-    },
-  })
-
-  return events.docs.map(({ slug }) => ({ slug }))
-}
-
 type Args = {
   params: Promise<{
     slug?: string
@@ -92,7 +82,7 @@ export default async function Event({ params: paramsPromise }: Args) {
         day: true,
         slot: true,
         status: true,
-        donation: true
+        donation: true,
       },
       where: {
         event: {
@@ -116,8 +106,8 @@ export default async function Event({ params: paramsPromise }: Args) {
           equals: 'approved',
         },
         visibility: {
-          equals: 'public'
-        }
+          equals: 'public',
+        },
       },
     }),
   ])
@@ -174,7 +164,12 @@ export default async function Event({ params: paramsPromise }: Args) {
         >
           <div className="min-w-0 space-y-4">
             <section className="grid gap-4 md:grid-cols-2 ">
-              <DetailCard accentColor={accentColor}  cardColor={cardColor} icon={CalendarDays} label="Program">
+              <DetailCard
+                accentColor={accentColor}
+                cardColor={cardColor}
+                icon={CalendarDays}
+                label="Program"
+              >
                 <div className={compactProgram ? 'grid grid-cols-2 gap-2' : 'space-y-3 '}>
                   {eventDays.map((day) =>
                     day.eventDate ? (
@@ -201,9 +196,17 @@ export default async function Event({ params: paramsPromise }: Args) {
                           day.slots &&
                           day.slots.length > 0 && (
                             <p className="mt-1 leading-5 flex flex-wrap gap-2">
-                              {day.slots
-                                .map((slot) => <span className={eventDays.length > 3 ?'rounded-xl text-[10px] px-2 py-0.5 bg-[var(--event-accent)]/80' : 'rounded-xl text-xs px-3 py-1 bg-[var(--event-accent)]/80' }>{formatEventSlotLabel(slot.startTime, slot.endTime)}</span>)
-                              }
+                              {day.slots.map((slot) => (
+                                <span
+                                  className={
+                                    eventDays.length > 3
+                                      ? 'rounded-xl text-[10px] px-2 py-0.5 bg-[var(--event-accent)]/80'
+                                      : 'rounded-xl text-xs px-3 py-1 bg-[var(--event-accent)]/80'
+                                  }
+                                >
+                                  {formatEventSlotLabel(slot.startTime, slot.endTime)}
+                                </span>
+                              ))}
                             </p>
                           )
                         )}
@@ -214,12 +217,15 @@ export default async function Event({ params: paramsPromise }: Args) {
               </DetailCard>
 
               {location && (
-                <DetailCard accentColor={accentColor} icon={MapPin}  cardColor={cardColor} label="Locație">
+                <DetailCard
+                  accentColor={accentColor}
+                  icon={MapPin}
+                  cardColor={cardColor}
+                  label="Locație"
+                >
                   <p className="font-bold">{location.name}</p>
                   {location.formattedAddress && (
-                    <p className="mt-1 text-sm leading-5 opacity-60">
-                      {location.formattedAddress}
-                    </p>
+                    <p className="mt-1 text-sm leading-5 opacity-60">{location.formattedAddress}</p>
                   )}
                   {googleMapsURL && (
                     <a
@@ -234,12 +240,11 @@ export default async function Event({ params: paramsPromise }: Args) {
                   )}
                 </DetailCard>
               )}
-
-             
             </section>
 
-            <section className="rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg shadow-black/10 md:p-8"
-            style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor) }}
+            <section
+              className="rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg shadow-black/10 md:p-8"
+              style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor) }}
             >
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--event-accent)]">
                 Povestea proiectului
@@ -265,7 +270,7 @@ export default async function Event({ params: paramsPromise }: Args) {
 
           {!event.private && (
             <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-28">
-               {event.cause && typeof event.cause === 'object' && (
+              {event.cause && typeof event.cause === 'object' && (
                 <DetailCard
                   accentColor={accentColor}
                   cardColor={cardColor}
@@ -281,36 +286,58 @@ export default async function Event({ params: paramsPromise }: Args) {
                         resource={event.cause.logo}
                       />
                     )}
-                    <div className='flex flex-col h-full'>
+                    <div className="flex flex-col h-full">
                       <p className="min-w-0 text-lg font-bold leading-5">{event.cause.name}</p>
 
-                      {event.cause.link && 
-                      <a
+                      {event.cause.link && (
+                        <a
                           className="inline-flex items-center gap-1.5 text-md font-semibold text-[var(--event-accent)] transition hover:opacity-50"
                           href={event.cause.link}
-
                           target="_blank"
                         >
                           Despre Cauzǎ
                           <ExternalLink aria-hidden className="size-3.5" />
                         </a>
-                      }
+                      )}
                     </div>
-                   
                   </div>
-                  
                 </DetailCard>
               )}
               {event.donation && (
-                <DetailCard accentColor={accentColor}  cardColor={cardColor} icon={HandHelping} label="Donație minimă">
-                  {!isNaN(parseInt(event.donation)) ? <p className="text-2xl font-bold">{event.donation} RON</p> :
-                  <p className="text-2xl font-bold">{event.donation}</p>}
+                <DetailCard
+                  accentColor={accentColor}
+                  cardColor={cardColor}
+                  icon={HandHelping}
+                  label="Donație minimă"
+                >
+                  {!isNaN(parseInt(event.donation)) ? (
+                    <p className="text-2xl font-bold">{event.donation} RON</p>
+                  ) : (
+                    <p className="text-2xl font-bold">{event.donation}</p>
+                  )}
                 </DetailCard>
               )}
               {event.documents?.length != 0 && (
-                <DetailCard accentColor={accentColor}  cardColor={cardColor} icon={HandHelping} label="Acorduri Necesare">
-                  
-                 {event.documents?.map(document => <div className='text-[var(--event-accent)] underline inline-flex items-center gap-2'><a  href={typeof document.document == 'string' ? document.document : document.document.url!} >{document.label}</a><DownloadIcon aria-hidden className="size-3.5" /></div>)}
+                <DetailCard
+                  accentColor={accentColor}
+                  cardColor={cardColor}
+                  icon={HandHelping}
+                  label="Acorduri Necesare"
+                >
+                  {event.documents?.map((document) => (
+                    <div className="text-[var(--event-accent)] underline inline-flex items-center gap-2">
+                      <a
+                        href={
+                          typeof document.document == 'string'
+                            ? document.document
+                            : document.document.url!
+                        }
+                      >
+                        {document.label}
+                      </a>
+                      <DownloadIcon aria-hidden className="size-3.5" />
+                    </div>
+                  ))}
                 </DetailCard>
               )}
               <SignupForm
@@ -324,7 +351,7 @@ export default async function Event({ params: paramsPromise }: Args) {
                   name: event.name,
                   participantsCount,
                   private: event.private,
-                  totalDonation: await getTotalDonations(registrations.docs)
+                  totalDonation: await getTotalDonations(registrations.docs),
                 }}
                 slotAvailability={slotAvailability}
               />
@@ -336,13 +363,16 @@ export default async function Event({ params: paramsPromise }: Args) {
   )
 }
 
-const  getTotalDonations = cache(async (registrations: Pick<EventRegistration, 'day' | 'slot' | 'donation' | 'status' | 'id'>[]) => {
-
-  
-  if(!registrations || !registrations)
-    return 0;
-  return registrations.reduce((sum, evReg) => sum+=(evReg as EventRegistration).donation, 0) || 0
-})
+const getTotalDonations = cache(
+  async (
+    registrations: Pick<EventRegistration, 'day' | 'slot' | 'donation' | 'status' | 'id'>[],
+  ) => {
+    if (!registrations || !registrations) return 0
+    return (
+      registrations.reduce((sum, evReg) => (sum += (evReg as EventRegistration).donation), 0) || 0
+    )
+  },
+)
 
 function formatSlotCount(slotCount: number) {
   if (slotCount === 0) return 'Fără intervale'
@@ -411,7 +441,7 @@ function DetailCard({
   return (
     <section
       className={`rounded-2xl bg-card text-card-foreground flex flex-col shadow-lg shadow-black/10 ${compact ? 'p-4' : 'p-5'}`}
-      style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor)}}
+      style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor) }}
     >
       <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] opacity-55">
         <Icon aria-hidden className="size-4" style={{ color: accentColor }} />

@@ -67,6 +67,7 @@ export default async function CommissionCoordinatorPage() {
     user: authUser,
   })) as User
   const hasBoardAccess = isBoardMember(member)
+  const isHRCoordinator = member.role === 'hr-director'
 
   const commissionResult = await payload.find({
     collection: 'comissions',
@@ -83,7 +84,13 @@ export default async function CommissionCoordinatorPage() {
           },
         },
   })
-  const commissions = commissionResult.docs as CommissionWithReviews[]
+  const accessibleCommissions = commissionResult.docs as CommissionWithReviews[]
+  const coordinatedCommissions = accessibleCommissions.filter((commission) =>
+    commission.coordinators.some((coordinator) => getRelationshipID(coordinator) === member.id),
+  )
+  const useCoordinatorWorkspace = isHRCoordinator && coordinatedCommissions.length > 0
+  const commissions = useCoordinatorWorkspace ? coordinatedCommissions : accessibleCommissions
+  const isBoardReadOnly = hasBoardAccess && !useCoordinatorWorkspace
 
   if (!hasBoardAccess && commissions.length === 0) {
     return (
@@ -103,7 +110,7 @@ export default async function CommissionCoordinatorPage() {
   }
 
   const commissionIDs = commissions.map((commission) => commission.id)
-  const applicationWhere: Where | undefined = hasBoardAccess
+  const applicationWhere: Where | undefined = isBoardReadOnly
     ? undefined
     : {
         or: [
@@ -133,7 +140,7 @@ export default async function CommissionCoordinatorPage() {
   const manageableCommissionIDs = new Set(commissionIDs)
   const managedApplications = applications
     .filter((application) =>
-      hasBoardAccess
+      isBoardReadOnly
         ? true
         : manageableCommissionIDs.has(getRelationshipID(application.reviewProcess?.comission)),
     )
@@ -146,7 +153,8 @@ export default async function CommissionCoordinatorPage() {
     <CommissionCoordinatorDashboard
       applications={managedApplications}
       commissions={commissions.map(serializeCommission)}
-      isBoard={hasBoardAccess}
+      generalViewHref={useCoordinatorWorkspace ? '/members/recruitment' : undefined}
+      isBoard={isBoardReadOnly}
       recruitmentPool={recruitmentPool}
       user={{
         email: member.email,

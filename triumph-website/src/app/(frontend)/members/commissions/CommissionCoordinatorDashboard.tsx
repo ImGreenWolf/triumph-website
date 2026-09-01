@@ -176,6 +176,7 @@ const panelVariants = {
 export default function CommissionCoordinatorDashboard(props: {
   applications: ManagedApplication[]
   commissions: ManagedCommission[]
+  generalViewHref?: string
   isBoard: boolean
   recruitmentPool: ManagedRecruitmentPoolApplicant[]
   user: ManagedUser
@@ -183,6 +184,7 @@ export default function CommissionCoordinatorDashboard(props: {
   const {
     applications: initialApplications,
     commissions: initialCommissions,
+    generalViewHref,
     isBoard,
     recruitmentPool: initialRecruitmentPool,
     user,
@@ -368,6 +370,22 @@ export default function CommissionCoordinatorDashboard(props: {
                 <span className="text-xs font-semibold text-[#748094]">Doar vizualizare</span>
               )}
             </div>
+            {generalViewHref && (
+              <nav
+                aria-label="Alege spatiul de lucru"
+                className="mt-3 inline-flex max-w-full overflow-x-auto rounded-md border border-[#d9e0e8] bg-[#f4f6f8] p-1 text-xs font-bold"
+              >
+                <Link
+                  className="inline-flex h-8 shrink-0 items-center rounded px-3 text-[#526071] hover:bg-white hover:text-[#152039]"
+                  href={generalViewHref}
+                >
+                  Vedere generala
+                </Link>
+                <span className="inline-flex h-8 shrink-0 items-center rounded bg-white px-3 text-[#152039] shadow-sm">
+                  Vedere comisie
+                </span>
+              </nav>
+            )}
             <h1 className="mt-2 truncate text-2xl font-bold sm:text-3xl">
               {selectedCommission.label}
             </h1>
@@ -496,18 +514,18 @@ function CoordinatorSidebar(props: {
   ]
 
   return (
-    <aside className="h-fit rounded-lg border border-[#dfe5ec] bg-white p-2 shadow-[0_8px_30px_rgba(22,34,57,0.04)] lg:sticky lg:top-24">
+    <aside className="h-fit overflow-hidden rounded-lg border border-[#dfe5ec] bg-white p-2 shadow-[0_8px_30px_rgba(22,34,57,0.04)] lg:sticky lg:top-24">
       <p className="px-3 pb-2 pt-3 text-[11px] font-black uppercase tracking-[0.1em] text-[#748094]">
         {props.isBoard ? 'Vizualizare comisie' : 'Spatiu de lucru'}
       </p>
-      <nav className="grid gap-1">
+      <nav className="flex gap-1 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
         {items.map((item) => {
           const Icon = item.icon
           const active = item.value === props.value
           return (
             <button
               className={
-                'flex min-h-10 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-bold transition ' +
+                'flex min-h-10 min-w-44 shrink-0 items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-bold transition lg:w-full lg:min-w-0 ' +
                 (active
                   ? 'bg-[#141e34] text-white'
                   : 'text-[#526071] hover:bg-[#f4f6f8] hover:text-[#152039]')

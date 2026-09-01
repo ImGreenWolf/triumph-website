@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { EventsPageContent } from '../../EventsPageContent'
 import { queryEventsPage } from '../../queryEvents'
 
-export const revalidate = 600
+export const dynamic = 'force-dynamic'
 
 type Args = {
   params: Promise<{
@@ -30,12 +30,4 @@ export async function generateMetadata({ params: paramsPromise }: Args): Promise
   return {
     title: `Evenimente - pagina ${pageNumber} | Interact București Triumph`,
   }
-}
-
-export async function generateStaticParams() {
-  const { totalPages } = await queryEventsPage()
-
-  return Array.from({ length: Math.max(totalPages - 1, 0) }, (_, index) => ({
-    pageNumber: String(index + 2),
-  }))
 }
