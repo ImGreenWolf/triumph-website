@@ -2,7 +2,7 @@ import type { GlobalConfig } from 'payload'
 
 import { link } from '@/fields/link'
 
-import { hasRole } from '@/utilities/membersAccess'
+import { hasBoardRole, hasRole } from '@/utilities/membersAccess'
 import { revalidateSiteConfig } from './hooks/revalidateSiteConfig'
 
 
@@ -13,7 +13,7 @@ export const SiteConfig: GlobalConfig = {
   },
   access: {
     read: () => true,
-    update: hasRole(['pr-director', 'president', 'vice-president'])
+    update: hasBoardRole
   },
   fields: [
     {
