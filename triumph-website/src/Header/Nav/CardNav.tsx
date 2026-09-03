@@ -203,7 +203,7 @@ const CardNav: React.FC<CardNavProps> = ({
               <img src={logo} alt={logoAlt} className="logo h-[28px]" />
             ) : (
               
-              <Logo className="logo h-[28px] w-auto" />
+              <Logo className="logo max-h-[48px] w-auto" />
             )}
             </Link>
           </div>

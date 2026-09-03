@@ -156,7 +156,7 @@ export default async function DashboardPage() {
         <MemberSummary
           hasManagedCommissions={hasBoardAccess || managedCommissions.totalDocs > 0}
           hasManagedEvents={managedEvents.totalDocs > 0}
-          isHR={member.role === 'hr-director'}
+          hasHRPanelAccess={hasBoardAccess}
           member={member}
         />
 
@@ -203,10 +203,10 @@ function Announcement(props: { title?: string | null; message?: string | null })
 function MemberSummary(props: {
   hasManagedCommissions: boolean
   hasManagedEvents: boolean
-  isHR: boolean
+  hasHRPanelAccess: boolean
   member: User
 }) {
-  const { hasManagedCommissions, hasManagedEvents, isHR, member } = props
+  const { hasHRPanelAccess, hasManagedCommissions, hasManagedEvents, member } = props
 
   return (
     <section>
@@ -244,7 +244,7 @@ function MemberSummary(props: {
             </Link>
           )}
 
-          {isHR && (
+          {hasHRPanelAccess && (
             <Link
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-white transition hover:bg-accent"
               href="/members/recruitment"

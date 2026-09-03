@@ -528,7 +528,7 @@ function ApplicationReviewStep(props: {
   const pending = ordered.filter((application) => application.status === 'submitted').length
 
   return (
-    <div className="grid gap-5">
+    <div className="grid min-w-0 gap-5">
       <DeadlineEditor busyKey={props.busyKey} config={props.config} onAction={props.onAction} />
       <Panel>
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
@@ -540,7 +540,36 @@ function ApplicationReviewStep(props: {
           </div>
           <span className="text-sm font-semibold text-[#526071]">{ordered.length} total</span>
         </div>
-        <div className="mt-5 overflow-x-auto">
+        <div className="mt-5 grid gap-3 md:hidden">
+          {ordered.map((application) => (
+            <article
+              className="min-w-0 rounded-md border border-[#e4e8ef] bg-[#f8fafc] p-3"
+              key={application.id}
+            >
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-bold">{application.name}</p>
+                  <p className="mt-0.5 break-all text-xs text-[#748094]">{application.email}</p>
+                </div>
+                {application.status !== 'submitted' && <StatusBadge status={application.status} />}
+              </div>
+              <div className="mt-3 flex flex-col gap-3 border-t border-[#edf0f4] pt-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
+                <p className="text-xs font-semibold text-[#526071]">
+                  Trimis {formatDate(application.createdAt)}
+                </p>
+                <button
+                  className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-[#dfe5ec] bg-white px-3 text-xs font-bold transition hover:border-[#00a2e0] hover:text-[#007fb3] min-[380px]:w-auto"
+                  onClick={() => props.onOpen(application.id)}
+                  type="button"
+                >
+                  <FileText className="size-4" />
+                  Vezi detalii
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="mt-5 hidden overflow-x-auto md:block">
           <table className="w-full min-w-[620px] text-left text-sm">
             <thead className="border-y border-[#edf0f4] text-[11px] font-black uppercase tracking-[0.1em] text-[#748094]">
               <tr>
@@ -555,7 +584,7 @@ function ApplicationReviewStep(props: {
                 <tr key={application.id}>
                   <td className="px-3 py-3.5">
                     <p className="font-bold">{application.name}</p>
-                    <p className="mt-0.5 text-xs text-[#748094]">{application.email}</p>
+                    <p className="mt-0.5 break-all text-xs text-[#748094]">{application.email}</p>
                   </td>
                   <td className="px-3 py-3.5 text-[#526071]">
                     {formatDate(application.createdAt)}
@@ -579,8 +608,8 @@ function ApplicationReviewStep(props: {
               ))}
             </tbody>
           </table>
-          {ordered.length === 0 && <EmptyState text="Nu exista aplicatii pentru filtrul curent." />}
         </div>
+        {ordered.length === 0 && <EmptyState text="Nu exista aplicatii pentru filtrul curent." />}
       </Panel>
     </div>
   )
@@ -1511,7 +1540,7 @@ function StepFooter(props: {
 
 function Panel({ children }: { children: ReactNode }) {
   return (
-    <section className="rounded-lg border border-[#dfe5ec] bg-white p-4 shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-5">
+    <section className="min-w-0 rounded-lg border border-[#dfe5ec] bg-white p-4 shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-5">
       {children}
     </section>
   )
@@ -1601,10 +1630,10 @@ function ReviewButton(props: {
 }
 function DateInput(props: { label: string; onChange: (value: string) => void; value: string }) {
   return (
-    <label className="grid gap-1 text-xs font-bold text-[#526071]">
+    <label className="grid min-w-0 gap-1 text-xs font-bold text-[#526071]">
       {props.label}
       <input
-        className="h-9 rounded-md border border-[#dfe5ec] bg-white px-2 text-sm font-semibold text-[#152039] outline-none focus:border-[#00a2e0]"
+        className="h-9 min-w-0 rounded-md border border-[#dfe5ec] bg-white px-2 text-sm font-semibold text-[#152039] outline-none focus:border-[#00a2e0]"
         onChange={(event) => props.onChange(event.target.value)}
         type="date"
         value={props.value}

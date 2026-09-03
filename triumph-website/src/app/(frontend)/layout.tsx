@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 
 import { cn } from '@/utilities/ui'
 import { GeistMono } from 'geist/font/mono'
-import { GeistSans } from 'geist/font/sans'
 import React from 'react'
 
 import { AdminBar } from '@/components/AdminBar'
@@ -24,12 +23,20 @@ import { GoogleAnalytics } from '@/lib/ga4'
 const getMediaURL = (media?: Media | string | null) =>
   typeof media === 'string' ? media : media?.url
 
-const mainFont = localFont({
+const poppinsFont = localFont({
   src: [
-    { path: '../../../public/fonts/fonnts.com-Mont_Regular.ttf', weight: '400', style: 'normal' },
-    { path: '../../../public/fonts/fonnts.com-Mont_Bold.ttf', weight: '700', style: 'normal' },
+    { path: '../../../public/fonts/Poppins-Thin.ttf', weight: '100', style: 'normal' },
+    { path: '../../../public/fonts/Poppins-Regular.ttf', weight: '400', style: 'normal' },
+    { path: '../../../public/fonts/Poppins-Italic.ttf', weight: '400', style: 'italic' },
+    { path: '../../../public/fonts/Poppins-Medium.ttf', weight: '500', style: 'normal' },
+    { path: '../../../public/fonts/Poppins-SemiBold.ttf', weight: '600', style: 'normal' },
+    { path: '../../../public/fonts/Poppins-Bold.ttf', weight: '700', style: 'normal' },
+    { path: '../../../public/fonts/Poppins-BoldItalic.ttf', weight: '700', style: 'italic' },
+    { path: '../../../public/fonts/Poppins-Black.ttf', weight: '900', style: 'normal' },
   ],
   display: 'swap',
+  fallback: ['system-ui', 'sans-serif'],
+  variable: '--font-poppins',
 })
 
 // Keep the existing font exports without requiring network access during builds.
@@ -60,7 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html
-      className={cn(GeistSans.variable, GeistMono.variable, mainFont.className)}
+      className={cn(poppinsFont.variable, GeistMono.variable, poppinsFont.className)}
       lang="en"
       suppressHydrationWarning
     >

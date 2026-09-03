@@ -31,15 +31,15 @@ export const Logo = (props: Props) => {
   const darkLogoSrc = darkSrc || siteConfig.darkModeLogo || lightLogoSrc
   const imageClassName = className
     ? `${className} object-contain`
-    : clsx('max-w-[9.375rem] w-full object-contain')
+    : clsx('max-w-100 w-full object-contain')
 
   const imageProps = {
     alt: 'Interact Bucuresti Triumph',
     decoding: 'async' as const,
     fetchPriority: priority,
-    height: 128 * size,
+    height: 256 * size,
     loading,
-    width: 128 * size,
+    width: 256 * size,
   }
 
   if (lightLogoSrc === darkLogoSrc) {

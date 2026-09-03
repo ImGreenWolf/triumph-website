@@ -2061,6 +2061,21 @@ export interface ScrollingGalleryBlock {
  * via the `definition` "AccordionGallery".
  */
 export interface AccordionGallery {
+  introContent?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   showLabels?: boolean | null;
   oreintation?: ('vertical' | 'horizontal') | null;
   expandRatio?: number | null;
@@ -3103,6 +3118,7 @@ export interface ScrollingGalleryBlockSelect<T extends boolean = true> {
  * via the `definition` "AccordionGallery_select".
  */
 export interface AccordionGallerySelect<T extends boolean = true> {
+  introContent?: T;
   showLabels?: T;
   oreintation?: T;
   expandRatio?: T;

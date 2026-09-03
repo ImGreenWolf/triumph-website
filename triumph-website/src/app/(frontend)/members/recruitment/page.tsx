@@ -13,6 +13,7 @@ import type {
 } from '@/payload-types'
 import { normalizeInstagramUsername } from '@/utilities/instagram'
 import { normalizeGooglePlace } from '@/utilities/googlePlace'
+import { isBoardMember } from '@/utilities/membersAccess'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
 import HRRecruitmentWizard, {
@@ -41,7 +42,7 @@ export default async function HRRecruitmentPage() {
     overrideAccess: false,
     user: auth.user,
   })) as User
-  if (member.role !== 'hr-director') redirect('/members')
+  if (!isBoardMember(member)) redirect('/members')
 
   const [config, commissionResult, applicationResult] = await Promise.all([
     payload.findGlobal({ slug: 'aspirementConfig', depth: 0, overrideAccess: true }),
@@ -66,9 +67,7 @@ export default async function HRRecruitmentPage() {
   return (
     <HRRecruitmentWizard
       applications={(applicationResult.docs as Application[]).map(serializeApplication)}
-      canOpenCommissionView={(commissionResult.docs as Comission[]).some((commission) =>
-        commission.coordinators.some((coordinator) => getRelationshipID(coordinator) === member.id),
-      )}
+      canOpenCommissionView
       commissions={(commissionResult.docs as Comission[]).map(serializeCommission)}
       config={serializeConfig(config as AspirementConfig)}
       user={serializeUser(member) as ManagedUser}

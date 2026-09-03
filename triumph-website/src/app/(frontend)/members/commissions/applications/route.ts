@@ -128,7 +128,7 @@ export async function PATCH(request: Request) {
     }
 
     if (action === 'update-commission-schedule') {
-      return await updateCommissionSchedule({ body, payload, user })
+      return await updateCommissionSchedule({ body, payload, scope, user })
     }
 
     if (action === 'update-recruitment-config') {
@@ -307,10 +307,11 @@ async function bulkReviewSubmissions(args: {
 async function updateCommissionSchedule(args: {
   body: Record<string, unknown>
   payload: Payload
+  scope: RouteScope
   user: User
 }) {
   const commission = await getCommission(args.payload, normalizeText(args.body.commissionId))
-  if (!canManageCommissionSchedule(commission, args.user)) {
+  if (!canManageCommissionSchedule(commission, args.user, args.scope)) {
     return Response.json(
       { message: 'Nu ai permisiunea de a edita programul acestei comisii.' },
       { status: 403 },
@@ -1066,7 +1067,12 @@ function canManageAssignedApplication(commission: ExtendedCommission, user: User
   return canUseCoordinatorWorkspace(user) && isCommissionCoordinator(commission, user)
 }
 
-function canManageCommissionSchedule(commission: ExtendedCommission, user: User) {
+function canManageCommissionSchedule(
+  commission: ExtendedCommission,
+  user: User,
+  scope: RouteScope,
+) {
+  if (scope === 'recruitment') return isBoardMember(user)
   return canUseCoordinatorWorkspace(user) && isCommissionCoordinator(commission, user)
 }
 
@@ -1123,8 +1129,8 @@ function requireBoard(user: User) {
 
 function assertScopeActionAccess(action: string, user: User, scope: RouteScope) {
   if (scope === 'recruitment') {
-    if (user.role !== 'hr-director') {
-      throw Object.assign(new Error('Doar directorul HR poate face aceasta actiune.'), {
+    if (!isBoardMember(user)) {
+      throw Object.assign(new Error('Doar boardul poate face aceasta actiune.'), {
         status: 403,
       })
     }
