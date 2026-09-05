@@ -15,6 +15,9 @@ export const SiteConfig: GlobalConfig = {
     read: () => true,
     update: hasBoardRole
   },
+  admin: {
+    group: 'Site Configuration',
+  },
   fields: [
     {
       type: 'group',

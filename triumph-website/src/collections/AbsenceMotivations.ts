@@ -44,19 +44,23 @@ export const AbsenceMotivations: CollectionConfig = {
       unique: true,
     },
   ],
-
+  disableBulkEdit: true,
   admin: {
     defaultColumns: ['member', 'meeting', 'status', 'memberMessage', 'reviewActions', 'reviewedAt'],
     group: 'Club Administration',
     useAsTitle: 'id',
+    
   },
 
   hooks: {
     beforeValidate: [
       ({ data, operation, req }) => {
+        // member dashboard motivation
+        console.log(data)
         if (operation !== 'create') return data
         if (!req.user) throw new APIError('Trebuie să fii autentificat pentru a trimite o motivare.', 401)
 
+        if(data && data.status == "accepted") return data;
         return {
           ...data,
           member: req.user.id,
@@ -69,10 +73,11 @@ export const AbsenceMotivations: CollectionConfig = {
     ],
     beforeChange: [
       async ({ data, operation, originalDoc, req }) => {
+        // prevent multiple motivations
         if (operation === 'create') {
           const member = getRelationshipID(data.member)
           const meeting = getRelationshipID(data.meeting)
-
+          
           if (member && meeting) {
             const attendance = await req.payload.find({
               collection: 'attendance',
@@ -92,6 +97,7 @@ export const AbsenceMotivations: CollectionConfig = {
               },
               limit: 1,
               req,
+              pagination: false
             })
             const existingAttendance = attendance.docs[0] as Attendance | undefined
 
@@ -109,7 +115,7 @@ export const AbsenceMotivations: CollectionConfig = {
         if (status === 'rejected' && !secretaryMessage?.trim()) {
           throw new APIError('Adaugă un mesaj pentru membru înainte de a respinge motivarea.', 400)
         }
-
+        // prevent motivating an already present member
         if (status === 'accepted') {
           const member = getRelationshipID(originalDoc.member)
           const meeting = getRelationshipID(originalDoc.meeting)
@@ -133,6 +139,7 @@ export const AbsenceMotivations: CollectionConfig = {
               },
               limit: 1,
               req,
+              pagination: false
             })
             const existingAttendance = attendance.docs[0] as Attendance | undefined
 
@@ -153,74 +160,74 @@ export const AbsenceMotivations: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, operation, previousDoc, req }) => {
-        if (operation !== 'update' || doc.status === previousDoc.status) return doc
+      // async ({ doc, operation, previousDoc, req }) => {
+      //   if (operation !== 'update' || doc.status === previousDoc.status) return doc
 
-        const member = getRelationshipID(doc.member)
-        const meeting = getRelationshipID(doc.meeting)
+      //   const member = getRelationshipID(doc.member)
+      //   const meeting = getRelationshipID(doc.meeting)
 
-        if (!member || !meeting) return doc
+      //   if (!member || !meeting) return doc
 
-        // const attendance = await req.payload.find({
-        //   collection: 'attendance',
-        //   where: {
-        //     and: [
-        //       {
-        //         member: {
-        //           equals: member,
-        //         },
-        //       },
-        //       {
-        //         meeting: {
-        //           equals: meeting,
-        //         },
-        //       },
-        //     ],
-        //   },
-        //   limit: 1,
-        //   req,
-        // })
-        // const existingAttendance = attendance.docs[0] as Attendance | undefined
+      //   // const attendance = await req.payload.find({
+      //   //   collection: 'attendance',
+      //   //   where: {
+      //   //     and: [
+      //   //       {
+      //   //         member: {
+      //   //           equals: member,
+      //   //         },
+      //   //       },
+      //   //       {
+      //   //         meeting: {
+      //   //           equals: meeting,
+      //   //         },
+      //   //       },
+      //   //     ],
+      //   //   },
+      //   //   limit: 1,
+      //   //   req,
+      //   // })
+      //   // const existingAttendance = attendance.docs[0] as Attendance | undefined
 
-        // if (doc.status === 'accepted') {
-        //   const reviewer = getRelationshipID(req.user)
-        //   const data = {
-        //     member,
-        //     meeting,
-        //     issuedBy: reviewer,
-        //     motivationReason: doc.memberMessage,
-        //     status: 'motivated' as const,
-        //   }
+      //   // if (doc.status === 'accepted') {
+      //   //   const reviewer = getRelationshipID(req.user)
+      //   //   const data = {
+      //   //     member,
+      //   //     meeting,
+      //   //     issuedBy: reviewer,
+      //   //     motivationReason: doc.memberMessage,
+      //   //     status: 'motivated' as const,
+      //   //   }
 
-        //   if (existingAttendance) {
-        //     await req.payload.update({
-        //       collection: 'attendance',
-        //       id: existingAttendance.id,
-        //       data,
-        //       req,
-        //     })
-        //   } else {
-        //     await req.payload.create({
-        //       collection: 'attendance',
-        //       data,
-        //       req,
-        //     })
-        //   }
-        // } else if (previousDoc.status === 'accepted' && existingAttendance?.status === 'motivated') {
-        //   await req.payload.update({
-        //     collection: 'attendance',
-        //     id: existingAttendance.id,
-        //     data: {
-        //       issuedBy: null,
-        //       motivationReason: null,
-        //       status: 'absent',
-        //     },
-        //     req,
-        //   })
-        // }
+      //   //   if (existingAttendance) {
+      //   //     await req.payload.update({
+      //   //       collection: 'attendance',
+      //   //       id: existingAttendance.id,
+      //   //       data,
+      //   //       req,
+      //   //     })
+      //   //   } else {
+      //   //     await req.payload.create({
+      //   //       collection: 'attendance',
+      //   //       data,
+      //   //       req,
+      //   //     })
+      //   //   }
+      //   // } else if (previousDoc.status === 'accepted' && existingAttendance?.status === 'motivated') {
+      //   //   await req.payload.update({
+      //   //     collection: 'attendance',
+      //   //     id: existingAttendance.id,
+      //   //     data: {
+      //   //       issuedBy: null,
+      //   //       motivationReason: null,
+      //   //       status: 'absent',
+      //   //     },
+      //   //     req,
+      //   //   })
+      //   // }
 
-        return doc
-      },
+      //   return doc
+      // },
     ],
   },
 
@@ -243,7 +250,7 @@ export const AbsenceMotivations: CollectionConfig = {
       access: {
         update: ({ req }) => isSecretary(req.user) && allowManual,
       },
-      defaultValue: async ({req}) => (await req.payload.find({collection: 'meetings', sort: '-meetingDate', limit: 1})).docs[0]
+      defaultValue: async ({req}) => (await req.payload.find({collection: 'meetings', sort: '-meetingDate', limit: 1, req})).docs[0]
     },
     {
       name: 'memberMessage',
@@ -301,7 +308,7 @@ export const AbsenceMotivations: CollectionConfig = {
         create: () => false,
         update: () => false,
       },
-      defaultValue: (req) => req.user
+      defaultValue: (req) => req.user?.id
     },
     {
       name: 'reviewedAt',

@@ -1,4 +1,5 @@
 import { linkGroup } from '@/fields/linkGroup'
+import { hasBoardRole } from '@/utilities/membersAccess'
 import type { GlobalConfig } from 'payload'
 
 export const MembersDashboard: GlobalConfig = {
@@ -6,13 +7,11 @@ export const MembersDashboard: GlobalConfig = {
 
   access: {
     read: () => true,
-    update: ({ req }) => {
-      return !!req.user
-    },
+    update: hasBoardRole
   },
 
   admin: {
-    group: 'Club Administration',
+    group: 'Site Configuration',
   },
 
   fields: [

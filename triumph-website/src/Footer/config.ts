@@ -21,6 +21,9 @@ export const Footer: GlobalConfig = {
   access: {
     read: () => true,
   },
+  admin: {
+    group: 'Site Configuration',
+  },
   fields: [
     {
       name: 'description',
