@@ -589,6 +589,11 @@ export interface Category {
 export interface User {
   id: string;
   name?: string | null;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  slug: string;
   clubMail?: string | null;
   clubMailPassword?: string | null;
   phone?: string | null;
@@ -3293,6 +3298,8 @@ export interface CategoriesSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  generateSlug?: T;
+  slug?: T;
   clubMail?: T;
   clubMailPassword?: T;
   phone?: T;

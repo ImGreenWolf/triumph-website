@@ -18,7 +18,10 @@ const allowManual = true
 
 export const AbsenceMotivations: CollectionConfig = {
   slug: 'absence-motivations',
-
+  labels: {
+    plural: "Absențe Motivate",
+    singular: "Motivatre",
+  },
   access: {
     admin: hasBoardRole,
     create: hasBoardRole,

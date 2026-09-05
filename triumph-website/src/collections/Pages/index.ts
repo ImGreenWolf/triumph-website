@@ -53,6 +53,10 @@ export const Pages: CollectionConfig<'pages'> = {
     title: true,
     slug: true,
   },
+  labels: {
+    plural: "Pagini",
+    singular: "Pagină",
+  },
   admin: {
     defaultColumns: ['title', 'slug', 'updatedAt'],
     group: "Content",

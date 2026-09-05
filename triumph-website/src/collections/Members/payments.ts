@@ -2,6 +2,10 @@ import { CollectionConfig } from 'payload'
 
 export const Payments: CollectionConfig = {
   slug: 'payments',
+  labels: {
+    plural: "Cotizații",
+    singular: "Cotizație"
+  },
   admin: {
     useAsTitle: 'member',
     group: 'Club Administration',

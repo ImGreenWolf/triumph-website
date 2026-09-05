@@ -5,6 +5,10 @@ import { authenticated } from '../access/authenticated'
 
 export const Mandates: CollectionConfig = {
     slug: 'mandates',
+      labels: {
+    plural: "Mandate",
+    singular: "Mandat",
+  },
     access: {
     read: anyone,
     update: authenticated,

@@ -5,7 +5,7 @@ import type {
   PayloadRequest,
   Where,
 } from 'payload'
-import { APIError } from 'payload'
+import { APIError, slugField } from 'payload'
 
 import { authenticated } from '../../access/authenticated'
 import type { User } from '@/payload-types'
@@ -116,6 +116,10 @@ function isWhere(value: unknown): value is Where {
 
 export const Users: CollectionConfig = {
   slug: 'users',
+  labels: {
+    plural: 'Membrii',
+    singular: 'Membru'
+  },
   access: {
     admin: hasBoardRole,
     create: authenticated,
@@ -131,6 +135,8 @@ export const Users: CollectionConfig = {
   admin: {
     defaultColumns: ['name', 'email', 'joinedAt','attendance', 'payments'],
     useAsTitle: 'name',
+    enableListViewSelectAPI: true,
+    // formatDocURL: ({doc, collectionSlug, defaultURL}) => doc.slug ? `/members/u/${collectionSlug}/${doc.slug}` : defaultURL,
     group: 'Club Administration',
     components: {
       beforeList: [
@@ -345,6 +351,7 @@ export const Users: CollectionConfig = {
         update: canManageUsers,
       },
     },
+    slugField({useAsSlug: 'name'}),
     {
       name: 'clubMail',
       type: 'email',

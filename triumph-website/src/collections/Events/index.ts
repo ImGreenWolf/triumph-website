@@ -56,6 +56,10 @@ class MySpecialError extends APIError {
 
 export const Events: CollectionConfig<'events'> = {
   slug: 'events',
+    labels: {
+    plural: "Evenimente",
+    singular: "Eveniment",
+  },
   access: {
     create: authenticated,
     delete: authenticated,
@@ -452,6 +456,10 @@ export const Events: CollectionConfig<'events'> = {
 
 export const EventRegistrations: CollectionConfig = {
   slug: 'event-registrations',
+    labels: {
+    plural: "Înregistrări Evenimente",
+    singular: "Înregistrare Eveniment",
+  },
 
   admin: {
     useAsTitle: 'email',

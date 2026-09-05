@@ -4,6 +4,10 @@ import { authenticated } from '@/access/authenticated'
 
 export const Applications: CollectionConfig = {
   slug: 'applications',
+    labels: {
+    plural: "Înscrieri",
+    singular: "Înscirere",
+  },
   access: {
     read: () => true,
     update: authenticated,

@@ -12,6 +12,10 @@ import { authenticated } from '../access/authenticated'
 
 export const Causes: CollectionConfig = {
     slug: 'causes',
+      labels: {
+    plural: "Cauze",
+    singular: "Cauză",
+  },
     access: {
     read: anyone,
     update: authenticated,
@@ -45,6 +49,10 @@ export const Causes: CollectionConfig = {
 
 export const Sponsors: CollectionConfig = {
   slug: 'sponsors',
+    labels: {
+    plural: "Sponsori",
+    singular: "Sponsor",
+  },
   access: {
     read: anyone,
     update: authenticated,

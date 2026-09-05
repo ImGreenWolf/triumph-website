@@ -4,7 +4,10 @@ import type { CollectionConfig } from 'payload'
 
 export const Meetings: CollectionConfig = {
   slug: 'meetings',
-
+    labels: {
+    plural: "Întâlniri",
+    singular: "Întâlnire",
+  },
   access: {
     admin: authenticated,
 

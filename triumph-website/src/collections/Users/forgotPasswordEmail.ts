@@ -60,6 +60,7 @@ export function generateForgotPasswordEmailHTML(args: ForgotPasswordEmailArgs = 
                 </p>
                 <p style="margin:0; color:#526071; font-size:15px; line-height:1.7;">
                   Apasă butonul de mai jos pentru a alege o parolă nouă. Linkul expiră în curând din motive de securitate.
+                  Pentru a intra in cont, accesează pagina Contul Tău, folosește email-ul pe care ai primit acest mail, si noua ta parolă.
                 </p>
               </td>
             </tr>

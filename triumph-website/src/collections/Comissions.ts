@@ -16,6 +16,10 @@ const canReadCommission: Access = ({ req }) => {
 
 export const Comissions: CollectionConfig = {
   slug: 'comissions',
+    labels: {
+    plural: "Comisii",
+    singular: "Comisie",
+  },
   access: {
     read: canReadCommission,
     update: hasBoardRole,
