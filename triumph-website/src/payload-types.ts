@@ -872,7 +872,7 @@ export interface AbsenceMotivation {
   memberMessage?: string | null;
   status: 'pending' | 'accepted' | 'rejected';
   /**
-   * Required when rejecting the request. It is shown on the member dashboard.
+   * Necesar pentru a refuza cererea. Apare in contul membrului.
    */
   secretaryMessage?: string | null;
   reviewedBy?: (string | null) | User;

@@ -3,7 +3,7 @@ import type { CollectionConfig } from 'payload'
 
 import type { Attendance } from '@/payload-types'
 import { authenticated } from '@/access/authenticated'
-import { hasSecretaryRole, isSecretary } from '@/utilities/membersAccess'
+import { hasBoardRole, hasSecretaryRole, isBoardMember, isSecretary } from '@/utilities/membersAccess'
 
 const getRelationshipID = (value: unknown) => {
   if (typeof value === 'string') return value
@@ -14,26 +14,28 @@ const getRelationshipID = (value: unknown) => {
 
   return null
 }
+const allowManual = true
 
 export const AbsenceMotivations: CollectionConfig = {
   slug: 'absence-motivations',
 
   access: {
-    admin: hasSecretaryRole,
-    create: authenticated,
-    delete: ({ req }) => isSecretary(req.user),
-    read: ({ req }) => {
-      if (!req.user) return false
-      if (isSecretary(req.user)) return true
+    admin: hasBoardRole,
+    create: hasBoardRole,
+    delete: hasBoardRole,
+    read: authenticated,
+    // ({ req }) => {
+    //   if (!req.user) return false
+    //   if (isSecretary(req.user)) return true
 
-      return false
-      //  {
-      //   member: {
-      //     equals: req.user.id,
-      //   },
-      // }
-    },
-    update: ({ req }) => isSecretary(req.user),
+    //   return false
+    //   //  {
+    //   //   member: {
+    //   //     equals: req.user.id,
+    //   //   },
+    //   // }
+    // },
+    update: hasBoardRole,
   },
 
   indexes: [
@@ -229,8 +231,8 @@ export const AbsenceMotivations: CollectionConfig = {
       relationTo: 'users',
       required: true,
       access: {
-        create: () => false,
-        update: () => false,
+        create: ({ req }) => isSecretary(req.user) && allowManual,
+        update: ({ req }) => isSecretary(req.user) && allowManual,
       },
     },
     {
@@ -239,38 +241,39 @@ export const AbsenceMotivations: CollectionConfig = {
       relationTo: 'meetings',
       required: true,
       access: {
-        update: () => false,
+        update: ({ req }) => isSecretary(req.user) && allowManual,
       },
+      defaultValue: async ({req}) => (await req.payload.find({collection: 'meetings', sort: '-meetingDate', limit: 1})).docs[0]
     },
     {
       name: 'memberMessage',
       type: 'textarea',
-      label: 'Optional message from member',
+      label: 'Motivul cererii de motivăre a absenței din partea membrului.',
       access: {
-        update: () => false,
+        update: ({ req }) => isSecretary(req.user) && allowManual,
       },
     },
     {
       name: 'status',
       type: 'select',
       required: true,
-      defaultValue: 'pending',
+      defaultValue: 'accepted',
       options: [
         {
-          label: 'Pending review',
+          label: 'Necesită Verificare',
           value: 'pending',
         },
         {
-          label: 'Accepted',
+          label: 'Acceptată',
           value: 'accepted',
         },
         {
-          label: 'Rejected',
+          label: 'Refuzată',
           value: 'rejected',
         },
       ],
       access: {
-        create: () => false,
+        create: ({ req }) => isSecretary(req.user) && allowManual,
         update: ({ req }) => isSecretary(req.user),
       },
     },
@@ -280,10 +283,10 @@ export const AbsenceMotivations: CollectionConfig = {
       label: 'Message for member',
       admin: {
         condition: (_, siblingData) => siblingData.status === 'rejected',
-        description: 'Required when rejecting the request. It is shown on the member dashboard.',
+        description: 'Necesar pentru a refuza cererea. Apare in contul membrului.',
       },
       access: {
-        create: () => false,
+        create: ({ req }) => isSecretary(req.user) && allowManual,
         update: ({ req }) => isSecretary(req.user),
       },
     },
@@ -298,6 +301,7 @@ export const AbsenceMotivations: CollectionConfig = {
         create: () => false,
         update: () => false,
       },
+      defaultValue: (req) => req.user
     },
     {
       name: 'reviewedAt',
@@ -308,6 +312,7 @@ export const AbsenceMotivations: CollectionConfig = {
         },
         readOnly: true,
       },
+      defaultValue: new Date(),
       access: {
         create: () => false,
         update: () => false,
