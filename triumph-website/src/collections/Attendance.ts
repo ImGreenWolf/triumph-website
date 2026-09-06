@@ -50,6 +50,8 @@ export const Attendance: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meetings',
       required: true,
+      defaultValue: async ({req}) => (await req.payload.find({collection: 'meetings', sort: '-meetingDate', limit: 1, req})).docs[0]
+
     },
 
     {
@@ -94,7 +96,8 @@ export const Attendance: CollectionConfig = {
       admin: {
         readOnly: true,
         description: 'Pentru prezenta, este membrul care a scanat codul, iar pentru motivare, persoana care a motivat absenta'
-      }
+      },
+      defaultValue: (req) => req.user?.id
       // admin: {
       //   condition: (_, siblingData) =>
       //     siblingData.status === 'motivated',

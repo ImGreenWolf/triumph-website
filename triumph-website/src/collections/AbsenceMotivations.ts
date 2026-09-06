@@ -24,7 +24,7 @@ export const AbsenceMotivations: CollectionConfig = {
   },
   access: {
     admin: hasBoardRole,
-    create: hasBoardRole,
+    create: hasSecretaryRole,
     delete: hasBoardRole,
     read: authenticated,
     // ({ req }) => {
