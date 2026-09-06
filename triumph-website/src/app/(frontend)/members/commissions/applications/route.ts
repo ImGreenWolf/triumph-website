@@ -15,6 +15,7 @@ import {
 } from '@/utilities/aspirementRecruitment'
 import { isBoardMember } from '@/utilities/membersAccess'
 import { getEndOfBucharestDay, getStartOfBucharestDay } from '@/utilities/recruitmentWorkflow'
+import { slugify } from 'payload/shared'
 
 type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
   aspirerUser?: string | User | null
@@ -798,6 +799,7 @@ async function ensureAspirerUser(args: {
         name: args.application.name,
         password: generateTemporaryPassword(),
         role: 'aspirer',
+        slug: slugify(args.application.name)!,
       },
       overrideAccess: true,
     })) as User)

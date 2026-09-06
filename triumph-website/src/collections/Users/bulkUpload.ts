@@ -1,4 +1,5 @@
 import type { Payload, PayloadRequest, RequiredDataFromCollectionSlug } from 'payload'
+import { slugify } from 'payload/shared'
 
 type UserCreateData = RequiredDataFromCollectionSlug<'users'> & {
   password: string
@@ -156,6 +157,7 @@ export function parseMembersCSV(
       joinedAt,
       password,
       role: role as UserCreateData['role'],
+      slug: slugify(name!)!
     }
 
     if (name) {
