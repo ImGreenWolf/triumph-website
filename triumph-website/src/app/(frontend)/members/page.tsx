@@ -39,7 +39,12 @@ import { getMediaUrl } from '@/utilities/getMediaUrl'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
 import { getMemberDuesSummary, MONTHLY_DUE } from '@/utilities/memberDues'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
-import { formatRotaryYearLabel, getRotaryYearStart } from '@/utilities/rotaryYear'
+import { getMeetingWindow, shouldShowMeetingOnMemberDashboard } from '@/utilities/meetingTime'
+import {
+  formatRotaryYearLabel,
+  getRotaryYearRange,
+  getRotaryYearStart,
+} from '@/utilities/rotaryYear'
 import { cn } from '@/utilities/ui'
 
 import PageClient from './page.client'
@@ -500,18 +505,22 @@ async function NextMeeting(props: { member: User }) {
   })
 
   const now = new Date()
+  const rotaryYearStart = getRotaryYearStart(now)
   const meetingsDocs = await payload.find({
     collection: 'meetings',
     where: {
       meetingDate: {
-        greater_than: now.toISOString(),
+        greater_than_equal: getRotaryYearRange(rotaryYearStart).start.toISOString(),
       },
     },
     sort: 'meetingDate',
-    limit: 1,
+    limit: 1000,
+    pagination: false,
   })
 
-  const nextMeeting = meetingsDocs.docs[0] as Meeting | undefined
+  const nextMeeting = meetingsDocs.docs.find((meeting) =>
+    shouldShowMeetingOnMemberDashboard(meeting, now),
+  ) as Meeting | undefined
 
   if (!nextMeeting) {
     return (
@@ -570,6 +579,7 @@ async function NextMeeting(props: { member: User }) {
   })
   const absenceMotivation = absenceMotivationsDocs.docs[0] as AbsenceMotivation | undefined
   const meetingDate = new Date(nextMeeting.meetingDate)
+  const meetingWindow = getMeetingWindow(nextMeeting, now)
   const daysRemaining = getDaysRemaining(now, meetingDate)
 
   return (
@@ -589,7 +599,25 @@ async function NextMeeting(props: { member: User }) {
           dateStyle: 'full',
           timeStyle: 'short',
         }),
-        relativeLabel: formatRelativeDay(daysRemaining),
+        relativeLabel:
+          meetingWindow.status === 'upcoming'
+            ? formatRelativeDay(daysRemaining)
+            : meetingWindow.status === 'ongoing'
+              ? 'În desfășurare'
+              : 'Încheiată',
+        status: meetingWindow.status,
+        timingLabel:
+          meetingWindow.status === 'upcoming'
+            ? `Durată: ${meetingWindow.durationMinutes} min`
+            : meetingWindow.status === 'ongoing'
+              ? `Se încheie la ${meetingWindow.endAt.toLocaleTimeString('ro-RO', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`
+              : `Check-in disponibil până la ${meetingWindow.bufferEndAt.toLocaleTimeString(
+                  'ro-RO',
+                  { hour: '2-digit', minute: '2-digit' },
+                )}`,
       }}
     />
   )

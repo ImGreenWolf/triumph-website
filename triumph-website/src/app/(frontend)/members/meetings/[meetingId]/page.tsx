@@ -3,13 +3,9 @@ import { redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 import payloadConfig from '@payload-config'
 
-import {
-  AbsenceMotivation,
-  Attendance,
-  Meeting,
-  User,
-} from '@/payload-types'
+import { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
+import { getMeetingWindow, isMeetingConcluded } from '@/utilities/meetingTime'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 import { getRotaryYearStart } from '@/utilities/rotaryYear'
 
@@ -22,9 +18,7 @@ type Props = {
   }>
 }
 
-export default async function MeetingPage(
-  props: Props,
-) {
+export default async function MeetingPage(props: Props) {
   const { meetingId } = await props.params
 
   const payload = await getPayload({
@@ -42,13 +36,12 @@ export default async function MeetingPage(
     redirect('/404')
   }
 
-  const meetingDate = new Date(
-    meeting.meetingDate,
-  )
+  const meetingDate = new Date(meeting.meetingDate)
 
   const now = new Date()
 
-  const hasTakenPlace = meetingDate <= now
+  const meetingWindow = getMeetingWindow(meeting, now)
+  const hasTakenPlace = isMeetingConcluded(meeting, now)
 
   // Get attendance records
   const attendanceDocs = await payload.find({
@@ -62,12 +55,11 @@ export default async function MeetingPage(
     depth: 1,
   })
 
-  const attendance =
-    attendanceDocs.docs as Attendance[]
+  const attendance = attendanceDocs.docs as Attendance[]
 
   // Participants
   const participants = attendance.filter(
-    (record) => record.status === 'present',
+    (record) => record.status === 'present' || record.status === 'late',
   )
 
   // Logged in member
@@ -75,8 +67,7 @@ export default async function MeetingPage(
     headers: await getPayloadAuthHeaders(),
   })
 
-  const member =
-    authResult.user as User | null
+  const member = authResult.user as User | null
 
   const [memberAttendanceSummary, motivationDocs] = member
     ? await Promise.all([
@@ -114,9 +105,7 @@ export default async function MeetingPage(
   const memberAttendance = member
     ? attendance.find((record) => {
         const attendanceMember =
-          typeof record.member === 'object'
-            ? record.member.id
-            : record.member
+          typeof record.member === 'object' ? record.member.id : record.member
 
         return attendanceMember === member.id
       })
@@ -141,43 +130,44 @@ export default async function MeetingPage(
       <div className="mx-auto max-w-5xl px-6 py-24">
         {/* Header */}
         <div className="mb-8">
-          <p className="mb-2 text-sm text-muted-foreground">
-            Şedința
-          </p>
+          <p className="mb-2 text-sm text-muted-foreground">Şedința</p>
 
           <h1 className="text-4xl font-bold tracking-tight">
-            {meetingDate.toLocaleString(
-              'ro-RO',
-              {
-                dateStyle: 'full',
-                timeStyle: 'short',
-              },
-            )}
+            {meetingDate.toLocaleString('ro-RO', {
+              dateStyle: 'full',
+              timeStyle: 'short',
+            })}
           </h1>
 
-          <p className="mt-4 text-muted-foreground">
-            
-          </p>
+          <p className="mt-4 text-muted-foreground"></p>
         </div>
 
         {/* Meeting Status */}
-        {!hasTakenPlace && (
+        {meetingWindow.status !== 'expired' && (
           <div className="mb-8 rounded-xl border bg-card p-6">
             <h2 className="mb-2 text-xl font-semibold">
-              Întâlnirea nu a avut loc încă
+              {meetingWindow.status === 'upcoming'
+                ? 'Întâlnirea nu a avut loc încă'
+                : meetingWindow.status === 'ongoing'
+                  ? 'Întâlnirea este în desfășurare'
+                  : 'Întâlnirea s-a încheiat'}
             </h2>
 
             <p className="text-muted-foreground">
-              Această întâlnire este
-              programată pentru{' '}
-              {meetingDate.toLocaleString(
-                'ro-RO',
-                {
-                  dateStyle: 'full',
-                  timeStyle: 'short',
-                },
-              )}
-              .
+              {meetingWindow.status === 'upcoming'
+                ? `Această întâlnire este programată pentru ${meetingDate.toLocaleString('ro-RO', {
+                    dateStyle: 'full',
+                    timeStyle: 'short',
+                  })}.`
+                : meetingWindow.status === 'ongoing'
+                  ? `Se încheie la ${meetingWindow.endAt.toLocaleTimeString('ro-RO', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}. Check-in-ul efectuat după ora de start este marcat ca întârziere.`
+                  : `Fereastra de check-in rămâne deschisă până la ${meetingWindow.bufferEndAt.toLocaleTimeString(
+                      'ro-RO',
+                      { hour: '2-digit', minute: '2-digit' },
+                    )}.`}
             </p>
           </div>
         )}
@@ -185,39 +175,26 @@ export default async function MeetingPage(
         {/* Stats */}
         <div className="mb-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-xl bg-card p-6 shadow-sm">
-            <p className="text-sm text-muted-foreground">
-              Participanți
-            </p>
+            <p className="text-sm text-muted-foreground">Participanți</p>
 
-            <p className="mt-2 text-3xl font-bold">
-              {participants.length}
-            </p>
+            <p className="mt-2 text-3xl font-bold">{participants.length}</p>
           </div>
 
           <div className="rounded-xl bg-card p-6 shadow-sm">
-            <p className="text-sm text-muted-foreground">
-              Data întâlnirii
-            </p>
+            <p className="text-sm text-muted-foreground">Data întâlnirii</p>
 
             <p className="mt-2 text-lg font-semibold">
-              {meetingDate.toLocaleDateString(
-                'ro-RO',
-                {
-                  dateStyle: 'long',
-                },
-              )}
+              {meetingDate.toLocaleDateString('ro-RO', {
+                dateStyle: 'long',
+              })}
             </p>
           </div>
 
           <div className="rounded-xl bg-card p-6 shadow-sm">
-            <p className="text-sm text-muted-foreground">
-              Prezența ta
-            </p>
+            <p className="text-sm text-muted-foreground">Prezența ta</p>
 
             {member ? (
-              <p className="mt-2 text-lg font-semibold">
-                {memberAttendanceLabel}
-              </p>
+              <p className="mt-2 text-lg font-semibold">{memberAttendanceLabel}</p>
             ) : (
               <p className="mt-2 text-lg font-semibold text-muted-foreground">
                 {memberAttendanceLabel}
@@ -248,38 +225,24 @@ export default async function MeetingPage(
 
         {/* Meeting Notes */}
         <div className="rounded-2xl bg-card p-8 shadow-sm">
-          <h2 className="mb-6 text-2xl font-bold">
-            Notițele întâlnirii
-          </h2>
+          <h2 className="mb-6 text-2xl font-bold">Notițele întâlnirii</h2>
 
           {hasTakenPlace ? (
             meeting.notes ? (
               <div className="prose prose-neutral max-w-none dark:prose-invert">
                 {/* Replace with your RichText renderer */}
-                {typeof meeting.notes ===
-                'string' ? (
+                {typeof meeting.notes === 'string' ? (
                   <p>{meeting.notes}</p>
                 ) : (
-                  <pre>
-                    {JSON.stringify(
-                      meeting.notes,
-                      null,
-                      2,
-                    )}
-                  </pre>
+                  <pre>{JSON.stringify(meeting.notes, null, 2)}</pre>
                 )}
               </div>
             ) : (
-              <p className="text-muted-foreground">
-                Nu există notițe pentru
-                această întâlnire.
-              </p>
+              <p className="text-muted-foreground">Nu există notițe pentru această întâlnire.</p>
             )
           ) : (
             <p className="text-muted-foreground">
-              Notițele întâlnirii vor fi
-              disponibile după desfășurarea
-              acesteia.
+              Notițele întâlnirii vor fi disponibile după desfășurarea acesteia.
             </p>
           )}
         </div>

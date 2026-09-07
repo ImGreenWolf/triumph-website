@@ -4,9 +4,10 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import QRCode from 'react-qr-code'
-import { ArrowRight, ArrowUpRight, CalendarDays, Clock3, QrCode, ScanQrCode, XIcon } from 'lucide-react'
+import { ArrowRight, CalendarDays, Clock3, QrCode, ScanQrCode, XIcon } from 'lucide-react'
 
 import type { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
+import type { MeetingWindowStatus } from '@/utilities/meetingTime'
 import { cn } from '@/utilities/ui'
 import { boardRoles } from '@/utilities/membersAccess'
 
@@ -17,6 +18,8 @@ type NextMeetingSummary = {
   id: Meeting['id']
   meetingDateLabel: string
   relativeLabel: string
+  status: MeetingWindowStatus
+  timingLabel: string
 }
 
 type NextMeetingWithCodeProps = {
@@ -33,29 +36,32 @@ export default function NextMeetingWithCode(props: NextMeetingWithCodeProps) {
   return (
     <section className="flex h-full flex-col rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-5">
       <PanelHeader
-        description="Următorul reper din calendarul clubului."
+        description={getMeetingDescription(nextMeeting.status)}
         icon={<CalendarDays className="size-5" />}
-        title="Următoarea întâlnire"
+        title={nextMeeting.status === 'upcoming' ? 'Următoarea întâlnire' : 'Întâlnire'}
       />
 
       <div className="mt-6 rounded-lg border border-accent/25 bg-accent/10 p-5">
-        <div className='flex items-center gap-2 mb-4'>
-          <div className=" inline-flex items-center gap-2 rounded-full border border-accent/25 bg-sidebar/60 px-3 py-1 text-sm font-medium">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-sidebar/60 px-3 py-1 text-sm font-medium">
             <Clock3 className="size-4 text-accent" />
             {nextMeeting.relativeLabel}
-            
           </div>
-          {(attendance || absenceMotivationStatus) && (<AttendanceStatusBox status={attendance?.status} motivationStatus={absenceMotivationStatus}/>)}
+          <MeetingStatusBox status={nextMeeting.status} />
+          {(attendance || absenceMotivationStatus) && (
+            <AttendanceStatusBox
+              status={attendance?.status}
+              motivationStatus={absenceMotivationStatus}
+            />
+          )}
         </div>
-       
-        
 
         <h3 className="text-2xl font-semibold leading-tight">{nextMeeting.meetingDateLabel}</h3>
+        <p className="mt-2 text-sm font-medium text-muted-foreground">{nextMeeting.timingLabel}</p>
 
         {nextMeeting.description && (
           <p className="mt-4 text-sm leading-6 text-muted-foreground">{nextMeeting.description}</p>
         )}
-        
       </div>
 
       <div className="mt-auto flex flex-col flex-wrap gap-2 pt-5 sm:flex-row sm:items-center">
@@ -66,27 +72,25 @@ export default function NextMeetingWithCode(props: NextMeetingWithCodeProps) {
           Vezi întâlnirea
           <ArrowRight className="size-4" />
         </Link>
-        <div className='flex justify-between grow justify-stretch gap-2'>
-            <button
+        <div className="flex justify-between grow justify-stretch gap-2">
+          <button
             className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-xs font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
             onClick={() => setIsCodeOpen(true)}
             type="button"
-            >
-                <QrCode className="size-4" />
+          >
+            <QrCode className="size-4" />
             Cod QR
-            
-            </button>
-            {boardRoles.includes(member.role as any) && (
-                <Link
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-xs font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
-                href="/members/check-in"
-                >
-                <ScanQrCode className="size-4" />
-                Check-In
-                </Link>
-            )}
+          </button>
+          {boardRoles.includes(member.role as any) && (
+            <Link
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-xs font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
+              href="/members/check-in"
+            >
+              <ScanQrCode className="size-4" />
+              Check-In
+            </Link>
+          )}
         </div>
-        
 
         {/* {absenceMotivationStatus && <MotivationStatusBox status={absenceMotivationStatus} />} */}
       </div>
@@ -162,22 +166,46 @@ function PanelHeader(props: { title: string; description?: string; icon: ReactNo
 //   )
 // }
 
-function AttendanceStatusBox(props: { status: Attendance['status'] | undefined, motivationStatus: AbsenceMotivation['status'] | undefined | null}) {
+function AttendanceStatusBox(props: {
+  status: Attendance['status'] | undefined
+  motivationStatus: AbsenceMotivation['status'] | undefined | null
+}) {
   const label = attendanceLabel(props.status, props.motivationStatus)
   return (
-    label &&
+    label && (
+      <div
+        className={cn(
+          'inline-flex h-6 items-center justify-center rounded-full border px-3 py-1 text-sm font-semibold',
+          props.status === 'present' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
+          props.status === 'late' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
+          props.status === 'absent' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
+          props.status === 'motivated' && 'border-red-500/25 bg-red-500/10 text-red-500',
+          props.motivationStatus === 'accepted' &&
+            'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
+          props.motivationStatus === 'pending' &&
+            'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
+          props.motivationStatus === 'rejected' && 'border-red-500/25 bg-red-500/10 text-red-500',
+        )}
+      >
+        {label}
+      </div>
+    )
+  )
+}
+
+function MeetingStatusBox(props: { status: MeetingWindowStatus }) {
+  const { status } = props
+
+  return (
     <div
       className={cn(
-        'inline-flex h-6 items-center justify-center rounded-full border px-3 py-1 text-sm font-semibold',
-        props.status === 'present' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
-        props.status === 'absent' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
-        props.status === 'motivated' && 'border-red-500/25 bg-red-500/10 text-red-500',
-        props.motivationStatus === 'accepted' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
-        props.motivationStatus === 'pending' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
-        props.motivationStatus === 'rejected' && 'border-red-500/25 bg-red-500/10 text-red-500',
+        'inline-flex h-6 items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold',
+        status === 'upcoming' && 'border-sky-500/25 bg-sky-500/10 text-sky-700',
+        status === 'ongoing' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
+        status === 'ended' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
       )}
     >
-      {label}
+      {status === 'upcoming' ? 'Programată' : status === 'ongoing' ? 'În desfășurare' : 'Încheiată'}
     </div>
   )
 }
@@ -195,8 +223,12 @@ function getMemberCodeUrl(memberId: User['id']) {
 //   return 'Motivare în verificare'
 // }
 
-function attendanceLabel(status: Attendance['status'] | undefined, motivationStatus: AbsenceMotivation['status'] | undefined | null) {
+function attendanceLabel(
+  status: Attendance['status'] | undefined,
+  motivationStatus: AbsenceMotivation['status'] | undefined | null,
+) {
   if (status === 'present') return 'Prezent/ǎ'
+  if (status === 'late') return 'Întârziat/ǎ'
   if (status === 'absent') return 'Absent/ǎ'
   if (status === 'motivated' && motivationStatus) {
     if (motivationStatus === 'accepted') return 'Motivare acceptată'
@@ -205,3 +237,14 @@ function attendanceLabel(status: Attendance['status'] | undefined, motivationSta
   return undefined
 }
 
+function getMeetingDescription(status: MeetingWindowStatus) {
+  if (status === 'ongoing') {
+    return 'Ședința este în desfășurare. Scanarea codului QR va înregistra întârzierea.'
+  }
+
+  if (status === 'ended') {
+    return 'Ședința s-a încheiat, iar fereastra de check-in este încă deschisă temporar.'
+  }
+
+  return 'Următorul reper din calendarul clubului.'
+}

@@ -91,4 +91,33 @@ describe('getMemberAttendanceSummary', () => {
       'motivated',
     ])
   })
+
+  it('does not count an ongoing meeting as an absence before its duration has elapsed', async () => {
+    const ongoingMeeting = {
+      durationMinutes: 60,
+      endedBufferMinutes: 60,
+      id: 'meeting-ongoing',
+      meetingDate: '2026-02-01T10:00:00.000Z',
+    } as Meeting
+    const payload = {
+      find: vi.fn(({ collection }) => {
+        return Promise.resolve({
+          docs: collection === 'meetings' ? [ongoingMeeting] : [],
+        })
+      }),
+    } as unknown as Payload
+
+    const summary = await getMemberAttendanceSummary(
+      payload,
+      member,
+      new Date('2026-02-01T10:30:00.000Z'),
+    )
+
+    expect(summary).toMatchObject({
+      absentMeetings: 0,
+      attendancePercentage: 100,
+      totalMeetings: 0,
+    })
+    expect(summary.records).toHaveLength(0)
+  })
 })

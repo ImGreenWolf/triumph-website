@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 import payloadConfig from '@payload-config'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
+import { getMeetingCheckInAttendanceStatus } from '@/utilities/meetingTime'
 
 export default async function CheckInPage({
   params,
@@ -23,9 +24,7 @@ export default async function CheckInPage({
   })
 
   if (!authResult.user) {
-    redirect(
-      `/members/login?redirect=/meetings/${meetingId}/check-in`
-    )
+    redirect(`/members/login?redirect=/members/meetings/${meetingId}/check-in`)
   }
 
   const member = authResult.user
@@ -37,33 +36,43 @@ export default async function CheckInPage({
   })
 
   if (!meeting) {
+    return <div className="p-10">Meeting not found.</div>
+  }
+
+  const attendanceStatus = getMeetingCheckInAttendanceStatus(meeting)
+
+  if (!attendanceStatus) {
     return (
-      <div className="p-10">
-        Meeting not found.
+      <div className="halftone-background flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="w-full max-w-md rounded-xl bg-card p-8 shadow">
+          <h1 className="mb-4 text-3xl font-bold">Check-in închis</h1>
+          <p className="text-muted-foreground">
+            Fereastra de check-in pentru această ședință nu mai este disponibilă.
+          </p>
+        </div>
       </div>
     )
   }
 
   // Check existing attendance
-  const existingAttendance =
-    await payload.find({
-      collection: 'attendance',
-      where: {
-        and: [
-          {
-            member: {
-              equals: member.id,
-            },
+  const existingAttendance = await payload.find({
+    collection: 'attendance',
+    where: {
+      and: [
+        {
+          member: {
+            equals: member.id,
           },
-          {
-            meeting: {
-              equals: meetingId,
-            },
+        },
+        {
+          meeting: {
+            equals: meetingId,
           },
-        ],
-      },
-      limit: 1,
-    })
+        },
+      ],
+    },
+    limit: 1,
+  })
 
   // Update existing
   if (existingAttendance.docs.length > 0) {
@@ -73,7 +82,7 @@ export default async function CheckInPage({
       data: {
         issuedBy: null,
         motivationReason: null,
-        status: 'present',
+        status: attendanceStatus,
       },
     })
   } else {
@@ -83,30 +92,46 @@ export default async function CheckInPage({
       data: {
         member: member.id,
         meeting: meetingId,
-        status: 'present',
+        status: attendanceStatus,
       },
     })
   }
+
+  await payload.delete({
+    collection: 'absence-motivations',
+    where: {
+      and: [
+        {
+          member: {
+            equals: member.id,
+          },
+        },
+        {
+          meeting: {
+            equals: meetingId,
+          },
+        },
+      ],
+    },
+  })
 
   return (
     <div className="halftone-background flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-xl bg-card p-8 shadow">
         <h1 className="mb-4 text-3xl font-bold">
-          Prezență înregistrată
+          {attendanceStatus === 'late' ? 'Întârziere înregistrată' : 'Prezență înregistrată'}
         </h1>
 
         <p className="text-muted-foreground">
-          Ai fost marcat prezent la:
+          {attendanceStatus === 'late'
+            ? 'Ai fost marcat întârziat la:'
+            : 'Ai fost marcat prezent la:'}
         </p>
 
-        <p className="mt-2 text-xl font-semibold">
-          {meeting.meetingDate}
-        </p>
+        <p className="mt-2 text-xl font-semibold">{meeting.meetingDate}</p>
 
         <p className="mt-4 text-sm text-muted-foreground">
-          {new Date(
-            meeting.meetingDate
-          ).toLocaleString('ro-RO', {
+          {new Date(meeting.meetingDate).toLocaleString('ro-RO', {
             dateStyle: 'full',
             timeStyle: 'short',
           })}

@@ -112,6 +112,10 @@ export async function PATCH(request: Request) {
       return await reviewSubmission({ body, payload, user })
     }
 
+    if (action === 'delete-application') {
+      return await deleteApplication({ body, payload, user })
+    }
+
     if (action === 'bulk-review-submissions') {
       return await bulkReviewSubmissions({ body, payload, user })
     }
@@ -197,6 +201,27 @@ async function reviewSubmission(args: {
   })
 
   return Response.json({ application: serializeApplicationUpdate(updated) })
+}
+
+async function deleteApplication(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  requireBoard(args.user)
+
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+
+  await args.payload.delete({
+    collection: 'applications',
+    id: application.id,
+    overrideAccess: true,
+  })
+
+  return Response.json({
+    deletedApplicationId: application.id,
+    message: 'Aplicația a fost ștearsă.',
+  })
 }
 
 async function updateRecruitmentConfig(args: {

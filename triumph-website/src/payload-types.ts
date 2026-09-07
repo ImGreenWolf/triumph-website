@@ -828,6 +828,18 @@ export interface Attendance {
 export interface Meeting {
   id: string;
   meetingDate: string;
+  /**
+   * How long the meeting remains ongoing after the start time.
+   */
+  durationMinutes: number;
+  /**
+   * How long the meeting remains visible with ended status after the duration expires.
+   */
+  endedBufferMinutes: number;
+  /**
+   * Calculated from the start time, duration, and ended buffer.
+   */
+  status?: ('upcoming' | 'ongoing' | 'ended' | 'expired') | null;
   location?:
     | {
         [k: string]: unknown;
@@ -3338,6 +3350,9 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface MeetingsSelect<T extends boolean = true> {
   meetingDate?: T;
+  durationMinutes?: T;
+  endedBufferMinutes?: T;
+  status?: T;
   location?: T;
   description?: T;
   attendance?: T;

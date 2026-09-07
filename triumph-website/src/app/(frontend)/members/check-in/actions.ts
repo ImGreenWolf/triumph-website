@@ -4,22 +4,31 @@ import payloadConfig from '@payload-config'
 import { revalidatePath } from 'next/cache'
 import { getPayload } from 'payload'
 
-import type { User } from '@/payload-types'
+import type { Attendance, User } from '@/payload-types'
+import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
+import { getMeetingCheckInAttendanceStatus, getMeetingWindow } from '@/utilities/meetingTime'
+import { getRotaryYearRange, getRotaryYearStart } from '@/utilities/rotaryYear'
 
 type ScannedUser = Pick<User, 'email' | 'id' | 'name'>
 
 type ScanResponse = {
   counted?: boolean
   err?: string
+  status?: Attendance['status']
   user?: ScannedUser
 }
 
-export async function onCodeScanned(
-  url: string,
-  _timestamp: number,
-  scannerUser: string,
-): Promise<ScanResponse> {
+export async function onCodeScanned(url: string): Promise<ScanResponse> {
   const payload = await getPayload({ config: payloadConfig })
+  const auth = await payload.auth({
+    headers: await getPayloadAuthHeaders(),
+  })
+
+  if (!auth.user || !auth.permissions.canAccessAdmin) {
+    return { err: 'Nu ai permisiunea de a înregistra prezența.' }
+  }
+
+  const operator = auth.user as User
 
   const id = getMemberIdFromScan(url)
 
@@ -31,6 +40,8 @@ export async function onCodeScanned(
     user = (await payload.findByID({
       collection: 'users',
       id,
+      overrideAccess: false,
+      user: operator,
     })) as User
   } catch {
     return { err: 'Membrul nu a fost găsit.' }
@@ -38,7 +49,13 @@ export async function onCodeScanned(
 
   const meeting = await getTodayMeeting()
 
-  if (!meeting) return { err: 'Nu există ședință azi!' }
+  if (!meeting) return { err: 'Nu există o ședință disponibilă pentru check-in.' }
+
+  const attendanceStatus = getMeetingCheckInAttendanceStatus(meeting)
+
+  if (!attendanceStatus) {
+    return { err: 'Fereastra de check-in pentru această ședință s-a închis.' }
+  }
 
   const scannedUser = {
     email: user.email,
@@ -64,8 +81,14 @@ export async function onCodeScanned(
     },
   })
 
-  if (existingAttendance.totalDocs !== 0) {
-    return { err: 'Ești deja prezent la această ședință!' }
+  const existingRecord = existingAttendance.docs[0] as Attendance | undefined
+
+  if (existingRecord?.status === 'present' || existingRecord?.status === 'late') {
+    return {
+      err: 'Prezența este deja înregistrată pentru această ședință.',
+      status: existingRecord.status,
+      user: scannedUser,
+    }
   }
 
   const deletedMotivationsDocs = await payload.delete({
@@ -85,20 +108,37 @@ export async function onCodeScanned(
       ],
     },
   })
-  let err
-  if (deletedMotivationsDocs.docs.length !== 0) err = 'Motivare ștearsă'
+  const motivationCleared = deletedMotivationsDocs.docs.length !== 0
 
-  await payload.create({
-    collection: 'attendance',
-    data: {
-      meeting: meeting.id,
-      member: user.id,
-      status: 'present',
-      issuedBy: scannerUser,
-    },
-  })
+  if (existingRecord) {
+    await payload.update({
+      collection: 'attendance',
+      id: existingRecord.id,
+      data: {
+        issuedBy: operator.id,
+        motivationReason: null,
+        status: attendanceStatus,
+      },
+    })
+  } else {
+    await payload.create({
+      collection: 'attendance',
+      data: {
+        meeting: meeting.id,
+        member: user.id,
+        status: attendanceStatus,
+        issuedBy: operator.id,
+      },
+    })
+  }
+
   revalidatePath('/members/check-in')
-  return { counted: true, user: scannedUser, err }
+  return {
+    counted: true,
+    err: motivationCleared ? 'Motivarea a fost ștearsă.' : undefined,
+    status: attendanceStatus,
+    user: scannedUser,
+  }
 }
 
 function getMemberIdFromScan(value: string) {
@@ -109,33 +149,25 @@ function getMemberIdFromScan(value: string) {
   }
 }
 
-export async function getTodayMeeting(includeAttendance = false, includeMotivations = false) {
+export async function getTodayMeeting() {
   const payload = await getPayload({ config: payloadConfig })
-  const dayStart = new Date()
-  const dayEnd = new Date()
+  const now = new Date()
+  const dayEnd = new Date(now)
 
-  dayStart.setUTCHours(0, 0, 0, 0)
-  dayEnd.setUTCHours(24, 0, 0, 0)
+  dayEnd.setHours(24, 0, 0, 0)
 
   const meetingsDocs = await payload.find({
     collection: 'meetings',
     where: {
       meetingDate: {
-        greater_than: dayStart.toISOString(),
+        greater_than_equal: getRotaryYearRange(getRotaryYearStart(now)).start.toISOString(),
         less_than: dayEnd.toISOString(),
       },
     },
     sort: 'meetingDate',
-    limit: 1,
-    depth: 2,
-    joins: {
-      attendance: includeAttendance && { count: true },
-      absenceMotivations: includeMotivations && { count: true },
-    },
+    limit: 20,
+    depth: 0,
   })
 
-  if (meetingsDocs.totalDocs === 0) {
-    return undefined
-  }
-  return meetingsDocs.docs[0]
+  return meetingsDocs.docs.find((meeting) => getMeetingWindow(meeting, now).status !== 'expired')
 }

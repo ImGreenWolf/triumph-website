@@ -60,7 +60,7 @@ async function Page() {
   const operator = me.user as User
 
   const [meeting, activeMembers] = await Promise.all([
-    getTodayMeeting(true, true),
+    getTodayMeeting(),
     payload.count({
       collection: 'users',
       where: {
@@ -71,8 +71,41 @@ async function Page() {
     }),
   ])
 
-  const checkedInCount = meeting?.attendance?.totalDocs ?? 0
-  const motivatedCount = meeting?.absenceMotivations?.totalDocs ?? 0
+  let checkedInCount = 0
+  let motivatedCount = 0
+
+  if (meeting) {
+    const [checkedInDocs, motivationDocs] = await Promise.all([
+      payload.count({
+        collection: 'attendance',
+        where: {
+          and: [
+            {
+              meeting: {
+                equals: meeting.id,
+              },
+            },
+            {
+              status: {
+                in: ['present', 'late'],
+              },
+            },
+          ],
+        },
+      }),
+      payload.count({
+        collection: 'absence-motivations',
+        where: {
+          meeting: {
+            equals: meeting.id,
+          },
+        },
+      }),
+    ])
+
+    checkedInCount = checkedInDocs.totalDocs
+    motivatedCount = motivationDocs.totalDocs
+  }
   const expectedCount = Math.max(activeMembers.totalDocs - motivatedCount, 0)
   const attendanceRate = getAttendanceRate(checkedInCount, expectedCount)
 
@@ -87,11 +120,6 @@ async function Page() {
           expectedCount={expectedCount}
           hasMeeting={Boolean(meeting)}
           initialCheckedInCount={checkedInCount}
-          user={{
-            email: operator.email,
-            id: operator.id,
-            name: operator.name,
-          }}
         />
 
         <aside className="grid content-start gap-4">

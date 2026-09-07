@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import type { Attendance, Meeting, User } from '@/payload-types'
 import { boardRoles } from '@/utilities/membersAccess'
+import { isMeetingConcluded } from '@/utilities/meetingTime'
 import { getRotaryYearQueryBounds, getRotaryYearStart } from '@/utilities/rotaryYear'
 
 import { formatShortDate, getRelationId, percentage } from './widgetUtils'
@@ -89,7 +90,9 @@ async function getPresenceSource(
 
   return {
     attendance: attendanceDocs.docs as Attendance[],
-    meetings: meetingsDocs.docs as Meeting[],
+    meetings: (meetingsDocs.docs as Meeting[]).filter((meeting) =>
+      isMeetingConcluded(meeting, now),
+    ),
     members: membersDocs.docs as User[],
   }
 }

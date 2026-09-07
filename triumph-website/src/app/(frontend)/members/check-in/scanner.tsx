@@ -13,12 +13,6 @@ const BarcodeScanner = dynamic(() => import('react-qr-barcode-scanner'), {
   ssr: false,
 })
 
-type ScannerUser = {
-  email: string
-  id: string
-  name?: string | null
-}
-
 type NoticeTone = 'idle' | 'success' | 'warning' | 'error'
 
 type ScanNotice = {
@@ -31,7 +25,6 @@ type ScannerProps = {
   expectedCount: number
   hasMeeting: boolean
   initialCheckedInCount: number
-  user: ScannerUser
 }
 
 type ScanPoint = {
@@ -42,7 +35,6 @@ type ScanPoint = {
 type ScanResult = {
   getResultPoints: () => ScanPoint[]
   getText: () => string
-  getTimestamp: () => number
 }
 
 type CanvasPoint = {
@@ -96,14 +88,14 @@ const overlayColors: Record<OverlayTone, { glow: string; stroke: string }> = {
 }
 
 export function Scanner(props: ScannerProps) {
-  const { expectedCount, hasMeeting, initialCheckedInCount, user } = props
+  const { expectedCount, hasMeeting, initialCheckedInCount } = props
   const [checkedInCount, setCheckedInCount] = useState(initialCheckedInCount)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [notice, setNotice] = useState<ScanNotice>(
     hasMeeting
       ? READY_NOTICE
       : {
-          message: 'Scannerul pornește automat când există o ședință în ziua curentă.',
+          message: 'Scannerul pornește automat în fereastra de check-in a unei ședințe.',
           title: 'Scanner inactiv',
           tone: 'warning',
         },
@@ -273,7 +265,7 @@ export function Scanner(props: ScannerProps) {
 
     clearScanOverlay()
     setNotice({
-      message: 'Scannerul pornește automat când există o ședință în ziua curentă.',
+      message: 'Scannerul pornește automat în fereastra de check-in a unei ședințe.',
       title: 'Scanner inactiv',
       tone: 'warning',
     })
@@ -362,18 +354,21 @@ export function Scanner(props: ScannerProps) {
       })
 
       try {
-        const response = await onCodeScanned(value, result.getTimestamp(), user.id)
+        const response = await onCodeScanned(value)
 
         if (response.user) {
           if (response.counted) {
             setCheckedInCount((current) => current + 1)
           }
 
-          setOverlayTone(response.err ? 'warning' : 'success')
+          const isLate = response.status === 'late'
+          const tone = response.err || isLate ? 'warning' : 'success'
+
+          setOverlayTone(tone)
           setNotice({
             message: response.user.name || response.user.email,
-            title: response.err || 'Prezență confirmată',
-            tone: response.err ? 'warning' : 'success',
+            title: response.err || (isLate ? 'Întârziere înregistrată' : 'Prezență confirmată'),
+            tone,
           })
         } else {
           setOverlayTone('error')
@@ -396,14 +391,7 @@ export function Scanner(props: ScannerProps) {
         resetNoticeLater()
       }
     },
-    [
-      hasMeeting,
-      resetNoticeLater,
-      scheduleOverlayClear,
-      setOverlayTone,
-      updateScanOverlay,
-      user.id,
-    ],
+    [hasMeeting, resetNoticeLater, scheduleOverlayClear, setOverlayTone, updateScanOverlay],
   )
 
   return (
@@ -456,7 +444,7 @@ export function Scanner(props: ScannerProps) {
               <QrCode className="mx-auto size-10 text-muted-foreground" />
               <p className="mt-4 text-lg font-semibold">Scanner inactiv</p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Nu există ședință programată astăzi.
+                Nu există ședință disponibilă pentru check-in.
               </p>
             </div>
           </div>

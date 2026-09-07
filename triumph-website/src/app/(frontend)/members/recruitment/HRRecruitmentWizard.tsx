@@ -20,6 +20,7 @@ import {
   Search,
   Send,
   Settings2,
+  Trash2,
   UserCheck,
   X,
   XCircle,
@@ -156,6 +157,7 @@ type ActionResult = {
     updated: number
   }
   commission?: Partial<ManagedCommission> & { id: string }
+  deletedApplicationId?: string
   mailBatch?: MailBatchResult
   message?: string
   recruitmentConfig?: ManagedRecruitmentConfig
@@ -273,6 +275,12 @@ export default function HRRecruitmentWizard(props: {
 
       if (result.application) patchApplication(result.application)
       result.bulkReview?.applications.forEach(patchApplication)
+      if (result.deletedApplicationId) {
+        setApplications((current) =>
+          current.filter((application) => application.id !== result.deletedApplicationId),
+        )
+        setDetailID((current) => (current === result.deletedApplicationId ? null : current))
+      }
       if (result.commission) {
         setCommissions((current) =>
           current.map((commission) =>
@@ -1449,6 +1457,24 @@ function ApplicationDrawer(props: {
               Decizia formularului: <StatusBadge status={application.status} />
             </div>
           )}
+          <div className="border-t border-red-100 pt-5">
+            <button
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={props.busyKey === `delete-${application.id}`}
+              onClick={() => {
+                if (!window.confirm(`Ștergi definitiv aplicația lui ${application.name}?`)) return
+
+                void props.onAction(
+                  { action: 'delete-application', applicationId: application.id },
+                  `delete-${application.id}`,
+                )
+              }}
+              type="button"
+            >
+              <Trash2 className="size-4" />
+              {props.busyKey === `delete-${application.id}` ? 'Se șterge...' : 'Șterge aplicația'}
+            </button>
+          </div>
         </div>
       </aside>
     </div>
@@ -1789,7 +1815,7 @@ function getActionMessage(result: ActionResult) {
   if (result.mailBatch)
     return `${result.mailBatch.sent} trimise, ${result.mailBatch.skipped} sarite, ${result.mailBatch.failed} esuate.${result.mailBatch.warnings.length ? ` ${result.mailBatch.warnings[0]}` : ''}`
   if (result.bulkReview) return `${result.bulkReview.updated} formulare actualizate.`
-  return 'Modificarile au fost salvate.'
+  return result.message || 'Modificarile au fost salvate.'
 }
 function getDeadlineInputs(config: ManagedRecruitmentConfig) {
   return {
