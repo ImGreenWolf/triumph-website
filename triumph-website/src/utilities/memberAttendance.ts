@@ -1,6 +1,7 @@
 import type { Payload } from 'payload'
 
-import type { Attendance, Meeting, User } from '@/payload-types'
+import type { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
+import { getEffectiveMeetingAttendanceStatus } from '@/utilities/meetingAttendance'
 import { canCalculateMeetingAbsences, getMeetingAttendanceStatus } from '@/utilities/meetingTime'
 import { getRotaryYearQueryBounds, getRotaryYearStart } from '@/utilities/rotaryYear'
 
@@ -14,7 +15,7 @@ export async function getMemberAttendanceSummary(
   const memberJoinedAt = new Date(member.joinedAt)
   const start = memberJoinedAt > bounds.start ? memberJoinedAt : bounds.start
 
-  const [meetingsDocs, attendanceDocs] = await Promise.all([
+  const [meetingsDocs, attendanceDocs, motivationDocs] = await Promise.all([
     payload.find({
       collection: 'meetings',
       where: {
@@ -39,6 +40,15 @@ export async function getMemberAttendanceSummary(
       pagination: false,
       sort: 'createdAt',
     }),
+    payload.find({
+      collection: 'absence-motivations',
+      where: {
+        and: [{ member: { equals: member.id } }, { status: { equals: 'accepted' } }],
+      },
+      depth: 0,
+      limit: 1000,
+      pagination: false,
+    }),
   ])
 
   const meetings = meetingsDocs.docs as Meeting[]
@@ -49,20 +59,33 @@ export async function getMemberAttendanceSummary(
       record,
     ]),
   )
+  const motivationByMeeting = new Map(
+    (motivationDocs.docs as AbsenceMotivation[]).map((motivation) => [
+      typeof motivation.meeting === 'object' ? motivation.meeting.id : motivation.meeting,
+      motivation.status,
+    ]),
+  )
   const records = meetings
     .filter((meeting) => {
       const existingRecord = attendanceByMeeting.get(meeting.id)
-      const status = getMeetingAttendanceStatus(meeting, existingRecord?.status, now)
+      const effectiveStatus = getEffectiveMeetingAttendanceStatus(
+        existingRecord?.status,
+        motivationByMeeting.get(meeting.id),
+      )
+      const status = getMeetingAttendanceStatus(meeting, effectiveStatus, now)
 
       return canCalculateMeetingAbsences(meeting, now) || status === 'motivated'
     })
     .map((meeting) => {
       const existingRecord = attendanceByMeeting.get(meeting.id)
+      const effectiveStatus = getEffectiveMeetingAttendanceStatus(
+        existingRecord?.status,
+        motivationByMeeting.get(meeting.id),
+      )
 
       return {
         meeting,
-        status:
-          getMeetingAttendanceStatus(meeting, existingRecord?.status, now) || ('absent' as const),
+        status: getMeetingAttendanceStatus(meeting, effectiveStatus, now) || ('absent' as const),
       }
     })
 

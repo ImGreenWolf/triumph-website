@@ -1,12 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import type { ReactNode } from 'react'
 import { useState } from 'react'
 import QRCode from 'react-qr-code'
 import { ArrowRight, CalendarDays, Clock3, QrCode, ScanQrCode, XIcon } from 'lucide-react'
 
 import type { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
+import { getEffectiveMeetingAttendanceStatus } from '@/utilities/meetingAttendance'
 import type { MeetingWindowStatus } from '@/utilities/meetingTime'
 import { cn } from '@/utilities/ui'
 import { boardRoles } from '@/utilities/membersAccess'
@@ -34,19 +34,23 @@ export default function NextMeetingWithCode(props: NextMeetingWithCodeProps) {
   const [isCodeOpen, setIsCodeOpen] = useState(false)
 
   return (
-    <section className="flex h-full flex-col rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-5">
-      <PanelHeader
-        description={getMeetingDescription(nextMeeting.status)}
-        icon={<CalendarDays className="size-5" />}
-        title={nextMeeting.status === 'upcoming' ? 'Următoarea întâlnire' : 'Întâlnire'}
-      />
-
-      <div className="mt-6 rounded-lg border border-accent/25 bg-accent/10 p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-sidebar/60 px-3 py-1 text-sm font-medium">
-            <Clock3 className="size-4 text-accent" />
-            {nextMeeting.relativeLabel}
+    <section className="flex h-full min-h-[330px] flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+      <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent">
+            <CalendarDays className="size-5" />
           </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-muted-foreground">
+              {nextMeeting.status === 'upcoming' ? 'Următoarea întâlnire' : 'Întâlnire'}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold leading-tight sm:text-2xl">
+              {nextMeeting.relativeLabel}
+            </h2>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
           <MeetingStatusBox status={nextMeeting.status} />
           {(attendance || absenceMotivationStatus) && (
             <AttendanceStatusBox
@@ -55,44 +59,62 @@ export default function NextMeetingWithCode(props: NextMeetingWithCodeProps) {
             />
           )}
         </div>
+      </header>
 
-        <h3 className="text-2xl font-semibold leading-tight">{nextMeeting.meetingDateLabel}</h3>
-        <p className="mt-2 text-sm font-medium text-muted-foreground">{nextMeeting.timingLabel}</p>
+      <div className="border-y border-border bg-muted/25 px-5 py-4 sm:px-6">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)] sm:gap-6">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Program</p>
+            <p className="mt-1 text-base font-semibold leading-6">{nextMeeting.meetingDateLabel}</p>
+          </div>
+          <div className="border-border sm:border-l sm:pl-6">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Detalii</p>
+            <div className="mt-1 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Clock3 className="size-4 shrink-0 text-accent" />
+              <span>{nextMeeting.timingLabel}</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div className="flex flex-1 flex-col px-5 py-4 sm:px-6">
+        <p className="text-sm leading-6 text-muted-foreground">
+          {getMeetingDescription(nextMeeting.status)}
+        </p>
         {nextMeeting.description && (
-          <p className="mt-4 text-sm leading-6 text-muted-foreground">{nextMeeting.description}</p>
+          <p className="mt-3 line-clamp-3 text-sm leading-6 text-foreground/80">
+            {nextMeeting.description}
+          </p>
         )}
       </div>
 
-      <div className="mt-auto flex flex-col flex-wrap gap-2 pt-5 sm:flex-row sm:items-center">
+      <div className="flex items-center gap-2 border-t border-border px-5 py-4 sm:px-6">
         <Link
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
           href={`/members/meetings/${nextMeeting.id}`}
         >
           Vezi întâlnirea
           <ArrowRight className="size-4" />
         </Link>
-        <div className="flex justify-between grow justify-stretch gap-2">
-          <button
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-xs font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
-            onClick={() => setIsCodeOpen(true)}
-            type="button"
+        <button
+          aria-label="Arată codul QR"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition hover:border-accent/40 hover:bg-accent/10 hover:text-accent"
+          onClick={() => setIsCodeOpen(true)}
+          title="Arată codul QR"
+          type="button"
+        >
+          <QrCode className="size-4" />
+        </button>
+        {boardRoles.includes(member.role as (typeof boardRoles)[number]) && (
+          <Link
+            aria-label="Deschide scannerul de prezență"
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition hover:border-accent/40 hover:bg-accent/10 hover:text-accent"
+            href="/members/check-in"
+            title="Scanner de prezență"
           >
-            <QrCode className="size-4" />
-            Cod QR
-          </button>
-          {boardRoles.includes(member.role as any) && (
-            <Link
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-xs font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
-              href="/members/check-in"
-            >
-              <ScanQrCode className="size-4" />
-              Check-In
-            </Link>
-          )}
-        </div>
-
-        {/* {absenceMotivationStatus && <MotivationStatusBox status={absenceMotivationStatus} />} */}
+            <ScanQrCode className="size-4" />
+          </Link>
+        )}
       </div>
 
       {isCodeOpen && <MemberCode member={member} onClose={() => setIsCodeOpen(false)} />}
@@ -105,47 +127,39 @@ function MemberCode(props: { member: MemberCodeUser; onClose: () => void }) {
   const memberCodeUrl = getMemberCodeUrl(member.id)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/25 p-4 backdrop-blur-lg">
-      <div className="relative w-full max-w-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 p-4 backdrop-blur-sm">
+      <div
+        aria-labelledby="member-qr-title"
+        aria-modal="true"
+        className="relative w-full max-w-sm rounded-lg border border-border bg-card p-6 text-card-foreground shadow-2xl sm:p-8"
+        role="dialog"
+      >
         <button
           aria-label="Închide codul QR"
-          className="absolute right-3 top-3 inline-flex size-10 items-center justify-center rounded-md bg-black/70 text-white transition hover:bg-black"
+          className="absolute right-4 top-4 inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
           onClick={onClose}
           type="button"
         >
           <XIcon className="size-5" />
         </button>
 
-        <div className="flex flex-col rounded-xl bg-card px-8 py-10 text-card-foreground shadow-2xl">
-          <h2 className="text-xl font-semibold">Codul tău Triumph</h2>
-          <p className="py-3 text-sm leading-6 text-muted-foreground">
-            Scanează acest cod QR pentru a-ți înregistra prezența la ședințe.
-          </p>
-
-          <div className="my-2 rounded-lg bg-white p-6">
-            <QRCode className="h-auto w-full" value={memberCodeUrl} />
-          </div>
-
-          <p className="mt-3 text-sm text-muted-foreground">{member.name || member.email}</p>
+        <div className="pr-10">
+          <p className="text-sm font-semibold text-muted-foreground">Prezență la întâlnire</p>
+          <h2 id="member-qr-title" className="mt-1 text-2xl font-semibold">
+            Codul tău QR
+          </h2>
         </div>
-      </div>
-    </div>
-  )
-}
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          Prezintă acest cod operatorului pentru a-ți înregistra prezența.
+        </p>
 
-function PanelHeader(props: { title: string; description?: string; icon: ReactNode }) {
-  const { title, description, icon } = props
+        <div className="my-6 rounded-md border border-border bg-white p-5">
+          <QRCode className="h-auto w-full" value={memberCodeUrl} />
+        </div>
 
-  return (
-    <div className="flex items-start gap-4">
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-md bg-accent/15 text-accent">
-        {icon}
-      </div>
-      <div>
-        <h2 className="text-xl font-semibold">{title}</h2>
-        {description && (
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
-        )}
+        <p className="border-t border-border pt-4 text-sm font-medium text-muted-foreground">
+          {member.name || member.email}
+        </p>
       </div>
     </div>
   )
@@ -170,16 +184,17 @@ function AttendanceStatusBox(props: {
   status: Attendance['status'] | undefined
   motivationStatus: AbsenceMotivation['status'] | undefined | null
 }) {
-  const label = attendanceLabel(props.status, props.motivationStatus)
+  const status = getEffectiveMeetingAttendanceStatus(props.status, props.motivationStatus)
+  const label = attendanceLabel(status, props.motivationStatus)
   return (
     label && (
       <div
         className={cn(
-          'inline-flex h-6 items-center justify-center rounded-full border px-3 py-1 text-sm font-semibold',
-          props.status === 'present' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
-          props.status === 'late' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
-          props.status === 'absent' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
-          props.status === 'motivated' && 'border-red-500/25 bg-red-500/10 text-red-500',
+          'inline-flex h-6 items-center justify-center rounded-full border px-2.5 text-xs font-semibold',
+          status === 'present' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
+          status === 'late' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
+          status === 'absent' && 'border-red-500/25 bg-red-500/10 text-red-500',
+          status === 'motivated' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
           props.motivationStatus === 'accepted' &&
             'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
           props.motivationStatus === 'pending' &&
@@ -199,7 +214,7 @@ function MeetingStatusBox(props: { status: MeetingWindowStatus }) {
   return (
     <div
       className={cn(
-        'inline-flex h-6 items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold',
+        'inline-flex h-6 items-center justify-center rounded-full border px-2.5 text-xs font-semibold',
         status === 'upcoming' && 'border-sky-500/25 bg-sky-500/10 text-sky-700',
         status === 'ongoing' && 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600',
         status === 'ended' && 'border-[#f7a81b]/25 bg-[#f7a81b]/10 text-[#c97700]',
@@ -224,7 +239,7 @@ function getMemberCodeUrl(memberId: User['id']) {
 // }
 
 function attendanceLabel(
-  status: Attendance['status'] | undefined,
+  status: Attendance['status'] | null | undefined,
   motivationStatus: AbsenceMotivation['status'] | undefined | null,
 ) {
   if (status === 'present') return 'Prezent/ǎ'

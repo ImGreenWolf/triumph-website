@@ -96,9 +96,7 @@ async function Page() {
       payload.count({
         collection: 'absence-motivations',
         where: {
-          meeting: {
-            equals: meeting.id,
-          },
+          and: [{ meeting: { equals: meeting.id } }, { status: { equals: 'accepted' } }],
         },
       }),
     ])

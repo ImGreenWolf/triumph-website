@@ -14,6 +14,11 @@ type MeetingWithTiming = Pick<
 >
 type MeetingMember = Pick<User, 'id' | 'joinedAt'>
 
+export type MeetingMemberAttendance = {
+  memberId: string
+  status: Attendance['status']
+}
+
 export function getRelationId(value: string | { id: string }) {
   return typeof value === 'string' ? value : value.id
 }
@@ -25,6 +30,51 @@ export function isMemberEligibleForMeeting(
   return new Date(member.joinedAt).getTime() <= new Date(meeting.meetingDate).getTime()
 }
 
+export function getEffectiveMeetingAttendanceStatus(
+  attendanceStatus: Attendance['status'] | null | undefined,
+  motivationStatus: AbsenceMotivation['status'] | null | undefined,
+) {
+  if (
+    motivationStatus === 'accepted' &&
+    attendanceStatus !== 'present' &&
+    attendanceStatus !== 'late'
+  ) {
+    return 'motivated' as const
+  }
+
+  return attendanceStatus ?? null
+}
+
+export function calculateMeetingMemberAttendance(args: {
+  attendance: MeetingAttendanceRecord[]
+  meeting: MeetingWithTiming
+  motivations: MeetingMotivationRecord[]
+  now?: Date
+  members: MeetingMember[]
+}): MeetingMemberAttendance[] {
+  const { attendance, meeting, motivations, members, now = new Date() } = args
+
+  if (!canCalculateMeetingAbsences(meeting, now)) return []
+
+  const attendanceByMember = new Map(
+    attendance.map((record) => [getRelationId(record.member), record.status]),
+  )
+  const motivationByMember = new Map(
+    motivations.map((motivation) => [getRelationId(motivation.member), motivation.status]),
+  )
+
+  return members
+    .filter((member) => isMemberEligibleForMeeting(member, meeting))
+    .map((member) => ({
+      memberId: member.id,
+      status:
+        getEffectiveMeetingAttendanceStatus(
+          attendanceByMember.get(member.id),
+          motivationByMember.get(member.id),
+        ) ?? 'absent',
+    }))
+}
+
 export function calculateMeetingAbsenteeIds(args: {
   attendance: MeetingAttendanceRecord[]
   meeting: MeetingWithTiming
@@ -32,28 +82,9 @@ export function calculateMeetingAbsenteeIds(args: {
   now?: Date
   members: MeetingMember[]
 }) {
-  const { attendance, meeting, motivations, members, now = new Date() } = args
-
-  if (!canCalculateMeetingAbsences(meeting, now)) return []
-
-  const excludedMemberIds = new Set<string>()
-
-  attendance.forEach((record) => {
-    if (record.status !== 'absent') {
-      excludedMemberIds.add(getRelationId(record.member))
-    }
-  })
-
-  motivations.forEach((motivation) => {
-    if (motivation.status === 'accepted') {
-      excludedMemberIds.add(getRelationId(motivation.member))
-    }
-  })
-
-  return members
-    .filter((member) => isMemberEligibleForMeeting(member, meeting))
-    .map((member) => member.id)
-    .filter((memberId) => !excludedMemberIds.has(memberId))
+  return calculateMeetingMemberAttendance(args)
+    .filter((record) => record.status === 'absent')
+    .map((record) => record.memberId)
 }
 
 export async function getMeetingAbsenteeIds(

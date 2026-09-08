@@ -877,7 +877,7 @@ export interface Meeting {
     };
   };
   /**
-   * Calculat după încheierea întâlnirii. Exclude absențele motivate acceptate.
+   * Calculat după încheierea întâlnirii. Exclude prezenții, întârziații și absențele motivate acceptate.
    */
   absentees?: (string | User)[] | null;
   updatedAt: string;

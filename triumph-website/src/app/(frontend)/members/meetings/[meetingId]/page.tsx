@@ -4,6 +4,7 @@ import { getPayload } from 'payload'
 import payloadConfig from '@payload-config'
 
 import { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
+import { getEffectiveMeetingAttendanceStatus } from '@/utilities/meetingAttendance'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
 import {
   canCalculateMeetingAbsences,
@@ -114,7 +115,11 @@ export default async function MeetingPage(props: Props) {
         return attendanceMember === member.id
       })
     : null
-  const memberAttendanceStatus = getMeetingAttendanceStatus(meeting, memberAttendance?.status, now)
+  const memberAttendanceStatus = getMeetingAttendanceStatus(
+    meeting,
+    getEffectiveMeetingAttendanceStatus(memberAttendance?.status, existingMotivation?.status),
+    now,
+  )
   const memberAttendanceLabel = !member
     ? 'Autentifică-te'
     : memberAttendanceStatus

@@ -3,7 +3,12 @@ import type { CollectionConfig } from 'payload'
 
 import type { Attendance } from '@/payload-types'
 import { authenticated } from '@/access/authenticated'
-import { hasBoardRole, hasSecretaryRole, isBoardMember, isSecretary } from '@/utilities/membersAccess'
+import {
+  hasBoardRole,
+  hasSecretaryRole,
+  isBoardMember,
+  isSecretary,
+} from '@/utilities/membersAccess'
 
 const getRelationshipID = (value: unknown) => {
   if (typeof value === 'string') return value
@@ -19,8 +24,8 @@ const allowManual = true
 export const AbsenceMotivations: CollectionConfig = {
   slug: 'absence-motivations',
   labels: {
-    plural: "Absențe Motivate",
-    singular: "Motivatre",
+    plural: 'Absențe Motivate',
+    singular: 'Motivatre',
   },
   access: {
     admin: hasBoardRole,
@@ -29,7 +34,7 @@ export const AbsenceMotivations: CollectionConfig = {
     read: authenticated,
     // ({ req }) => {
     //   if (!req.user) return false
-    //   if (isSecretary(req.user)) return true
+    //   if (isBoardMember(req.user)) return true
 
     //   return false
     //   //  {
@@ -52,7 +57,6 @@ export const AbsenceMotivations: CollectionConfig = {
     defaultColumns: ['member', 'meeting', 'status', 'memberMessage', 'reviewActions', 'reviewedAt'],
     group: 'Club Administration',
     useAsTitle: 'id',
-    
   },
 
   hooks: {
@@ -61,9 +65,10 @@ export const AbsenceMotivations: CollectionConfig = {
         // member dashboard motivation
         console.log(data)
         if (operation !== 'create') return data
-        if (!req.user) throw new APIError('Trebuie să fii autentificat pentru a trimite o motivare.', 401)
+        if (!req.user)
+          throw new APIError('Trebuie să fii autentificat pentru a trimite o motivare.', 401)
 
-        if(data && data.status == "accepted") return data;
+        if (data && data.status == 'accepted') return data
         return {
           ...data,
           member: req.user.id,
@@ -80,7 +85,7 @@ export const AbsenceMotivations: CollectionConfig = {
         if (operation === 'create') {
           const member = getRelationshipID(data.member)
           const meeting = getRelationshipID(data.meeting)
-          
+
           if (member && meeting) {
             const attendance = await req.payload.find({
               collection: 'attendance',
@@ -100,7 +105,7 @@ export const AbsenceMotivations: CollectionConfig = {
               },
               limit: 1,
               req,
-              pagination: false
+              pagination: false,
             })
             const existingAttendance = attendance.docs[0] as Attendance | undefined
 
@@ -142,15 +147,15 @@ export const AbsenceMotivations: CollectionConfig = {
               },
               limit: 1,
               req,
-              pagination: false
+              pagination: false,
             })
             const existingAttendance = attendance.docs[0] as Attendance | undefined
 
-            if (
-              existingAttendance?.status === 'present' ||
-              existingAttendance?.status === 'late'
-            ) {
-              throw new APIError('Un membru deja prezent sau întârziat nu poate fi marcat absent motivat.', 400)
+            if (existingAttendance?.status === 'present' || existingAttendance?.status === 'late') {
+              throw new APIError(
+                'Un membru deja prezent sau întârziat nu poate fi marcat absent motivat.',
+                400,
+              )
             }
           }
         }
@@ -163,74 +168,104 @@ export const AbsenceMotivations: CollectionConfig = {
       },
     ],
     afterChange: [
-      // async ({ doc, operation, previousDoc, req }) => {
-      //   if (operation !== 'update' || doc.status === previousDoc.status) return doc
+      async ({ doc, previousDoc, req }) => {
+        const member = getRelationshipID(doc.member)
+        const meeting = getRelationshipID(doc.meeting)
 
-      //   const member = getRelationshipID(doc.member)
-      //   const meeting = getRelationshipID(doc.meeting)
+        if (!member || !meeting) return doc
 
-      //   if (!member || !meeting) return doc
+        const attendanceDocs = await req.payload.find({
+          collection: 'attendance',
+          where: {
+            and: [{ member: { equals: member } }, { meeting: { equals: meeting } }],
+          },
+          limit: 1,
+          pagination: false,
+          req,
+        })
+        const existingAttendance = attendanceDocs.docs[0] as Attendance | undefined
 
-      //   // const attendance = await req.payload.find({
-      //   //   collection: 'attendance',
-      //   //   where: {
-      //   //     and: [
-      //   //       {
-      //   //         member: {
-      //   //           equals: member,
-      //   //         },
-      //   //       },
-      //   //       {
-      //   //         meeting: {
-      //   //           equals: meeting,
-      //   //         },
-      //   //       },
-      //   //     ],
-      //   //   },
-      //   //   limit: 1,
-      //   //   req,
-      //   // })
-      //   // const existingAttendance = attendance.docs[0] as Attendance | undefined
+        if (doc.status === 'accepted') {
+          const data = {
+            issuedBy: getRelationshipID(req.user),
+            member,
+            meeting,
+            motivationReason: doc.memberMessage,
+            status: 'motivated' as const,
+          }
 
-      //   // if (doc.status === 'accepted') {
-      //   //   const reviewer = getRelationshipID(req.user)
-      //   //   const data = {
-      //   //     member,
-      //   //     meeting,
-      //   //     issuedBy: reviewer,
-      //   //     motivationReason: doc.memberMessage,
-      //   //     status: 'motivated' as const,
-      //   //   }
+          if (existingAttendance) {
+            await req.payload.update({
+              collection: 'attendance',
+              id: existingAttendance.id,
+              data,
+              req,
+            })
+          } else {
+            await req.payload.create({
+              collection: 'attendance',
+              data,
+              req,
+            })
+          }
+        } else if (
+          previousDoc?.status === 'accepted' &&
+          existingAttendance?.status === 'motivated'
+        ) {
+          await req.payload.update({
+            collection: 'attendance',
+            id: existingAttendance.id,
+            data: {
+              issuedBy: null,
+              motivationReason: null,
+              status: 'absent',
+            },
+            req,
+          })
+        }
 
-      //   //   if (existingAttendance) {
-      //   //     await req.payload.update({
-      //   //       collection: 'attendance',
-      //   //       id: existingAttendance.id,
-      //   //       data,
-      //   //       req,
-      //   //     })
-      //   //   } else {
-      //   //     await req.payload.create({
-      //   //       collection: 'attendance',
-      //   //       data,
-      //   //       req,
-      //   //     })
-      //   //   }
-      //   // } else if (previousDoc.status === 'accepted' && existingAttendance?.status === 'motivated') {
-      //   //   await req.payload.update({
-      //   //     collection: 'attendance',
-      //   //     id: existingAttendance.id,
-      //   //     data: {
-      //   //       issuedBy: null,
-      //   //       motivationReason: null,
-      //   //       status: 'absent',
-      //   //     },
-      //   //     req,
-      //   //   })
-      //   // }
+        return doc
+      },
+    ],
+    afterDelete: [
+      async ({ doc, req }) => {
+        if (doc.status !== 'accepted') return doc
 
-      //   return doc
-      // },
+        const member = getRelationshipID(doc.member)
+        const meeting = getRelationshipID(doc.meeting)
+
+        if (!member || !meeting) return doc
+
+        const attendanceDocs = await req.payload.find({
+          collection: 'attendance',
+          where: {
+            and: [
+              { member: { equals: member } },
+              { meeting: { equals: meeting } },
+              { status: { equals: 'motivated' } },
+            ],
+          },
+          limit: 1,
+          pagination: false,
+          req,
+        })
+        const existingAttendance = attendanceDocs.docs[0] as Attendance | undefined
+
+        if (existingAttendance) {
+          await req.payload.update({
+            collection: 'attendance',
+            id: existingAttendance.id,
+            data: {
+              issuedBy: null,
+              motivationReason: null,
+              status: 'absent',
+            },
+            req,
+          })
+        }
+
+        return doc
+      },
     ],
   },
 
@@ -241,8 +276,8 @@ export const AbsenceMotivations: CollectionConfig = {
       relationTo: 'users',
       required: true,
       access: {
-        create: ({ req }) => isSecretary(req.user) && allowManual,
-        update: ({ req }) => isSecretary(req.user) && allowManual,
+        create: ({ req }) => isBoardMember(req.user) && allowManual,
+        update: ({ req }) => isBoardMember(req.user) && allowManual,
       },
     },
     {
@@ -251,16 +286,18 @@ export const AbsenceMotivations: CollectionConfig = {
       relationTo: 'meetings',
       required: true,
       access: {
-        update: ({ req }) => isSecretary(req.user) && allowManual,
+        update: ({ req }) => isBoardMember(req.user) && allowManual,
       },
-      defaultValue: async ({req}) => (await req.payload.find({collection: 'meetings', sort: '-meetingDate', limit: 1, req})).docs[0]
+      defaultValue: async ({ req }) =>
+        (await req.payload.find({ collection: 'meetings', sort: '-meetingDate', limit: 1, req }))
+          .docs[0],
     },
     {
       name: 'memberMessage',
       type: 'textarea',
       label: 'Motivul cererii de motivăre a absenței din partea membrului.',
       access: {
-        update: ({ req }) => isSecretary(req.user) && allowManual,
+        update: ({ req }) => isBoardMember(req.user) && allowManual,
       },
     },
     {
@@ -283,8 +320,8 @@ export const AbsenceMotivations: CollectionConfig = {
         },
       ],
       access: {
-        create: ({ req }) => isSecretary(req.user) && allowManual,
-        update: ({ req }) => isSecretary(req.user),
+        create: ({ req }) => isBoardMember(req.user) && allowManual,
+        update: ({ req }) => isBoardMember(req.user),
       },
     },
     {
@@ -296,8 +333,8 @@ export const AbsenceMotivations: CollectionConfig = {
         description: 'Necesar pentru a refuza cererea. Apare in contul membrului.',
       },
       access: {
-        create: ({ req }) => isSecretary(req.user) && allowManual,
-        update: ({ req }) => isSecretary(req.user),
+        create: ({ req }) => isBoardMember(req.user) && allowManual,
+        update: ({ req }) => isBoardMember(req.user),
       },
     },
     {
@@ -311,7 +348,7 @@ export const AbsenceMotivations: CollectionConfig = {
         create: () => false,
         update: () => false,
       },
-      defaultValue: (req) => req.user?.id
+      defaultValue: (req) => req.user?.id,
     },
     {
       name: 'reviewedAt',

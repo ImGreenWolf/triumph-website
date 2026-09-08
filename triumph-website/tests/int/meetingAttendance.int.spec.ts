@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Meeting } from '@/payload-types'
-import { calculateMeetingAbsenteeIds } from '@/utilities/meetingAttendance'
+import {
+  calculateMeetingAbsenteeIds,
+  calculateMeetingMemberAttendance,
+} from '@/utilities/meetingAttendance'
 
 const meeting = {
   durationMinutes: 90,
@@ -34,6 +37,18 @@ describe('meeting absentee calculation', () => {
     })
 
     expect(absentees).toEqual(['explicit-absent-member', 'missing-attendance-member'])
+  })
+
+  it('treats an accepted motivation as motivated even when attendance is still absent', () => {
+    const records = calculateMeetingMemberAttendance({
+      attendance: [{ member: 'member-1', status: 'absent' }],
+      meeting,
+      motivations: [{ member: 'member-1', status: 'accepted' }],
+      members: [{ id: 'member-1', joinedAt: '2026-02-01T10:00:00.000Z' }],
+      now: new Date('2026-03-01T11:30:00.000Z'),
+    })
+
+    expect(records).toEqual([{ memberId: 'member-1', status: 'motivated' }])
   })
 
   it('does not calculate absentees while the meeting is ongoing', () => {

@@ -1,7 +1,8 @@
 import type { Payload } from 'payload'
 
-import type { Attendance, Meeting, User } from '@/payload-types'
+import type { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
 import {
+  calculateMeetingMemberAttendance,
   isMemberEligibleForMeeting,
   meetingAttendanceMemberRoles,
 } from '@/utilities/meetingAttendance'
@@ -44,7 +45,7 @@ async function getPresenceSource(
   rotaryYearStart = getRotaryYearStart(now),
 ) {
   const bounds = getRotaryYearQueryBounds(rotaryYearStart, now)
-  const [membersDocs, meetingsDocs, attendanceDocs] = await Promise.all([
+  const [membersDocs, meetingsDocs, attendanceDocs, motivationDocs] = await Promise.all([
     payload.find({
       collection: 'users',
       depth: 0,
@@ -76,6 +77,17 @@ async function getPresenceSource(
       limit: 10000,
       pagination: false,
     }),
+    payload.find({
+      collection: 'absence-motivations',
+      depth: 0,
+      limit: 10000,
+      pagination: false,
+      where: {
+        status: {
+          equals: 'accepted',
+        },
+      },
+    }),
   ])
 
   return {
@@ -84,6 +96,7 @@ async function getPresenceSource(
       canCalculateMeetingAbsences(meeting, now),
     ),
     members: membersDocs.docs as User[],
+    motivations: motivationDocs.docs as AbsenceMotivation[],
   }
 }
 
@@ -91,23 +104,20 @@ function calculateMeetingPoint(args: {
   attendance: Attendance[]
   meeting: Meeting
   members: User[]
+  motivations: AbsenceMotivation[]
 }): MeetingPresencePoint {
-  const { attendance, meeting, members } = args
+  const { attendance, meeting, members, motivations } = args
   const eligibleMembers = members.filter((member) => isMemberEligibleForMeeting(member, meeting))
-  const eligibleMemberIds = new Set(eligibleMembers.map((member) => getRelationId(member.id)))
   const counts = emptyCounts()
-  const seenMembers = new Set<string>()
 
-  attendance.forEach((record) => {
-    const memberId = getRelationId(record.member)
-
-    if (!eligibleMemberIds.has(memberId) || seenMembers.has(memberId)) return
-
+  calculateMeetingMemberAttendance({
+    attendance,
+    meeting,
+    members: eligibleMembers,
+    motivations,
+  }).forEach((record) => {
     counts[record.status] += 1
-    seenMembers.add(memberId)
   })
-
-  counts.absent += Math.max(0, eligibleMembers.length - seenMembers.size)
 
   const effectiveTotal = Math.max(0, eligibleMembers.length - counts.motivated)
   const rate = percentage(counts.present + counts.late, effectiveTotal)
@@ -127,33 +137,31 @@ export async function getPresenceOverview(
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
 ): Promise<PresenceOverview> {
-  const { attendance, meetings, members } = await getPresenceSource(payload, now, rotaryYearStart)
-  const memberById = new Map(members.map((member) => [getRelationId(member.id), member]))
-  const meetingById = new Map(meetings.map((meeting) => [getRelationId(meeting.id), meeting]))
-  const counts = emptyCounts()
-  const seen = new Set<string>()
-  const expectedRecords = meetings.reduce(
-    (total, meeting) =>
-      total + members.filter((member) => isMemberEligibleForMeeting(member, meeting)).length,
-    0,
+  const { attendance, meetings, members, motivations } = await getPresenceSource(
+    payload,
+    now,
+    rotaryYearStart,
   )
+  const counts = emptyCounts()
+  let expectedRecords = 0
 
-  attendance.forEach((record) => {
-    const memberId = getRelationId(record.member)
-    const meetingId = getRelationId(record.meeting)
-    const member = memberById.get(memberId)
-    const meeting = meetingById.get(meetingId)
+  meetings.forEach((meeting) => {
+    const meetingId = getRelationId(meeting.id)
+    const records = calculateMeetingMemberAttendance({
+      attendance: attendance.filter((record) => getRelationId(record.meeting) === meetingId),
+      meeting,
+      members,
+      motivations: motivations.filter(
+        (motivation) => getRelationId(motivation.meeting) === meetingId,
+      ),
+      now,
+    })
 
-    if (!member || !meeting || !isMemberEligibleForMeeting(member, meeting)) return
-
-    const attendanceKey = `${meetingId}:${memberId}`
-    if (seen.has(attendanceKey)) return
-
-    counts[record.status] += 1
-    seen.add(attendanceKey)
+    expectedRecords += records.length
+    records.forEach((record) => {
+      counts[record.status] += 1
+    })
   })
-
-  counts.absent += Math.max(0, expectedRecords - seen.size)
 
   const effectiveRecords = Math.max(0, expectedRecords - counts.motivated)
 
@@ -172,9 +180,14 @@ export async function getPresenceGraphData(
   limit = 8,
   rotaryYearStart = getRotaryYearStart(now),
 ) {
-  const { attendance, meetings, members } = await getPresenceSource(payload, now, rotaryYearStart)
+  const { attendance, meetings, members, motivations } = await getPresenceSource(
+    payload,
+    now,
+    rotaryYearStart,
+  )
   const latestMeetings = meetings.slice(-limit)
   const attendanceByMeeting = new Map<string, Attendance[]>()
+  const motivationsByMeeting = new Map<string, AbsenceMotivation[]>()
 
   attendance.forEach((record) => {
     const meetingId = getRelationId(record.meeting)
@@ -184,11 +197,20 @@ export async function getPresenceGraphData(
     attendanceByMeeting.set(meetingId, meetingAttendance)
   })
 
+  motivations.forEach((motivation) => {
+    const meetingId = getRelationId(motivation.meeting)
+    const meetingMotivations = motivationsByMeeting.get(meetingId) ?? []
+
+    meetingMotivations.push(motivation)
+    motivationsByMeeting.set(meetingId, meetingMotivations)
+  })
+
   return latestMeetings.map((meeting) =>
     calculateMeetingPoint({
       attendance: attendanceByMeeting.get(getRelationId(meeting.id)) ?? [],
       meeting,
       members,
+      motivations: motivationsByMeeting.get(getRelationId(meeting.id)) ?? [],
     }),
   )
 }

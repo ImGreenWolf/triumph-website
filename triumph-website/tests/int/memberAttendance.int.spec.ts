@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Payload } from 'payload'
 
-import type { Attendance, Meeting, User } from '@/payload-types'
+import type { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
 
 const member = {
@@ -119,5 +119,53 @@ describe('getMemberAttendanceSummary', () => {
       totalMeetings: 0,
     })
     expect(summary.records).toHaveLength(0)
+  })
+
+  it('uses an accepted motivation even when the stored attendance status is absent', async () => {
+    const endedMeeting = {
+      durationMinutes: 60,
+      endedBufferMinutes: 60,
+      id: 'meeting-motivated',
+      meetingDate: '2026-02-01T10:00:00.000Z',
+    } as Meeting
+    const attendance = [
+      {
+        id: 'attendance-motivated',
+        meeting: endedMeeting,
+        status: 'absent',
+      },
+    ] as Attendance[]
+    const motivations = [
+      {
+        id: 'motivation-1',
+        meeting: endedMeeting,
+        status: 'accepted',
+      },
+    ] as AbsenceMotivation[]
+    const payload = {
+      find: vi.fn(({ collection }) =>
+        Promise.resolve({
+          docs:
+            collection === 'meetings'
+              ? [endedMeeting]
+              : collection === 'attendance'
+                ? attendance
+                : motivations,
+        }),
+      ),
+    } as unknown as Payload
+
+    const summary = await getMemberAttendanceSummary(
+      payload,
+      member,
+      new Date('2026-02-01T12:00:00.000Z'),
+    )
+
+    expect(summary).toMatchObject({
+      absentMeetings: 0,
+      motivatedMeetings: 1,
+      totalMeetings: 1,
+    })
+    expect(summary.records[0]?.status).toBe('motivated')
   })
 })
