@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Meeting } from '@/payload-types'
-import { getMeetingCheckInAttendanceStatus, getMeetingWindow } from '@/utilities/meetingTime'
+import {
+  canCalculateMeetingAbsences,
+  getMeetingAttendanceStatus,
+  getMeetingCheckInAttendanceStatus,
+  getMeetingWindow,
+} from '@/utilities/meetingTime'
 
 const meeting = {
   durationMinutes: 90,
@@ -30,6 +35,20 @@ describe('meeting time windows', () => {
     )
     expect(
       getMeetingCheckInAttendanceStatus(meeting, new Date('2026-03-01T11:45:00.000Z')),
+    ).toBeNull()
+  })
+
+  it('only infers an absence after the configured duration has ended', () => {
+    expect(canCalculateMeetingAbsences(meeting, new Date('2026-03-01T11:29:00.000Z'))).toBe(false)
+    expect(canCalculateMeetingAbsences(meeting, new Date('2026-03-01T11:30:00.000Z'))).toBe(true)
+    expect(
+      getMeetingAttendanceStatus(meeting, undefined, new Date('2026-03-01T11:29:00.000Z')),
+    ).toBeNull()
+    expect(
+      getMeetingAttendanceStatus(meeting, undefined, new Date('2026-03-01T11:30:00.000Z')),
+    ).toBe('absent')
+    expect(
+      getMeetingAttendanceStatus(meeting, 'absent', new Date('2026-03-01T11:29:00.000Z')),
     ).toBeNull()
   })
 

@@ -1,5 +1,6 @@
 import { authenticated } from '@/access/authenticated'
 import { locationField } from '@/fields/location-selector/field'
+import { getMeetingAbsenteeIds } from '@/utilities/meetingAttendance'
 import { getMeetingWindow } from '@/utilities/meetingTime'
 import type { CollectionConfig } from 'payload'
 
@@ -41,12 +42,11 @@ export const Meetings: CollectionConfig = {
     {
       name: 'durationMinutes',
       type: 'number',
-      label: 'Meeting duration (minutes)',
+      label: 'Durata Întâlnirii (minutes)',
       required: true,
       defaultValue: 60,
       min: 1,
       admin: {
-        description: 'How long the meeting remains ongoing after the start time.',
         step: 5,
       },
     },
@@ -58,8 +58,7 @@ export const Meetings: CollectionConfig = {
       defaultValue: 60,
       min: 0,
       admin: {
-        description:
-          'How long the meeting remains visible with ended status after the duration expires.',
+        description: 'Cat mai este vizibilă ședința după ce s-a terminat.',
         step: 5,
       },
     },
@@ -87,7 +86,7 @@ export const Meetings: CollectionConfig = {
         },
       ],
       admin: {
-        description: 'Calculated from the start time, duration, and ended buffer.',
+        description: 'Statusul întâlnirii.',
         position: 'sidebar',
         readOnly: true,
       },
@@ -108,50 +107,84 @@ export const Meetings: CollectionConfig = {
       type: 'textarea',
     },
     {
-      name: 'attendance',
-      label: 'Meeting attendance',
-      type: 'join',
-      virtual: true,
-      collection: 'attendance',
-      on: 'meeting',
-      admin: {
-        defaultColumns: ['member', 'status'],
-        position: 'sidebar',
-        components: {
-          Cell: {
-            path: '@/components/MembersCell/MeetingAttendenceCell.tsx',
-          },
-          Label: {
-            path: '@/components/MembersCell/MeetingAttendenceLabel.tsx',
-          },
-        },
-      },
-    },
-    {
-      name: 'absenceMotivations',
-      type: 'join',
-      virtual: true,
-      collection: 'absence-motivations',
-      on: 'meeting',
-      admin: {
-        defaultColumns: ['member', 'status', 'reviewedAt'],
-        position: 'sidebar',
-      },
-    },
-
-    {
       name: 'notes',
       type: 'richText',
     },
     {
-      name: 'checkInLink',
-      type: 'ui',
-      admin: {
-        components: {
-          Field: '@/components/payload/MeetingCheckInField',
+      type: 'tabs',
+      tabs: [
+        {
+          name: 'Prezenți',
+          fields: [
+            {
+              name: 'attendance',
+              label: 'Meeting attendance',
+              type: 'join',
+              virtual: true,
+              collection: 'attendance',
+              on: 'meeting',
+              admin: {
+                defaultColumns: ['member', 'status'],
+                position: 'sidebar',
+                components: {
+                  Cell: {
+                    path: '@/components/MembersCell/MeetingAttendenceCell.tsx',
+                  },
+                  Label: {
+                    path: '@/components/MembersCell/MeetingAttendenceLabel.tsx',
+                  },
+                },
+              },
+            },
+          ],
         },
-      },
+        {
+          name: 'Motivați',
+          fields: [
+            {
+              name: 'absenceMotivations',
+              type: 'join',
+              virtual: true,
+              collection: 'absence-motivations',
+              on: 'meeting',
+              admin: {
+                defaultColumns: ['member', 'status', 'reviewedAt'],
+
+              },
+            },
+          ],
+        },
+      ],
     },
+    {
+              name: 'absentees',
+              label: 'Absenți',
+              type: 'relationship',
+              relationTo: 'users',
+              hasMany: true,
+              virtual: true,
+              admin: {
+                description:
+                  'Calculat după încheierea întâlnirii. Exclude absențele motivate acceptate.',
+                position: 'sidebar',
+                readOnly: true,
+              },
+              hooks: {
+                afterRead: [
+                  async ({ req, siblingData }) => {
+                    if (!siblingData.id || !siblingData.meetingDate) return []
+
+                    return getMeetingAbsenteeIds(req.payload, {
+                      durationMinutes: siblingData.durationMinutes,
+                      endedBufferMinutes: siblingData.endedBufferMinutes,
+                      id: siblingData.id,
+                      meetingDate: siblingData.meetingDate,
+                    })
+                  },
+                ],
+              },
+            },
+
   ],
 
   timestamps: true,

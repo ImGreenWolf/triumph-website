@@ -103,8 +103,8 @@ export interface Config {
       absenceMotivations: 'absence-motivations';
     };
     meetings: {
-      attendance: 'attendance';
-      absenceMotivations: 'absence-motivations';
+      'Prezenți.attendance': 'attendance';
+      'Motivați.absenceMotivations': 'absence-motivations';
     };
     events: {
       registrations: 'event-registrations';
@@ -828,16 +828,13 @@ export interface Attendance {
 export interface Meeting {
   id: string;
   meetingDate: string;
-  /**
-   * How long the meeting remains ongoing after the start time.
-   */
   durationMinutes: number;
   /**
-   * How long the meeting remains visible with ended status after the duration expires.
+   * Cat mai este vizibilă ședința după ce s-a terminat.
    */
   endedBufferMinutes: number;
   /**
-   * Calculated from the start time, duration, and ended buffer.
+   * Statusul întâlnirii.
    */
   status?: ('upcoming' | 'ongoing' | 'ended' | 'expired') | null;
   location?:
@@ -850,16 +847,6 @@ export interface Meeting {
     | boolean
     | null;
   description?: string | null;
-  attendance?: {
-    docs?: (string | Attendance)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  absenceMotivations?: {
-    docs?: (string | AbsenceMotivation)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   notes?: {
     root: {
       type: string;
@@ -875,6 +862,24 @@ export interface Meeting {
     };
     [k: string]: unknown;
   } | null;
+  Prezenți?: {
+    attendance?: {
+      docs?: (string | Attendance)[];
+      hasNextPage?: boolean;
+      totalDocs?: number;
+    };
+  };
+  Motivați?: {
+    absenceMotivations?: {
+      docs?: (string | AbsenceMotivation)[];
+      hasNextPage?: boolean;
+      totalDocs?: number;
+    };
+  };
+  /**
+   * Calculat după încheierea întâlnirii. Exclude absențele motivate acceptate.
+   */
+  absentees?: (string | User)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -3355,9 +3360,18 @@ export interface MeetingsSelect<T extends boolean = true> {
   status?: T;
   location?: T;
   description?: T;
-  attendance?: T;
-  absenceMotivations?: T;
   notes?: T;
+  Prezenți?:
+    | T
+    | {
+        attendance?: T;
+      };
+  Motivați?:
+    | T
+    | {
+        absenceMotivations?: T;
+      };
+  absentees?: T;
   updatedAt?: T;
   createdAt?: T;
 }

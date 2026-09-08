@@ -1,5 +1,11 @@
 import type { UploadField } from '@payloadcms/plugin-form-builder/types'
-import type { FieldErrorsImpl, FieldValues, UseFormRegister } from 'react-hook-form'
+import {
+  type FieldErrorsImpl,
+  type FieldValues,
+  type UseFormRegister,
+  useFormContext,
+  useWatch,
+} from 'react-hook-form'
 
 import { UploadCloud } from 'lucide-react'
 import React from 'react'
@@ -19,6 +25,8 @@ export const Upload: React.FC<
 > = ({ name, errors, label, maxFileSize, mimeTypes, multiple, register, required, width }) => {
   const acceptedMimeTypes = mimeTypes?.map(({ mimeType }) => mimeType).filter(Boolean) ?? []
   const accept = acceptedMimeTypes.length > 0 ? acceptedMimeTypes.join(',') : undefined
+  const { control } = useFormContext()
+  const selectedFiles = getFiles(useWatch({ control, name }))
 
   return (
     <Width width={width}>
@@ -56,6 +64,11 @@ export const Upload: React.FC<
             />
           </div>
         </div>
+        {selectedFiles.length > 0 && (
+          <p className="mt-3 text-xs font-medium text-muted-foreground">
+            {selectedFiles.map((file) => file.name).join(', ')}
+          </p>
+        )}
       </div>
       {errors[name] && <Error name={name} />}
     </Width>

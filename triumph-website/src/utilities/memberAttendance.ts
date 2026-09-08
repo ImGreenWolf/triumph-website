@@ -1,7 +1,7 @@
 import type { Payload } from 'payload'
 
 import type { Attendance, Meeting, User } from '@/payload-types'
-import { isMeetingConcluded } from '@/utilities/meetingTime'
+import { canCalculateMeetingAbsences, getMeetingAttendanceStatus } from '@/utilities/meetingTime'
 import { getRotaryYearQueryBounds, getRotaryYearStart } from '@/utilities/rotaryYear'
 
 export async function getMemberAttendanceSummary(
@@ -52,19 +52,23 @@ export async function getMemberAttendanceSummary(
   const records = meetings
     .filter((meeting) => {
       const existingRecord = attendanceByMeeting.get(meeting.id)
+      const status = getMeetingAttendanceStatus(meeting, existingRecord?.status, now)
 
-      return isMeetingConcluded(meeting, now) || existingRecord?.status === 'motivated'
+      return canCalculateMeetingAbsences(meeting, now) || status === 'motivated'
     })
     .map((meeting) => {
       const existingRecord = attendanceByMeeting.get(meeting.id)
 
       return {
         meeting,
-        status: existingRecord?.status || ('absent' as const),
+        status:
+          getMeetingAttendanceStatus(meeting, existingRecord?.status, now) || ('absent' as const),
       }
     })
 
-  const historicalRecords = records.filter((record) => isMeetingConcluded(record.meeting, now))
+  const historicalRecords = records.filter((record) =>
+    canCalculateMeetingAbsences(record.meeting, now),
+  )
   const totalMeetings = historicalRecords.length
   const presentMeetings = records.filter((record) => record.status === 'present').length
   const lateMeetings = records.filter((record) => record.status === 'late').length

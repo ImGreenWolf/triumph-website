@@ -2,8 +2,8 @@
 import type { FormFieldBlock, Form as FormType } from '@payloadcms/plugin-form-builder/types'
 
 import { useRouter } from 'next/navigation'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useForm, FormProvider, type FieldValues } from 'react-hook-form'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useForm, FormProvider, type FieldValues, useWatch } from 'react-hook-form'
 import RichText from '@/components/RichText'
 import { Button } from '@/components/ui/button'
 import type { DefaultTypedEditorState } from '@payloadcms/richtext-lexical'
@@ -13,6 +13,8 @@ import { fields } from './fields'
 import { getClientSideURL } from '@/utilities/getURL'
 import { FormBlock as FormBlockProps } from '@/payload-types'
 import { Media } from '@/components/Media'
+
+import { clearFormDraft, loadFormDraft, saveFormDraft } from './draftStorage'
 export type FormBlockType = {
   blockName?: string
   blockType?: 'formBlock'
@@ -48,10 +50,14 @@ export const FormBlock: React.FC<
     formState: { errors },
     handleSubmit,
     register,
+    reset,
   } = formMethods
+  const watchedValues = useWatch({ control })
 
   const [isLoading, setIsLoading] = useState(false)
   const [hasSubmitted, setHasSubmitted] = useState<boolean>()
+  const [draftStatus, setDraftStatus] = useState<'error' | 'idle' | 'saved' | 'saving'>('idle')
+  const [isDraftHydrated, setIsDraftHydrated] = useState(false)
   const [error, setError] = useState<{ message: string; status?: string } | undefined>()
   const [recruitmentWindow, setRecruitmentWindow] = useState<{
     isOpen: boolean
@@ -59,6 +65,10 @@ export const FormBlock: React.FC<
     message: string
   } | null>(null)
   const router = useRouter()
+  const draftWrite = useRef(Promise.resolve())
+  const isDraftFinalized = useRef(false)
+  const draftSaveSequence = useRef(0)
+  const isRecruitmentForm = recruitmentWindow?.isRecruitmentForm === true
 
   useEffect(() => {
     if (!formID) return
@@ -86,6 +96,93 @@ export const FormBlock: React.FC<
       active = false
     }
   }, [formID])
+
+  useEffect(() => {
+    if (!formID || !isRecruitmentForm) {
+      isDraftFinalized.current = false
+      setIsDraftHydrated(false)
+      setDraftStatus('idle')
+      return
+    }
+
+    let active = true
+    setIsDraftHydrated(false)
+
+    void loadFormDraft(formID)
+      .then((draft) => {
+        if (!active) return
+
+        if (draft?.values) {
+          reset({ ...defaultValues, ...draft.values })
+          setDraftStatus(hasDraftContent(draft.values) ? 'saved' : 'idle')
+        }
+
+        setIsDraftHydrated(true)
+      })
+      .catch(() => {
+        if (!active) return
+
+        setDraftStatus('error')
+        setIsDraftHydrated(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [defaultValues, formID, isRecruitmentForm, reset])
+
+  useEffect(() => {
+    if (
+      !formID ||
+      !isRecruitmentForm ||
+      !isDraftHydrated ||
+      hasSubmitted ||
+      isDraftFinalized.current
+    ) {
+      return
+    }
+
+    const values = getDraftValues(formFromProps.fields, watchedValues)
+    const saveSequence = ++draftSaveSequence.current
+    const timeout = window.setTimeout(() => {
+      if (isDraftFinalized.current) return
+
+      const write = async () => {
+        if (isDraftFinalized.current) return
+
+        if (!hasDraftContent(values)) {
+          await clearFormDraft(formID)
+          return 'idle' as const
+        }
+
+        setDraftStatus('saving')
+        await saveFormDraft(formID, values)
+        return 'saved' as const
+      }
+
+      const pendingWrite = draftWrite.current.catch(() => undefined).then(write)
+      draftWrite.current = pendingWrite.then(() => undefined)
+
+      void pendingWrite
+        .then((status) => {
+          if (draftSaveSequence.current === saveSequence && !isDraftFinalized.current) {
+            setDraftStatus(status ?? 'idle')
+          }
+        })
+        .catch(() => {
+          if (draftSaveSequence.current === saveSequence) setDraftStatus('error')
+        })
+    }, 700)
+
+    return () => window.clearTimeout(timeout)
+  }, [
+    formFromProps.fields,
+    formID,
+    hasSubmitted,
+    isDraftHydrated,
+    isRecruitmentForm,
+    watchedValues,
+  ])
 
   const onSubmit = useCallback(
     (data: FieldValues) => {
@@ -143,6 +240,11 @@ export const FormBlock: React.FC<
 
           setIsLoading(false)
           setHasSubmitted(true)
+          if (isRecruitmentForm && formID) {
+            isDraftFinalized.current = true
+            draftSaveSequence.current += 1
+            void draftWrite.current.catch(() => undefined).then(() => clearFormDraft(formID))
+          }
 
           if (confirmationType === 'redirect' && redirect) {
             const { url } = redirect
@@ -162,7 +264,7 @@ export const FormBlock: React.FC<
 
       void submitForm()
     },
-    [router, formID, redirect, confirmationType, formFromProps.fields],
+    [router, formID, redirect, confirmationType, formFromProps.fields, isRecruitmentForm],
   )
 
   const hasIntro = enableIntro && introContent && !hasSubmitted
@@ -253,7 +355,8 @@ export const FormBlock: React.FC<
                       })}
                     </div>
 
-                    <div className="mt-7 flex justify-end">
+                    <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
+                      {isRecruitmentForm && <DraftStatus status={draftStatus} />}
                       <Button
                         className="h-11 min-w-36 px-5"
                         disabled={isLoading}
@@ -292,6 +395,73 @@ function getDefaultValues(fields?: FormFieldBlock[] | null): FieldValues {
       return values
     }, {}) ?? {}
   )
+}
+
+function DraftStatus(props: { status: 'error' | 'idle' | 'saved' | 'saving' }) {
+  if (props.status === 'idle') return null
+
+  if (props.status === 'saving') {
+    return (
+      <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <LoaderCircle className="size-4 animate-spin" />
+        Se salvează ciorna...
+      </span>
+    )
+  }
+
+  if (props.status === 'saved') {
+    return (
+      <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600">
+        <CheckCircle2 className="size-4" />
+        Ciornă salvată pe acest dispozitiv
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2 text-sm font-medium text-red-600">
+      <AlertCircle className="size-4" />
+      Ciorna nu a putut fi salvată
+    </span>
+  )
+}
+
+function getDraftValues(fields: FormFieldBlock[] | null | undefined, values: FieldValues) {
+  const fieldValues = values ?? {}
+
+  return (
+    fields?.reduce<Record<string, unknown>>((draft, field) => {
+      if (!fieldHasName(field) || !(field.name in fieldValues)) return draft
+
+      const value = fieldValues[field.name]
+      const files = getFilesFromValue(value)
+
+      if (files) {
+        draft[field.name] = files
+      } else if (value instanceof Date) {
+        draft[field.name] = value.toISOString()
+      } else if (value !== undefined) {
+        draft[field.name] = value
+      }
+
+      return draft
+    }, {}) ?? {}
+  )
+}
+
+function hasDraftContent(values: Record<string, unknown>) {
+  return Object.values(values).some((value) => {
+    const files = getFilesFromValue(value)
+
+    if (files) return files.length > 0
+    if (typeof value === 'string') return value.trim().length > 0
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'number') return true
+    if (Array.isArray(value)) return value.length > 0
+    if (value && typeof value === 'object') return Object.keys(value).length > 0
+
+    return false
+  })
 }
 
 function buildSubmissionData(fields: FormFieldBlock[] | null | undefined, data: FieldValues) {

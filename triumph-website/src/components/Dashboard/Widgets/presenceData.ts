@@ -1,13 +1,14 @@
 import type { Payload } from 'payload'
 
 import type { Attendance, Meeting, User } from '@/payload-types'
-import { boardRoles } from '@/utilities/membersAccess'
-import { isMeetingConcluded } from '@/utilities/meetingTime'
+import {
+  isMemberEligibleForMeeting,
+  meetingAttendanceMemberRoles,
+} from '@/utilities/meetingAttendance'
+import { canCalculateMeetingAbsences } from '@/utilities/meetingTime'
 import { getRotaryYearQueryBounds, getRotaryYearStart } from '@/utilities/rotaryYear'
 
 import { formatShortDate, getRelationId, percentage } from './widgetUtils'
-
-const presenceMemberRoles = ['active', 'aspirer', ...boardRoles]
 
 type PresenceStatus = Attendance['status']
 
@@ -37,17 +38,6 @@ function emptyCounts(): PresenceStatusCounts {
   }
 }
 
-function getMeetingTime(meeting: Pick<Meeting, 'meetingDate'>) {
-  return new Date(meeting.meetingDate).getTime()
-}
-
-function isMemberEligibleForMeeting(
-  member: Pick<User, 'joinedAt'>,
-  meeting: Pick<Meeting, 'meetingDate'>,
-) {
-  return new Date(member.joinedAt).getTime() <= getMeetingTime(meeting)
-}
-
 async function getPresenceSource(
   payload: Payload,
   now = new Date(),
@@ -63,7 +53,7 @@ async function getPresenceSource(
       sort: 'joinedAt',
       where: {
         role: {
-          in: presenceMemberRoles,
+          in: meetingAttendanceMemberRoles,
         },
       },
     }),
@@ -91,7 +81,7 @@ async function getPresenceSource(
   return {
     attendance: attendanceDocs.docs as Attendance[],
     meetings: (meetingsDocs.docs as Meeting[]).filter((meeting) =>
-      isMeetingConcluded(meeting, now),
+      canCalculateMeetingAbsences(meeting, now),
     ),
     members: membersDocs.docs as User[],
   }

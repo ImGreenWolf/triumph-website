@@ -60,10 +60,20 @@ export function getMeetingWindow(meeting: MeetingTiming, now = new Date()): Meet
   }
 }
 
-export function isMeetingConcluded(meeting: MeetingTiming, now = new Date()) {
-  const { status } = getMeetingWindow(meeting, now)
+export function canCalculateMeetingAbsences(meeting: MeetingTiming, now = new Date()) {
+  return now.getTime() >= getMeetingWindow(meeting, now).endAt.getTime()
+}
 
-  return status === 'ended' || status === 'expired'
+export function getMeetingAttendanceStatus(
+  meeting: MeetingTiming,
+  recordedStatus: Attendance['status'] | null | undefined,
+  now = new Date(),
+) {
+  const canCalculateAbsences = canCalculateMeetingAbsences(meeting, now)
+
+  if (recordedStatus === 'absent' && !canCalculateAbsences) return null
+
+  return recordedStatus ?? (canCalculateAbsences ? 'absent' : null)
 }
 
 export function shouldShowMeetingOnMemberDashboard(meeting: MeetingTiming, now = new Date()) {

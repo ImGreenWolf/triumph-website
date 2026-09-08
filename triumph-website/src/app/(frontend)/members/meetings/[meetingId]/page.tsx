@@ -5,7 +5,11 @@ import payloadConfig from '@payload-config'
 
 import { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
 import { getMemberAttendanceSummary } from '@/utilities/memberAttendance'
-import { getMeetingWindow, isMeetingConcluded } from '@/utilities/meetingTime'
+import {
+  canCalculateMeetingAbsences,
+  getMeetingAttendanceStatus,
+  getMeetingWindow,
+} from '@/utilities/meetingTime'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 import { getRotaryYearStart } from '@/utilities/rotaryYear'
 
@@ -41,7 +45,7 @@ export default async function MeetingPage(props: Props) {
   const now = new Date()
 
   const meetingWindow = getMeetingWindow(meeting, now)
-  const hasTakenPlace = isMeetingConcluded(meeting, now)
+  const hasTakenPlace = canCalculateMeetingAbsences(meeting, now)
 
   // Get attendance records
   const attendanceDocs = await payload.find({
@@ -110,14 +114,15 @@ export default async function MeetingPage(props: Props) {
         return attendanceMember === member.id
       })
     : null
+  const memberAttendanceStatus = getMeetingAttendanceStatus(meeting, memberAttendance?.status, now)
   const memberAttendanceLabel = !member
     ? 'Autentifică-te'
-    : memberAttendance
-      ? memberAttendance.status === 'present'
+    : memberAttendanceStatus
+      ? memberAttendanceStatus === 'present'
         ? 'Prezent'
-        : memberAttendance.status === 'motivated'
+        : memberAttendanceStatus === 'motivated'
           ? 'Absent motivat'
-          : memberAttendance.status === 'late'
+          : memberAttendanceStatus === 'late'
             ? 'Întârziat'
             : 'Absent'
       : hasTakenPlace
