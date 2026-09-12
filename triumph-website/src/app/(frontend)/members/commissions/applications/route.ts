@@ -4,12 +4,20 @@ import { getPayload, type Payload } from 'payload'
 
 import type { Application, AspirementConfig, Comission, User } from '@/payload-types'
 import {
+  CUSTOM_MAIL_BODY_MAX_LENGTH,
+  CUSTOM_MAIL_SUBJECT_MAX_LENGTH,
+  DEFAULT_CUSTOM_MAIL_SENDER,
+  getCustomMailFromHeader,
+  getCustomMailSenderAddress,
+} from '@/utilities/customCandidateMail'
+import {
   buildRecruitmentEmailHTML,
   createApplicantParameters,
   generateInterviewScheduleToken,
   getCommissionLabel,
   getInterviewScheduleURL,
   renderRecruitmentMessage,
+  renderPlainTextEmailHTML,
   validateInterviewIntervals,
   type RecruitmentApplication,
 } from '@/utilities/aspirementRecruitment'
@@ -35,6 +43,17 @@ type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
   interviewScheduleToken?: string | null
   interviewScheduleTokenCreatedAt?: string | null
   interviewAttendance?: 'scheduled' | 'late' | 'absent' | 'completed' | null
+  customMailHistory?:
+    | {
+        body: string
+        id?: string | null
+        recipient: string
+        senderAddress?: string | null
+        sentAt: string
+        sentBy: string | User
+        subject: string
+      }[]
+    | null
 }
 
 type ExtendedApplication = Application & {
@@ -160,6 +179,10 @@ export async function PATCH(request: Request) {
       return await sendFinalMails({ payload, user })
     }
 
+    if (action === 'send-custom-mail') {
+      return await sendCustomCandidateMail({ body, payload, user })
+    }
+
     return Response.json({ message: 'Actiune necunoscuta.' }, { status: 400 })
   } catch (error) {
     return Response.json(
@@ -221,6 +244,72 @@ async function deleteApplication(args: {
   return Response.json({
     deletedApplicationId: application.id,
     message: 'Aplicația a fost ștearsă.',
+  })
+}
+
+export async function sendCustomCandidateMail(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  requireBoard(args.user)
+
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+  const subject = normalizeText(args.body.subject)
+  const body = normalizeText(args.body.body)
+
+  if (!subject) {
+    throw Object.assign(new Error('Adaugă subiectul emailului.'), { status: 400 })
+  }
+  if (subject.length > CUSTOM_MAIL_SUBJECT_MAX_LENGTH) {
+    throw Object.assign(
+      new Error(`Subiectul poate avea maximum ${CUSTOM_MAIL_SUBJECT_MAX_LENGTH} de caractere.`),
+      { status: 400 },
+    )
+  }
+  if (!body) {
+    throw Object.assign(new Error('Adaugă conținutul emailului.'), { status: 400 })
+  }
+  if (body.length > CUSTOM_MAIL_BODY_MAX_LENGTH) {
+    throw Object.assign(new Error('Conținutul poate avea maximum 20.000 de caractere.'), {
+      status: 400,
+    })
+  }
+
+  const recipient = application.email.trim()
+  const senderAddress = getCustomMailSenderAddress(args.user)
+  const sentAt = new Date().toISOString()
+
+  await args.payload.sendEmail({
+    from: getCustomMailFromHeader(args.user),
+    html: buildRecruitmentEmailHTML({
+      messageHTML: renderPlainTextEmailHTML(body),
+      preheader: body.replace(/\s+/g, ' ').slice(0, 140),
+      title: subject,
+    }),
+    replyTo: senderAddress,
+    subject,
+    text: body,
+    to: recipient,
+  })
+
+  const updated = await updateApplicationReview(args.payload, application, {
+    customMailHistory: [
+      ...(application.reviewProcess?.customMailHistory ?? []),
+      {
+        body,
+        recipient,
+        senderAddress,
+        sentAt,
+        sentBy: args.user.id,
+        subject,
+      },
+    ],
+  })
+
+  return Response.json({
+    application: serializeApplicationUpdate(updated),
+    message: `Email trimis către ${recipient}.`,
   })
 }
 
@@ -1199,6 +1288,15 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
   return {
     aspirerUserId: getRelationshipID(application.reviewProcess?.aspirerUser),
     commissionId: getRelationshipID(application.reviewProcess?.comission),
+    customMailHistory: (application.reviewProcess?.customMailHistory ?? []).map((mail) => ({
+      body: mail.body,
+      id: mail.id ?? `${mail.sentAt}-${mail.recipient}`,
+      recipient: mail.recipient,
+      senderAddress: mail.senderAddress ?? DEFAULT_CUSTOM_MAIL_SENDER,
+      sentAt: mail.sentAt,
+      sentById: getRelationshipID(mail.sentBy),
+      subject: mail.subject,
+    })),
     finalMailSentAt: application.reviewProcess?.finalMailSentAt ?? null,
     id: application.id,
     interviewDate: application.reviewProcess?.interviewDate ?? null,

@@ -286,6 +286,10 @@ export function buildRecruitmentEmailHTML(args: {
 `.trim()
 }
 
+export function renderPlainTextEmailHTML(value: string) {
+  return `<p style="margin:0 0 14px;">${escapeHTML(value).replace(/\r?\n/g, '<br />')}</p>`
+}
+
 export function formatInterviewDate(value?: string | null) {
   const date = parseDate(value)
   if (!date) return ''

@@ -117,7 +117,7 @@ function isWhere(value: unknown): value is Where {
 export const Users: CollectionConfig = {
   slug: 'users',
   labels: {
-    plural: 'Membrii',
+    plural: 'Membri',
     singular: 'Membru'
   },
   access: {

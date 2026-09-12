@@ -17,6 +17,7 @@ import { Header } from './Header/config'
 import { plugins } from './plugins'
 import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
+import { DEFAULT_CUSTOM_MAIL_SENDER } from './utilities/customCandidateMail'
 import { EventRegistrations, Events } from './collections/Events'
 import { Partners } from './Partners/config'
 import { Causes, Sponsors } from './collections/Partners'
@@ -156,7 +157,7 @@ export default buildConfig({
   },
   serverURL,
   email: nodemailerAdapter({
-    defaultFromAddress: 'hello@interact-triumph.org',
+    defaultFromAddress: DEFAULT_CUSTOM_MAIL_SENDER,
     defaultFromName: 'Interact Bucureşti Triumph',
     skipVerify: process.env.NEXT_PHASE === 'phase-production-build',
     transport: nodemailer.createTransport({

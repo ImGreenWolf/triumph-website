@@ -1,12 +1,17 @@
 import type { CollectionConfig } from 'payload'
+
+import {
+  CUSTOM_MAIL_BODY_MAX_LENGTH,
+  CUSTOM_MAIL_SUBJECT_MAX_LENGTH,
+} from '@/utilities/customCandidateMail'
 import { hasBoardRole } from '@/utilities/membersAccess'
 import { authenticated } from '@/access/authenticated'
 
 export const Applications: CollectionConfig = {
   slug: 'applications',
-    labels: {
-    plural: "Înscrieri",
-    singular: "Înscirere",
+  labels: {
+    plural: 'Înscrieri',
+    singular: 'Înscirere',
   },
   access: {
     read: () => true,
@@ -114,6 +119,48 @@ export const Applications: CollectionConfig = {
           admin: {
             readOnly: true,
           },
+        },
+        {
+          name: 'customMailHistory',
+          type: 'array',
+          label: 'Custom email history',
+          admin: {
+            readOnly: true,
+          },
+          fields: [
+            {
+              name: 'recipient',
+              type: 'email',
+              required: true,
+            },
+            {
+              name: 'senderAddress',
+              type: 'email',
+            },
+            {
+              name: 'subject',
+              type: 'text',
+              required: true,
+              maxLength: CUSTOM_MAIL_SUBJECT_MAX_LENGTH,
+            },
+            {
+              name: 'body',
+              type: 'textarea',
+              required: true,
+              maxLength: CUSTOM_MAIL_BODY_MAX_LENGTH,
+            },
+            {
+              name: 'sentAt',
+              type: 'date',
+              required: true,
+            },
+            {
+              name: 'sentBy',
+              type: 'relationship',
+              relationTo: 'users',
+              required: true,
+            },
+          ],
         },
         {
           name: 'interviewNotes',

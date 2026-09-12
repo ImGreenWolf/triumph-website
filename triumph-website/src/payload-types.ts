@@ -2246,6 +2246,17 @@ export interface Application {
     interviewMailSentBy?: (string | null) | User;
     finalMailSentAt?: string | null;
     finalMailSentBy?: (string | null) | User;
+    customMailHistory?:
+      | {
+          recipient: string;
+          senderAddress?: string | null;
+          subject: string;
+          body: string;
+          sentAt: string;
+          sentBy: string | User;
+          id?: string | null;
+        }[]
+      | null;
     interviewNotes?:
       | {
           author: string | User;
@@ -3602,6 +3613,17 @@ export interface ApplicationsSelect<T extends boolean = true> {
         interviewMailSentBy?: T;
         finalMailSentAt?: T;
         finalMailSentBy?: T;
+        customMailHistory?:
+          | T
+          | {
+              recipient?: T;
+              senderAddress?: T;
+              subject?: T;
+              body?: T;
+              sentAt?: T;
+              sentBy?: T;
+              id?: T;
+            };
         interviewNotes?:
           | T
           | {

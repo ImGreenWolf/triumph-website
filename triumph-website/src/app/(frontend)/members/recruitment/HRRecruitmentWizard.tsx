@@ -29,6 +29,7 @@ import {
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type ReactNode,
@@ -36,6 +37,12 @@ import {
 } from 'react'
 
 import { GooglePlaceAutocomplete } from '@/components/GooglePlaceAutocomplete'
+import {
+  CUSTOM_MAIL_BODY_MAX_LENGTH,
+  CUSTOM_MAIL_SUBJECT_MAX_LENGTH,
+  getCustomMailSenderAddress,
+  insertTextAtSelection,
+} from '@/utilities/customCandidateMail'
 import {
   getRecruitmentWorkflowState,
   recruitmentSteps,
@@ -46,6 +53,7 @@ import type { GooglePlaceLocation } from '@/utilities/googlePlace'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
 
 export type ManagedUser = {
+  clubMail?: string | null
   email: string
   id: string
   name: string
@@ -67,6 +75,16 @@ export type ManagedInterviewNote = {
   createdAt: string
   id: string
   note: string
+}
+
+export type ManagedCustomMail = {
+  body: string
+  id: string
+  recipient: string
+  senderAddress: string
+  sentAt: string
+  sentBy: ManagedUser | null
+  subject: string
 }
 
 export type ManagedInterval = {
@@ -93,6 +111,7 @@ export type ManagedApplication = {
   aspirerUserId: string
   commissionId: string
   createdAt: string
+  customMailHistory: ManagedCustomMail[]
   email: string
   finalMailSentAt: string | null
   formAnswers: Array<{ field: string; label: string; value: string }>
@@ -135,6 +154,9 @@ type ApplicationPatch = Partial<
     | 'status'
   >
 > & {
+  customMailHistory?: Array<
+    ManagedCustomMail | (Omit<ManagedCustomMail, 'sentBy'> & { sentById: string })
+  >
   id: string
   interviewNotes?: Array<
     ManagedInterviewNote | { authorId: string; createdAt: string; id: string; note: string }
@@ -246,6 +268,20 @@ export default function HRRecruitmentWizard(props: {
         return {
           ...application,
           ...patch,
+          customMailHistory: patch.customMailHistory
+            ? patch.customMailHistory.map((mail) =>
+                'sentById' in mail
+                  ? {
+                      ...mail,
+                      sentBy:
+                        mail.sentById === props.user.id
+                          ? props.user
+                          : (application.customMailHistory.find((entry) => entry.id === mail.id)
+                              ?.sentBy ?? null),
+                    }
+                  : mail,
+              )
+            : application.customMailHistory,
           interviewNotes: patch.interviewNotes
             ? patch.interviewNotes.map((note) =>
                 'authorId' in note
@@ -448,6 +484,7 @@ export default function HRRecruitmentWizard(props: {
         busyKey={busyKey}
         onAction={runAction}
         onClose={() => setDetailID(null)}
+        senderEmail={getCustomMailSenderAddress(props.user)}
       />
     </main>
   )
@@ -1320,12 +1357,74 @@ function ApplicationDrawer(props: {
   busyKey: string | null
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
   onClose: () => void
+  senderEmail: string
 }) {
+  const defaultMailSubject= "Răspuns Întrebare Formular Înscriere | Interact București Triumph"
   const [notes, setNotes] = useState('')
+  const [mailSubject, setMailSubject] = useState('Răspuns Întrebare Formular Înscriere | Interact București Triumph')
+  const [mailBody, setMailBody] = useState('')
+  const [selectedAnswerIndex, setSelectedAnswerIndex] = useState('')
+  const mailBodyRef = useRef<HTMLTextAreaElement>(null)
+
   useEffect(() => setNotes(props.application?.notes ?? ''), [props.application])
+  useEffect(() => {
+    setMailSubject(defaultMailSubject)
+    setMailBody('')
+    setSelectedAnswerIndex('')
+  }, [props.application?.id])
+
   if (!props.application) return null
   const application = props.application
   const canReview = ['submitted', 'submission-waitlisted'].includes(application.status)
+  const customMailBusyKey = `send-custom-mail-${application.id}`
+  const customMailHistory = [...application.customMailHistory].sort(
+    (first, second) => new Date(second.sentAt).getTime() - new Date(first.sentAt).getTime(),
+  )
+
+  function insertSelectedAnswer() {
+    if (selectedAnswerIndex === '') return
+
+    const selectedIndex = Number(selectedAnswerIndex)
+    const answer = Number.isInteger(selectedIndex)
+      ? application.formAnswers[selectedIndex]
+      : undefined
+    if (!answer) return
+
+    const textarea = mailBodyRef.current
+    const selectionStart = textarea?.selectionStart ?? mailBody.length
+    const selectionEnd = textarea?.selectionEnd ?? selectionStart
+    const insertion = insertTextAtSelection(mailBody, answer.value, selectionStart, selectionEnd)
+
+    setMailBody(insertion.value)
+    requestAnimationFrame(() => {
+      mailBodyRef.current?.focus()
+      mailBodyRef.current?.setSelectionRange(insertion.cursor, insertion.cursor)
+    })
+  }
+
+  async function sendCustomMail() {
+    if (!window.confirm(`Trimiți acest email exclusiv către ${application.email}?`)) {
+      return
+    }
+
+    try {
+      await props.onAction(
+        {
+          action: 'send-custom-mail',
+          applicationId: application.id,
+          body: mailBody,
+          subject: mailSubject,
+        },
+        customMailBusyKey,
+      )
+      setMailSubject(defaultMailSubject) 
+      setMailBody('')
+      setSelectedAnswerIndex('')
+    } catch {
+      // The parent action displays the server error.
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-[#141e34]/35"
@@ -1386,6 +1485,139 @@ function ApplicationDrawer(props: {
               )}
             </div>
           </section>
+          <details className="group/mail border-t border-[#e4e8ef] pt-5">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <Mail className="size-4 text-[#007fb3]" />
+                <span className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]">
+                  Trimite email candidatului
+                </span>
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-[#748094] transition group-open/mail:rotate-90" />
+            </summary>
+            <div className="mt-4 grid gap-4">
+              <label className="grid gap-1.5 text-sm font-bold" htmlFor="custom-mail-sender">
+                De la
+                <input
+                  className="h-10 rounded-md border border-[#dfe5ec] bg-[#f4f6f8] px-3 font-medium text-[#526071]"
+                  id="custom-mail-sender"
+                  readOnly
+                  type="email"
+                  value={props.senderEmail}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm font-bold" htmlFor="custom-mail-recipient">
+                Către
+                <input
+                  className="h-10 rounded-md border border-[#dfe5ec] bg-[#f4f6f8] px-3 font-medium text-[#526071]"
+                  id="custom-mail-recipient"
+                  readOnly
+                  type="email"
+                  value={application.email}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm font-bold" htmlFor="custom-mail-subject">
+                Subiect
+                <input
+                  className="h-10 rounded-md border border-[#dfe5ec] px-3 font-medium outline-none focus:border-[#00a2e0]"
+                  id="custom-mail-subject"
+                  maxLength={CUSTOM_MAIL_SUBJECT_MAX_LENGTH}
+                  onChange={(event) => setMailSubject(event.target.value)}
+                  required
+                  type="text"
+                  value={mailSubject}
+                />
+              </label>
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <label className="grid gap-1.5 text-sm font-bold" htmlFor="custom-mail-answer">
+                  Răspuns din formular
+                  <select
+                    className="h-10 min-w-0 rounded-md border border-[#dfe5ec] bg-white px-3 font-medium outline-none focus:border-[#00a2e0]"
+                    id="custom-mail-answer"
+                    onChange={(event) => setSelectedAnswerIndex(event.target.value)}
+                    value={selectedAnswerIndex}
+                  >
+                    <option value="">Selectează întrebarea</option>
+                    {application.formAnswers.map((answer, index) => (
+                      <option key={`${answer.field}-${index}`} value={index}>
+                        {answer.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#dfe5ec] px-3 text-sm font-bold text-[#152039] hover:bg-[#f4f6f8] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={selectedAnswerIndex === ''}
+                  onClick={insertSelectedAnswer}
+                  type="button"
+                >
+                  <Plus className="size-4" /> Inserează răspunsul
+                </button>
+              </div>
+              <label className="grid gap-1.5 text-sm font-bold" htmlFor="custom-mail-body">
+                Mesaj
+                <textarea
+                  className="min-h-44 w-full rounded-md border border-[#dfe5ec] p-3 font-medium outline-none focus:border-[#00a2e0]"
+                  id="custom-mail-body"
+                  maxLength={CUSTOM_MAIL_BODY_MAX_LENGTH}
+                  onChange={(event) => setMailBody(event.target.value)}
+                  ref={mailBodyRef}
+                  required
+                  value={mailBody}
+                />
+              </label>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-xs font-medium text-[#748094]">
+                  {mailBody.length.toLocaleString('ro-RO')} /{' '}
+                  {CUSTOM_MAIL_BODY_MAX_LENGTH.toLocaleString('ro-RO')} caractere
+                </span>
+                <button
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-4 text-sm font-bold text-white hover:bg-[#008fc7] disabled:cursor-not-allowed disabled:opacity-55"
+                  disabled={
+                    props.busyKey === customMailBusyKey || !mailSubject.trim() || !mailBody.trim()
+                  }
+                  onClick={() => void sendCustomMail()}
+                  type="button"
+                >
+                  <Send className="size-4" />
+                  {props.busyKey === customMailBusyKey ? 'Se trimite...' : 'Trimite emailul'}
+                </button>
+              </div>
+            </div>
+
+            {customMailHistory.length > 0 && (
+              <div className="mt-6 border-t border-[#edf0f4] pt-4">
+                <h4 className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
+                  Istoric emailuri
+                </h4>
+                <div className="mt-3 divide-y divide-[#edf0f4] border-y border-[#edf0f4]">
+                  {customMailHistory.map((mail) => (
+                    <details className="group py-3" key={mail.id}>
+                      <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-[#152039]">
+                            {mail.subject}
+                          </p>
+                          <p className="mt-1 text-xs text-[#748094]">
+                            {formatDateTime(mail.sentAt)} · {mail.sentBy?.name || 'Membru board'}
+                          </p>
+                        </div>
+                        <ChevronRight className="mt-0.5 size-4 shrink-0 text-[#748094] transition group-open:rotate-90" />
+                      </summary>
+                      <div className="mt-3 rounded-md bg-[#f8fafc] p-3">
+                        <p className="text-xs font-bold text-[#748094]">
+                          De la {mail.senderAddress} · Către {mail.recipient}
+                        </p>
+                        <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-[#26344d]">
+                          {mail.body}
+                        </p>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </div>
+            )}
+          </details>
           <section>
             <label
               className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]"

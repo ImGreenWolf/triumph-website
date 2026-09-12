@@ -13,6 +13,7 @@ import type {
 } from '@/payload-types'
 import { normalizeInstagramUsername } from '@/utilities/instagram'
 import { normalizeGooglePlace } from '@/utilities/googlePlace'
+import { DEFAULT_CUSTOM_MAIL_SENDER } from '@/utilities/customCandidateMail'
 import { isBoardMember } from '@/utilities/membersAccess'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
@@ -118,6 +119,15 @@ function serializeApplication(application: Application): ManagedApplication {
     aspirerUserId: getRelationshipID(review.aspirerUser),
     commissionId: getRelationshipID(review.comission),
     createdAt: application.createdAt,
+    customMailHistory: (review.customMailHistory ?? []).map((mail) => ({
+      body: mail.body,
+      id: mail.id ?? `${mail.sentAt}-${mail.recipient}`,
+      recipient: mail.recipient,
+      senderAddress: mail.senderAddress ?? DEFAULT_CUSTOM_MAIL_SENDER,
+      sentAt: mail.sentAt,
+      sentBy: serializeUser(mail.sentBy),
+      subject: mail.subject,
+    })),
     email: application.email,
     finalMailSentAt: normalizeDate(review.finalMailSentAt),
     formAnswers: answers,
@@ -203,6 +213,7 @@ function findSubmissionValue(answers: Array<{ field: string; value: string }>, n
 function serializeUser(value: string | User | null | undefined): ManagedUser | null {
   if (!value || typeof value === 'string') return null
   return {
+    clubMail: value.clubMail,
     email: value.email,
     id: value.id,
     name: value.name || value.email,
