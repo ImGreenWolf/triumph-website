@@ -74,7 +74,7 @@ export async function getMemberAttendanceSummary(
       )
       const status = getMeetingAttendanceStatus(meeting, effectiveStatus, now)
 
-      return canCalculateMeetingAbsences(meeting, now) || status === 'motivated'
+      return canCalculateMeetingAbsences(meeting, now) || status !== 'absent'
     })
     .map((meeting) => {
       const existingRecord = attendanceByMeeting.get(meeting.id)

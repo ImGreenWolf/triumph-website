@@ -186,6 +186,7 @@ export const Meetings: CollectionConfig = {
               virtual: true,
               collection: 'attendance',
               on: 'meeting',
+              defaultLimit: 1000,
               admin: {
                 defaultColumns: ['member', 'status'],
                 position: 'sidebar',

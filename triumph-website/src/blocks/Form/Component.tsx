@@ -68,6 +68,8 @@ export const FormBlock: React.FC<
   const draftWrite = useRef(Promise.resolve())
   const isDraftFinalized = useRef(false)
   const draftSaveSequence = useRef(0)
+  const submissionInFlight = useRef(false)
+  const submissionKey = useRef<string | null>(null)
   const isRecruitmentForm = recruitmentWindow?.isRecruitmentForm === true
 
   useEffect(() => {
@@ -186,7 +188,10 @@ export const FormBlock: React.FC<
 
   const onSubmit = useCallback(
     (data: FieldValues) => {
-      let loadingTimerID: ReturnType<typeof setTimeout>
+      if (submissionInFlight.current) return
+      submissionInFlight.current = true
+      setIsLoading(true)
+
       const submitForm = async () => {
         setError(undefined)
 
@@ -194,6 +199,7 @@ export const FormBlock: React.FC<
         const hasUploadFiles = uploadEntries.some(({ files }) => files.length > 0)
         const payload = {
           form: formID,
+          submissionKey: (submissionKey.current ??= createSubmissionKey()),
           submissionData: dataToSend,
         }
 
@@ -206,11 +212,6 @@ export const FormBlock: React.FC<
             files.forEach((file) => body.append(name, file))
           })
         }
-
-        // delay loading indicator by 1s
-        loadingTimerID = setTimeout(() => {
-          setIsLoading(true)
-        }, 1000)
 
         try {
           const req = await fetch(`${getClientSideURL()}/api/form-submissions`, {
@@ -225,9 +226,8 @@ export const FormBlock: React.FC<
 
           const res = await req.json()
 
-          clearTimeout(loadingTimerID)
-
           if (req.status >= 400) {
+            submissionInFlight.current = false
             setIsLoading(false)
 
             setError({
@@ -255,6 +255,7 @@ export const FormBlock: React.FC<
           }
         } catch (err) {
           console.warn(err)
+          submissionInFlight.current = false
           setIsLoading(false)
           setError({
             message: 'Something went wrong.',
@@ -376,6 +377,14 @@ export const FormBlock: React.FC<
       </div>
     </section>
   )
+}
+
+function createSubmissionKey() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 function getDefaultValues(fields?: FormFieldBlock[] | null): FieldValues {

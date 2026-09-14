@@ -123,6 +123,19 @@ export const plugins: Plugin[] = [
       },
     },
     formSubmissionOverrides: {
+      fields: ({ defaultFields }) => [
+        ...defaultFields,
+        {
+          name: 'submissionKey',
+          type: 'text',
+          required: true,
+          unique: true,
+          admin: {
+            hidden: true,
+            readOnly: true,
+          },
+        },
+      ],
       hooks: {
         beforeChange: [
           async ({ data, operation, req }) => {

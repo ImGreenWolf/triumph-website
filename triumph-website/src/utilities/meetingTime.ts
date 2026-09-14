@@ -1,6 +1,7 @@
 import type { Attendance, Meeting } from '@/payload-types'
 
 export const DEFAULT_MEETING_DURATION_MINUTES = 60
+export const DEFAULT_MEETING_LATE_BUFFER = 15
 export const DEFAULT_MEETING_ENDED_BUFFER_MINUTES = 60
 
 export type MeetingTiming = Pick<Meeting, 'meetingDate'> & {
@@ -68,7 +69,7 @@ export function getMeetingAttendanceStatus(
   meeting: MeetingTiming,
   recordedStatus: Attendance['status'] | null | undefined,
   now = new Date(),
-) {
+): Attendance['status'] | null | undefined {
   const canCalculateAbsences = canCalculateMeetingAbsences(meeting, now)
 
   if (recordedStatus === 'absent' && !canCalculateAbsences) return null
@@ -88,5 +89,5 @@ export function getMeetingCheckInAttendanceStatus(
 
   if (window.status === 'expired') return null
 
-  return now.getTime() > window.startAt.getTime() ? 'late' : 'present'
+  return now.getTime() > window.startAt.getTime() + DEFAULT_MEETING_LATE_BUFFER*1000*60 ? 'late' : 'present'
 }

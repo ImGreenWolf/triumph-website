@@ -2316,6 +2316,7 @@ export interface FormSubmission {
         id?: string | null;
       }[]
     | null;
+  submissionKey: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -3932,6 +3933,7 @@ export interface FormSubmissionsSelect<T extends boolean = true> {
         value?: T;
         id?: T;
       };
+  submissionKey?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -57,6 +57,11 @@ async function getPresenceSource(
           in: meetingAttendanceMemberRoles,
         },
       },
+      joins: {
+        attendance: {
+          limit: 100
+        }
+      }
     }),
     payload.find({
       collection: 'meetings',
@@ -70,6 +75,11 @@ async function getPresenceSource(
           [bounds.endOperator]: bounds.end.toISOString(),
         },
       },
+      joins: {
+        "Prezenți.attendance": {
+          limit: 100
+        }
+      }
     }),
     payload.find({
       collection: 'attendance',

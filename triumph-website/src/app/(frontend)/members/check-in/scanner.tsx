@@ -1,7 +1,15 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { AlertCircle, CheckCircle2, Loader2, QrCode, UserCheck } from 'lucide-react'
+import {
+  AlertCircle,
+  CheckCircle2,
+  FlipHorizontal2,
+  Loader2,
+  QrCode,
+  SwitchCamera,
+  UserCheck,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '@/utilities/ui'
@@ -14,6 +22,7 @@ const BarcodeScanner = dynamic(() => import('react-qr-barcode-scanner'), {
 })
 
 type NoticeTone = 'idle' | 'success' | 'warning' | 'error'
+type CameraFacingMode = 'environment' | 'user'
 
 type ScanNotice = {
   message: string
@@ -101,6 +110,8 @@ export function Scanner(props: ScannerProps) {
         },
   )
 
+  const [cameraFacingMode, setCameraFacingMode] = useState<CameraFacingMode>('environment')
+  const [isPreviewMirrored, setIsPreviewMirrored] = useState(false)
   const [scannerAspectRatio, setScannerAspectRatio] = useState(DEFAULT_SCANNER_ASPECT_RATIO)
 
   const animationFrameRef = useRef<number | null>(null)
@@ -121,17 +132,17 @@ export function Scanner(props: ScannerProps) {
   const videoConstraints = useMemo<MediaTrackConstraints>(
     () => ({
       aspectRatio: scannerAspectRatio,
-      facingMode: 'environment',
+      facingMode: cameraFacingMode,
       frameRate: 60,
     }),
-    [scannerAspectRatio],
+    [cameraFacingMode, scannerAspectRatio],
   )
 
   const clearScanOverlay = useCallback(() => {
-    const canvas = canvasRef.current
-    const context = canvas?.getContext('2d')
-
-    if (!canvas || !context) return
+    if (clearOverlayTimer.current) {
+      clearTimeout(clearOverlayTimer.current)
+      clearOverlayTimer.current = null
+    }
 
     overlayRef.current = null
     if (animationFrameRef.current !== null) {
@@ -139,13 +150,28 @@ export function Scanner(props: ScannerProps) {
       animationFrameRef.current = null
     }
 
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+
+    if (!canvas || !context) return
+
     context.clearRect(0, 0, canvas.width, canvas.height)
   }, [])
 
+  const switchCamera = useCallback(() => {
+    const nextFacingMode = cameraFacingMode === 'environment' ? 'user' : 'environment'
+
+    clearScanOverlay()
+    lastScan.current = null
+    setCameraFacingMode(nextFacingMode)
+    setIsPreviewMirrored(nextFacingMode === 'user')
+  }, [cameraFacingMode, clearScanOverlay])
+
   const scheduleOverlayClear = useCallback(() => {
-    if (clearOverlayTimer.current) clearTimeout(clearOverlayTimer.current)
+    if (clearOverlayTimer.current) return
 
     clearOverlayTimer.current = setTimeout(() => {
+      clearOverlayTimer.current = null
       clearScanOverlay()
     }, 350)
   }, [clearScanOverlay])
@@ -178,7 +204,10 @@ export function Scanner(props: ScannerProps) {
 
       if (!canvas || !surface || points.length < 3) return
 
-      if (clearOverlayTimer.current) clearTimeout(clearOverlayTimer.current)
+      if (clearOverlayTimer.current) {
+        clearTimeout(clearOverlayTimer.current)
+        clearOverlayTimer.current = null
+      }
 
       const bounds = surface.getBoundingClientRect()
       const pixelRatio = window.devicePixelRatio || 1
@@ -326,7 +355,7 @@ export function Scanner(props: ScannerProps) {
       if (!hasMeeting) return
 
       if (!result) {
-        scheduleOverlayClear()
+        if (!inFlightScan.current) scheduleOverlayClear()
         return
       }
 
@@ -335,15 +364,14 @@ export function Scanner(props: ScannerProps) {
       const previous = lastScan.current
       const isFreshScan = !(previous?.value === value && now - previous.at < SCAN_THROTTLE_MS)
 
-      updateScanOverlay(result, {
-        snap: isFreshScan && !inFlightScan.current,
-        tone: isFreshScan && !inFlightScan.current ? 'active' : undefined,
-      })
-
-      if (inFlightScan.current) return
+      if (inFlightScan.current) {
+        updateScanOverlay(result)
+        return
+      }
 
       if (!isFreshScan) return
 
+      updateScanOverlay(result, { snap: true, tone: 'active' })
       lastScan.current = { at: now, value }
       inFlightScan.current = true
       setIsSubmitting(true)
@@ -388,6 +416,7 @@ export function Scanner(props: ScannerProps) {
       } finally {
         inFlightScan.current = false
         setIsSubmitting(false)
+        scheduleOverlayClear()
         resetNoticeLater()
       }
     },
@@ -399,14 +428,19 @@ export function Scanner(props: ScannerProps) {
       <div className="grid gap-4">
         {hasMeeting ? (
           <div
-            className="relative aspect-[4/5] overflow-hidden rounded-lg border border-border bg-black shadow-sm sm:aspect-video xl:aspect-[4/5] [&_video]:absolute [&_video]:inset-0 [&_video]:size-full [&_video]:object-contain"
+            className={cn(
+              'relative aspect-[4/5] overflow-hidden rounded-lg border border-border bg-black shadow-sm sm:aspect-video xl:aspect-[4/5] [&_video]:absolute [&_video]:inset-0 [&_video]:size-full [&_video]:object-contain',
+              isPreviewMirrored &&
+                '[&_canvas]:[transform:scaleX(-1)] [&_video]:[transform:scaleX(-1)]',
+            )}
             ref={scannerSurfaceRef}
           >
             <BarcodeScanner
-              delay={300}
-              facingMode="environment"
+              delay={120}
+              facingMode={cameraFacingMode}
               formats={[11]}
               height="100%"
+              key={cameraFacingMode}
               onError={(cameraError) => {
                 setOverlayTone('error')
                 setNotice({
@@ -422,13 +456,55 @@ export function Scanner(props: ScannerProps) {
             />
 
             <canvas className="pointer-events-none absolute inset-0 z-10" ref={canvasRef} />
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_34%,rgba(0,0,0,0.32)_68%)]" />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 top-1/2 z-20 aspect-square w-[67%] max-w-[18.5rem] -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/20 shadow-[0_0_0_9999px_rgba(0,0,0,0.32)]"
+            >
+              <span className="absolute -left-px -top-px size-10 rounded-tl-md border-l-[3px] border-t-[3px] border-[#00a2e0]" />
+              <span className="absolute -right-px -top-px size-10 rounded-tr-md border-r-[3px] border-t-[3px] border-[#00a2e0]" />
+              <span className="absolute -bottom-px -left-px size-10 rounded-bl-md border-b-[3px] border-l-[3px] border-[#00a2e0]" />
+              <span className="absolute -bottom-px -right-px size-10 rounded-br-md border-b-[3px] border-r-[3px] border-[#00a2e0]" />
+              <span className="absolute inset-x-4 top-1/2 h-px -translate-y-1/2 bg-white/45 shadow-[0_0_8px_rgba(255,255,255,0.7)]" />
+            </div>
             <NoticePanel
               className="absolute inset-x-3 top-3 z-30 sm:inset-x-4 sm:top-4"
               notice={notice}
             />
+            <div className="absolute bottom-3 right-3 z-40 flex gap-2 sm:bottom-4 sm:right-4">
+              <button
+                aria-label={
+                  cameraFacingMode === 'environment'
+                    ? 'Folosește camera frontală'
+                    : 'Folosește camera din spate'
+                }
+                className="flex size-10 items-center justify-center rounded-md border border-white/20 bg-black/70 text-white shadow-sm backdrop-blur transition-colors hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isSubmitting}
+                onClick={switchCamera}
+                title={
+                  cameraFacingMode === 'environment'
+                    ? 'Folosește camera frontală'
+                    : 'Folosește camera din spate'
+                }
+                type="button"
+              >
+                <SwitchCamera className="size-5" />
+              </button>
+              <button
+                aria-label={isPreviewMirrored ? 'Oprește oglindirea' : 'Oglindește imaginea'}
+                aria-pressed={isPreviewMirrored}
+                className={cn(
+                  'flex size-10 items-center justify-center rounded-md border border-white/20 bg-black/70 text-white shadow-sm backdrop-blur transition-colors hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
+                  isPreviewMirrored && 'bg-white text-black hover:bg-white/90',
+                )}
+                onClick={() => setIsPreviewMirrored((current) => !current)}
+                title={isPreviewMirrored ? 'Oprește oglindirea' : 'Oglindește imaginea'}
+                type="button"
+              >
+                <FlipHorizontal2 className="size-5" />
+              </button>
+            </div>
             {isSubmitting && (
-              <div className="absolute inset-x-4 bottom-4 flex items-center gap-2 rounded-md border border-white/15 bg-black/70 px-3 py-2 text-sm font-semibold text-white backdrop-blur">
+              <div className="absolute inset-x-4 bottom-16 flex items-center gap-2 rounded-md border border-white/15 bg-black/70 px-3 py-2 text-sm font-semibold text-white backdrop-blur">
                 <Loader2 className="size-4 animate-spin" />
                 Se verifică
               </div>
