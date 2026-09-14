@@ -3,6 +3,7 @@
 import { Check, CheckCircle2, X, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { type FormEvent, type MouseEvent, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { toast } from '@payloadcms/ui'
 import type { DefaultCellComponentProps } from 'payload'
@@ -206,65 +207,71 @@ export default function ReviewActionsCell({ config, rowData }: ReviewActionsCell
         </button>
       </div>
 
-      {selectedStatus && (
-        <div
-          aria-labelledby={`review-actions-${rowData.id}`}
-          aria-modal="true"
-          className="absence-motivation-actions__backdrop"
-          onClick={closeModal}
-          role="dialog"
-        >
-          <form
-            className="absence-motivation-actions__modal"
-            onClick={(event) => event.stopPropagation()}
-            onSubmit={submitReview}
+      {selectedStatus &&
+        createPortal(
+          <div
+            aria-labelledby={`review-actions-${rowData.id}`}
+            aria-modal="true"
+            className="absence-motivation-actions__backdrop"
+            onClick={(event) => {
+              event.stopPropagation()
+              closeModal()
+            }}
+            role="dialog"
           >
-            <div className="absence-motivation-actions__modalHeader">
-              <div>
-                <h2 id={`review-actions-${rowData.id}`}>{config.labels.rejectAction}</h2>
-                <p>{config.labels.messageDescription}</p>
+            <form
+              className="absence-motivation-actions__modal"
+              style={{ backgroundColor: 'black', position: 'absolute' }}
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={submitReview}
+            >
+              <div className="absence-motivation-actions__modalHeader">
+                <div>
+                  <h2 id={`review-actions-${rowData.id}`}>{config.labels.rejectAction}</h2>
+                  <p>{config.labels.messageDescription}</p>
+                </div>
+                <button
+                  aria-label="Închide"
+                  className="absence-motivation-actions__close"
+                  disabled={isSubmitting}
+                  onClick={closeModal}
+                  title="Închide"
+                  type="button"
+                >
+                  <X aria-hidden="true" />
+                </button>
               </div>
-              <button
-                aria-label="Închide"
-                className="absence-motivation-actions__close"
-                disabled={isSubmitting}
-                onClick={closeModal}
-                title="Închide"
-                type="button"
-              >
-                <X aria-hidden="true" /> 
-              </button>
-            </div>
 
-            <label htmlFor={`review-actions-message-${rowData.id}`}>
-              {config.labels.messageLabel}
-            </label>
-            <textarea
-              autoFocus
-              id={`review-actions-message-${rowData.id}`}
-              maxLength={1000}
-              onChange={(event) => setMessage(event.target.value)}
-              rows={5}
-              value={message}
-            />
+              <label htmlFor={`review-actions-message-${rowData.id}`}>
+                {config.labels.messageLabel}
+              </label>
+              <textarea
+                autoFocus
+                id={`review-actions-message-${rowData.id}`}
+                maxLength={1000}
+                onChange={(event) => setMessage(event.target.value)}
+                rows={5}
+                value={message}
+              />
 
-            {error && <p className="absence-motivation-actions__error">{error}</p>}
+              {error && <p className="absence-motivation-actions__error">{error}</p>}
 
-            <div className="absence-motivation-actions__modalFooter">
-              Respinge
-              <button
-                aria-label={config.labels.rejectAction}
-                className="absence-motivation-actions__submit absence-motivation-actions__submit--rejected"
-                disabled={isSubmitting}
-                title={config.labels.rejectAction}
-                type="submit"
-              >
-                <X aria-hidden="true" />
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+              <div className="absence-motivation-actions__modalFooter">
+                Respinge
+                <button
+                  aria-label={config.labels.rejectAction}
+                  className="absence-motivation-actions__submit absence-motivation-actions__submit--rejected"
+                  disabled={isSubmitting}
+                  title={config.labels.rejectAction}
+                  type="submit"
+                >
+                  <X aria-hidden="true" />
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body,
+        )}
     </>
   )
 }

@@ -70,6 +70,7 @@ export default function MotivateAbsenceDialog(props: Props) {
         body: JSON.stringify({
           meeting: meetingId,
           memberMessage: memberMessage.trim() || undefined,
+          status: 'pending'
         }),
         credentials: 'include',
         headers: {

@@ -7,6 +7,7 @@ import ReviewActionsCell from './ReviewActionsCell'
 export default function AbsenceMotivationActionsCell(props: DefaultCellComponentProps) {
   return (
     <ReviewActionsCell
+      
       config={{
         acceptedStatus: 'accepted',
         endpoint: '/api/absence-motivations',

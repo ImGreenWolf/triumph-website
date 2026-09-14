@@ -29,7 +29,10 @@ export const AbsenceMotivations: CollectionConfig = {
   },
   access: {
     admin: hasBoardRole,
-    create: hasSecretaryRole,
+    create: ({data, req}) => {
+      console.log(data)
+        return (data && req.user && data.status == 'pending') || isSecretary(req.user)
+    },
     delete: hasBoardRole,
     read: authenticated,
     // ({ req }) => {
@@ -63,7 +66,7 @@ export const AbsenceMotivations: CollectionConfig = {
     beforeValidate: [
       ({ data, operation, req }) => {
         // member dashboard motivation
-        console.log(data)
+        console.log(data, 'salut', operation)
         if (operation !== 'create') return data
         if (!req.user)
           throw new APIError('Trebuie să fii autentificat pentru a trimite o motivare.', 401)
