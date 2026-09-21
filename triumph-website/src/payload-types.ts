@@ -1098,10 +1098,15 @@ export interface Event {
     | null;
   cause?: (string | null) | Cause;
   donation?: string | null;
+  minimumConsumation?: number | null;
+  signupMessage?: string | null;
   days: {
     eventDate: string;
     slots: {
       startTime?: string | null;
+      /**
+       * Opțională pentru ultimul sau singurul interval al zilei. Lasă gol dacă nu există o oră fixă de final.
+       */
       endTime?: string | null;
       capacity?: number | null;
       id?: string | null;
@@ -1168,6 +1173,7 @@ export interface EventRegistration {
   phone?: string | null;
   questions?: string | null;
   emailConsent?: boolean | null;
+  minimumsAcknowledged?: boolean | null;
   donation: number;
   guests: number;
   timeOfArrival?: string | null;
@@ -3439,6 +3445,8 @@ export interface EventsSelect<T extends boolean = true> {
       };
   cause?: T;
   donation?: T;
+  minimumConsumation?: T;
+  signupMessage?: T;
   days?:
     | T
     | {
@@ -3488,6 +3496,7 @@ export interface EventRegistrationsSelect<T extends boolean = true> {
   phone?: T;
   questions?: T;
   emailConsent?: T;
+  minimumsAcknowledged?: T;
   donation?: T;
   guests?: T;
   timeOfArrival?: T;

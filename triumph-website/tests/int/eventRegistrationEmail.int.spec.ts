@@ -6,17 +6,21 @@ import {
   generateParticipationAttendanceEmailSubject,
   generateParticipationAttendanceEmailText,
   generateParticipationConfirmationEmailHTML,
+  generateParticipationConfirmationEmailQRCodeAttachment,
   generateParticipationConfirmationEmailSubject,
   generateParticipationConfirmationEmailText,
   generateParticipationUpdateEmailHTML,
   generateParticipationUpdateEmailSubject,
   generateParticipationUpdateEmailText,
+  REGISTRATION_QR_CODE_CID,
 } from '@/collections/Events/registrationEmails'
 
 const emailArgs = {
   dayLabel: 'luni, 23 iunie 2026',
   event: {
     cardColor: '#ffffff',
+    donation: '50',
+    minimumConsumation: 25,
     name: 'Crosul Triumph',
     primaryColor: '#0f172c',
     secondaryColor: '#00a2e0',
@@ -24,6 +28,7 @@ const emailArgs = {
     useColors: true,
   },
   registration: {
+    id: 'registration-123',
     name: 'Ana Popescu',
   },
   req: { origin: 'https://triumph.example' } as PayloadRequest,
@@ -39,6 +44,12 @@ describe('event registration emails', () => {
     expect(html).toContain('Crosul Triumph')
     expect(html).toContain('luni, 23 iunie 2026')
     expect(html).toContain('10:00 - 12:00')
+    expect(html).toContain('Donație minimă')
+    expect(html).toContain('50 RON')
+    expect(html).toContain('Consumație minimă')
+    expect(html).toContain('25 RON')
+    expect(html).toContain('registration-123')
+    expect(html).toContain(`cid:${REGISTRATION_QR_CODE_CID}`)
     expect(html).toContain('https://triumph.example/events/crosul-triumph')
     expect(html).toContain('background:#00a2e0')
   })
@@ -61,9 +72,23 @@ describe('event registration emails', () => {
 
     expect(text).toContain('Înscrierea ta la Crosul Triumph a fost confirmată.')
     expect(text).toContain('Ziua: luni, 23 iunie 2026')
+    expect(text).toContain('Donație minimă: 50 RON')
+    expect(text).toContain('Consumație minimă: 25 RON')
+    expect(text).toContain('ID înscriere: registration-123')
     expect(generateParticipationConfirmationEmailSubject('Crosul Triumph')).toBe(
       'Confirmare participare Crosul Triumph',
     )
+  })
+
+  it('creates a PNG QR attachment containing the registration id', async () => {
+    const attachment =
+      await generateParticipationConfirmationEmailQRCodeAttachment('registration-123')
+
+    expect(attachment.cid).toBe(REGISTRATION_QR_CODE_CID)
+    expect(attachment.contentType).toBe('image/png')
+    expect(attachment.filename).toBe('event-registration-registration-123.png')
+    expect(Buffer.isBuffer(attachment.content)).toBe(true)
+    expect(attachment.content.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
   })
 
   it('renders HTML and text for attendance confirmation', () => {

@@ -2182,7 +2182,7 @@ function formatEventDateRange(event: ManagedEvent) {
       year: 'numeric',
     }).format(start)
     const startTime = formatTime(start)
-    const endTime = end ? formatTime(end) : null
+    const endTime = end && end.getTime() !== start.getTime() ? formatTime(end) : null
 
     return endTime ? `${dateLabel}, ${startTime} – ${endTime}` : `${dateLabel}, ${startTime}`
   }

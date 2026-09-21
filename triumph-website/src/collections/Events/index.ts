@@ -1,4 +1,5 @@
-import type { CollectionConfig, DateField } from 'payload'
+import type { CollectionConfig } from 'payload'
+import type { Event } from '@/payload-types'
 
 import {
   BlocksFeature,
@@ -18,26 +19,20 @@ import { generatePreviewPath } from '../../utilities/generatePreviewPath'
 import { populateAuthors } from './hooks/populateAuthors'
 import { revalidateDelete, revalidatePost } from './hooks/revalidatePost'
 import {
-  generateParticipationAttendanceEmailHTML,
-  generateParticipationAttendanceEmailSubject,
-  generateParticipationAttendanceEmailText,
   generateParticipationConfirmationEmailHTML,
+  generateParticipationConfirmationEmailQRCodeAttachment,
   generateParticipationConfirmationEmailSubject,
   generateParticipationConfirmationEmailText,
-  generateParticipationUpdateEmailHTML,
-  generateParticipationUpdateEmailSubject,
-  generateParticipationUpdateEmailText,
 } from './registrationEmails'
 import { colorField } from '@/fields/color-picker/field'
 
 import {
   MetaDescriptionField,
   MetaImageField,
-  MetaTitleField,
   OverviewField,
   PreviewField,
 } from '@payloadcms/plugin-seo/fields'
-import { APIError, getPayload, slugField } from 'payload'
+import { APIError, slugField } from 'payload'
 import { locationField } from '@/fields/location-selector/field'
 import {
   findEventSlot,
@@ -45,20 +40,12 @@ import {
   formatEventSlotLabel,
   isEventSlotRegistrationOpen,
 } from '@/utilities/eventRegistration'
-import payloadConfig from '@payload-config'
-import { getEventStartDate } from '@/utilities/eventDisplay'
-
-class MySpecialError extends APIError {
-  constructor(message: string) {
-    super(message, 201, undefined, true)
-  }
-}
 
 export const Events: CollectionConfig<'events'> = {
   slug: 'events',
-    labels: {
-    plural: "Evenimente",
-    singular: "Eveniment",
+  labels: {
+    plural: 'Evenimente',
+    singular: 'Eveniment',
   },
   access: {
     create: authenticated,
@@ -187,16 +174,16 @@ export const Events: CollectionConfig<'events'> = {
                     {
                       type: 'text',
                       name: 'label',
-                      required: true
+                      required: true,
                     },
                     {
                       type: 'upload',
                       relationTo: 'media',
                       name: 'document',
-                      required: true
-                    }
-                  ]
-                }
+                      required: true,
+                    },
+                  ],
+                },
               ],
             },
 
@@ -215,6 +202,17 @@ export const Events: CollectionConfig<'events'> = {
                 {
                   type: 'text',
                   name: 'donation',
+                },
+                {
+                  type: 'number',
+                  name: 'minimumConsumation',
+                  label: 'Consumație minimă (RON)',
+                  min: 0,
+                },
+                {
+                  type: 'text',
+                  name: 'signupMessage',
+                  label: 'Mesaj deasupra butonului de înscriere',
                 },
               ],
             },
@@ -263,6 +261,8 @@ export const Events: CollectionConfig<'events'> = {
                           name: 'endTime',
                           type: 'date',
                           admin: {
+                            description:
+                              'Opțională pentru ultimul sau singurul interval al zilei. Lasă gol dacă nu există o oră fixă de final.',
                             date: {
                               pickerAppearance: 'timeOnly',
                               overrides: {
@@ -456,9 +456,9 @@ export const Events: CollectionConfig<'events'> = {
 
 export const EventRegistrations: CollectionConfig = {
   slug: 'event-registrations',
-    labels: {
-    plural: "Înregistrări Evenimente",
-    singular: "Înregistrare Eveniment",
+  labels: {
+    plural: 'Înregistrări Evenimente',
+    singular: 'Înregistrare Eveniment',
   },
 
   admin: {
@@ -534,6 +534,11 @@ export const EventRegistrations: CollectionConfig = {
       type: 'checkbox',
     },
     {
+      name: 'minimumsAcknowledged',
+      type: 'checkbox',
+      label: 'A confirmat minimele evenimentului',
+    },
+    {
       type: 'group',
       fields: [
         {
@@ -605,6 +610,13 @@ export const EventRegistrations: CollectionConfig = {
 
         if (event.private && !bypassSignupRestrictions) {
           throw new APIError('Înscrierile pentru acest eveniment sunt private.', 403)
+        }
+
+        if (
+          !bypassSignupRestrictions &&
+          !validateMinimumsAcknowledgement(event, data.minimumsAcknowledged)
+        ) {
+          throw new APIError(MINIMUMS_ACKNOWLEDGEMENT_ERROR, 400)
         }
 
         const { day, slot } = findEventSlot(event, data.day, data.slot)
@@ -706,6 +718,8 @@ export const EventRegistrations: CollectionConfig = {
     afterChange: [
       async ({ doc, operation, req }) => {
         if (!doc.email) return doc
+        if (operation !== 'create' || doc.status !== 'registered') return doc
+        if (req.context.eventRegistrationImport || req.context.eventRegistrationWalkIn) return doc
 
         const eventID = typeof doc.event === 'string' ? doc.event : doc.event.id
         const event = await req.payload.findByID({ collection: 'events', id: eventID })
@@ -721,34 +735,15 @@ export const EventRegistrations: CollectionConfig = {
           req,
           slotLabel,
         }
-          
+
         try {
-          if(!doc.emailConsent)
-            return doc;
-          // if(getEventStartDate(event)!.getTime() > new Date(doc.createdAt).getTime())
-          //   return
-          // if (operation === 'create' && doc.status === 'registered') {
-          //   await req.payload.sendEmail({
-          //     html: generateParticipationConfirmationEmailHTML(emailArgs),
-          //     subject: generateParticipationConfirmationEmailSubject(event.name),
-          //     text: generateParticipationConfirmationEmailText(emailArgs),
-          //     to: doc.email,
-          //   })
-          // } else if ( doc.status === 'present') {
-          //   await req.payload.sendEmail({
-          //     html: generateParticipationAttendanceEmailHTML(emailArgs),
-          //     subject: generateParticipationAttendanceEmailSubject(event.name),
-          //     text: generateParticipationAttendanceEmailText(emailArgs),
-          //     to: doc.email,
-          //   })
-          // } else if (operation === 'update') {
-          //   await req.payload.sendEmail({
-          //     html: generateParticipationUpdateEmailHTML(emailArgs),
-          //     subject: generateParticipationUpdateEmailSubject(event.name),
-          //     text: generateParticipationUpdateEmailText(emailArgs),
-          //     to: doc.email,
-          //   })
-          // }
+          await req.payload.sendEmail({
+            attachments: [await generateParticipationConfirmationEmailQRCodeAttachment(doc.id)],
+            html: generateParticipationConfirmationEmailHTML(emailArgs),
+            subject: generateParticipationConfirmationEmailSubject(event.name),
+            text: generateParticipationConfirmationEmailText(emailArgs),
+            to: doc.email,
+          })
         } catch (error) {
           req.payload.logger.error(
             { err: error, registrationID: doc.id },
@@ -760,4 +755,39 @@ export const EventRegistrations: CollectionConfig = {
       },
     ],
   },
+}
+
+export const MINIMUMS_ACKNOWLEDGEMENT_ERROR =
+  'Confirmă că ai luat la cunoștință minimele pentru acest eveniment.'
+
+export function validateMinimumsAcknowledgement(
+  event: Pick<Event, 'donation' | 'minimumConsumation'>,
+  minimumsAcknowledged: unknown,
+) {
+  return !eventRequiresMinimumsAcknowledgement(event) || minimumsAcknowledged === true
+}
+
+export function eventRequiresMinimumsAcknowledgement(
+  event: Pick<Event, 'donation' | 'minimumConsumation'>,
+) {
+  return (
+    normalizeMinimumDonation(event.donation) !== null ||
+    normalizeMinimumNumber(event.minimumConsumation) !== null
+  )
+}
+
+function normalizeMinimumDonation(value: Event['donation']) {
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const parsed = Number(trimmed)
+  if (Number.isFinite(parsed)) return parsed > 0 ? parsed : null
+
+  return trimmed
+}
+
+function normalizeMinimumNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
 }

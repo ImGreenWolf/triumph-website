@@ -22,6 +22,13 @@ function slot(startHour: number, startMinute: number, endHour: number, endMinute
   } satisfies EventSlot
 }
 
+function openEndedSlot(startHour: number, startMinute: number) {
+  return {
+    startTime: localDate(2020, 1, 1, startHour, startMinute),
+    endTime: null,
+  } satisfies EventSlot
+}
+
 describe('event time boundaries', () => {
   it('includes the year for every date in an event range', () => {
     const label = formatEventDateRange({
@@ -55,6 +62,33 @@ describe('event time boundaries', () => {
 
     expect(getEventStartDate({ days })).toEqual(new Date(2026, 5, 21, 8, 30))
     expect(getEventEndDate({ days })).toEqual(new Date(2026, 5, 22, 14, 0))
+  })
+
+  it('uses the start time as the boundary for a single interval with no fixed end', () => {
+    const eventDate = localDate(2026, 6, 21)
+    const range = getEventSlotDateRange(eventDate, openEndedSlot(18, 30))
+    const days = [
+      {
+        eventDate,
+        slots: [openEndedSlot(18, 30)],
+      },
+    ] satisfies EventDay[]
+
+    expect(range.start).toEqual(new Date(2026, 5, 21, 18, 30))
+    expect(range.end).toBeNull()
+    expect(getEventEndDate({ days })).toEqual(new Date(2026, 5, 21, 18, 30))
+  })
+
+  it('uses the final interval start as the event end when it has no fixed end', () => {
+    const days = [
+      {
+        eventDate: localDate(2026, 6, 21),
+        slots: [slot(9, 0, 11, 0), openEndedSlot(20, 15)],
+      },
+    ] satisfies EventDay[]
+
+    expect(getEventStartDate({ days })).toEqual(new Date(2026, 5, 21, 9, 0))
+    expect(getEventEndDate({ days })).toEqual(new Date(2026, 5, 21, 20, 15))
   })
 
   it('moves an overnight slot end to the following day', () => {

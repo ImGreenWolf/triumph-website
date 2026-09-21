@@ -3,14 +3,24 @@ import type { PayloadRequest } from 'payload'
 import type { Event, EventRegistration } from '@/payload-types'
 import { getContrastTextColor } from '@/utilities/eventDisplay'
 import { getServerSideURL } from '@/utilities/getURL'
+import QRCode from 'qrcode'
+
+export const REGISTRATION_QR_CODE_CID = 'event-registration-qr-code@triumph'
 
 type ParticipationConfirmationEmailArgs = {
   dayLabel: string
   event: Pick<
     Event,
-    'cardColor' | 'name' | 'primaryColor' | 'secondaryColor' | 'slug' | 'useColors'
+    | 'cardColor'
+    | 'donation'
+    | 'minimumConsumation'
+    | 'name'
+    | 'primaryColor'
+    | 'secondaryColor'
+    | 'slug'
+    | 'useColors'
   >
-  registration: Pick<EventRegistration, 'name'>
+  registration: Pick<EventRegistration, 'name'> & Partial<Pick<EventRegistration, 'id'>>
   req?: PayloadRequest
   slotLabel: string
 }
@@ -31,6 +41,24 @@ export function generateParticipationConfirmationEmailHTML(
     heading: `Te așteptăm la ${args.event.name}`,
     preheader: `Înscrierea ta la ${args.event.name} a fost confirmată.`,
   })
+}
+
+export async function generateParticipationConfirmationEmailQRCodeAttachment(
+  registrationID: string,
+) {
+  const content = await QRCode.toBuffer(registrationID, {
+    errorCorrectionLevel: 'M',
+    margin: 2,
+    scale: 8,
+    type: 'png',
+  })
+
+  return {
+    cid: REGISTRATION_QR_CODE_CID,
+    content,
+    contentType: 'image/png',
+    filename: `event-registration-${registrationID}.png`,
+  }
 }
 
 export function generateParticipationAttendanceEmailHTML(args: ParticipationConfirmationEmailArgs) {
@@ -59,6 +87,7 @@ function generateEventRegistrationEmailHTML(
   const eventURL = `${baseURL}/events/${encodeURIComponent(args.event.slug)}`
   const logoURL = `${baseURL}/logo_full.png`
   const participantName = escapeHTML(args.registration.name)
+  const registrationID = args.registration.id ? escapeHTML(args.registration.id) : null
   const eventName = escapeHTML(args.event.name)
   const dayLabel = escapeHTML(args.dayLabel)
   const slotLabel = escapeHTML(args.slotLabel)
@@ -69,6 +98,8 @@ function generateEventRegistrationEmailHTML(
   const body = escapeHTML(content.body)
   const heading = escapeHTML(content.heading)
   const preheader = escapeHTML(content.preheader)
+  const minimumRows = getMinimumRows(args.event)
+  const safeQRCodeCID = escapeHTML(REGISTRATION_QR_CODE_CID)
 
   return `
 <!doctype html>
@@ -128,14 +159,54 @@ function generateEventRegistrationEmailHTML(
                     </td>
                   </tr>
                   <tr>
-                    <td style="padding:12px 22px 22px; border-left:4px solid ${theme.accent};">
+                    <td style="padding:12px 22px 8px; border-left:4px solid ${theme.accent};">
                       <p style="margin:0 0 5px; color:${theme.cardForeground}; opacity:0.62; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Interval</p>
                       <p style="margin:0; color:${theme.cardForeground}; font-size:15px; font-weight:700; line-height:1.5;">${slotLabel}</p>
                     </td>
                   </tr>
+                  ${
+                    minimumRows.length > 0
+                      ? minimumRows
+                          .map(
+                            (row, index) => `
+                  <tr>
+                    <td style="padding:12px 22px ${index === minimumRows.length - 1 && !registrationID ? '22px' : '8px'}; border-left:4px solid ${theme.accent};">
+                      <p style="margin:0 0 5px; color:${theme.cardForeground}; opacity:0.62; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">${escapeHTML(row.label)}</p>
+                      <p style="margin:0; color:${theme.cardForeground}; font-size:15px; font-weight:700; line-height:1.5;">${escapeHTML(row.value)}</p>
+                    </td>
+                  </tr>`,
+                          )
+                          .join('')
+                      : ''
+                  }
+                  ${
+                    registrationID
+                      ? `
+                  <tr>
+                    <td style="padding:12px 22px 22px; border-left:4px solid ${theme.accent};">
+                      <p style="margin:0 0 5px; color:${theme.cardForeground}; opacity:0.62; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">ID înscriere</p>
+                      <p style="margin:0; color:${theme.cardForeground}; font-size:15px; font-weight:700; line-height:1.5;">${registrationID}</p>
+                    </td>
+                  </tr>`
+                      : ''
+                  }
                 </table>
               </td>
             </tr>
+
+            ${
+              registrationID
+                ? `
+            <tr>
+              <td align="center" style="padding:18px 30px 8px;">
+                <p style="margin:0 0 14px; color:#526071; font-size:14px; line-height:1.6;">
+                  Prezintă acest cod QR la check-in.
+                </p>
+                <img src="cid:${safeQRCodeCID}" alt="Cod QR pentru înscrierea ${registrationID}" width="180" height="180" style="display:block; width:180px; height:180px; border:1px solid #dbe4ee; border-radius:12px; padding:12px; background:#ffffff;" />
+              </td>
+            </tr>`
+                : ''
+            }
 
             <tr>
               <td align="center" style="padding:26px 30px 30px;">
@@ -208,9 +279,38 @@ function generateEventRegistrationEmailText(
     message,
     `Ziua: ${args.dayLabel}`,
     `Interval: ${args.slotLabel}`,
+    ...getMinimumRows(args.event).map((row) => `${row.label}: ${row.value}`),
+    ...(args.registration.id ? [`ID înscriere: ${args.registration.id}`] : []),
     '',
     `Detalii: ${eventURL}`,
   ].join('\n')
+}
+
+function getMinimumRows(event: Pick<Event, 'donation' | 'minimumConsumation'>) {
+  const rows: Array<{ label: string; value: string }> = []
+  const donation = formatDonationMinimum(event.donation)
+  const consumation = formatCurrencyMinimum(event.minimumConsumation)
+
+  if (donation) rows.push({ label: 'Donație minimă', value: donation })
+  if (consumation) rows.push({ label: 'Consumație minimă', value: consumation })
+
+  return rows
+}
+
+function formatDonationMinimum(value: Event['donation']) {
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const parsed = Number(trimmed)
+  if (Number.isFinite(parsed)) return parsed > 0 ? `${trimmed} RON` : null
+
+  return trimmed
+}
+
+function formatCurrencyMinimum(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? `${value} RON` : null
 }
 
 function getEmailTheme(event: ParticipationConfirmationEmailArgs['event']) {

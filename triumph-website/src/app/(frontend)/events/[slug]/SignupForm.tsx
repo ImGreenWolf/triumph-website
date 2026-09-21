@@ -16,12 +16,28 @@ type SignupFormProps = {
   backgroundColor: string
 }
 
-type SignupEvent = Pick<Event, 'capacity' | 'days' | 'id' | 'private' | 'name'> & {
+type SignupEvent = Pick<
+  Event,
+  | 'capacity'
+  | 'days'
+  | 'donation'
+  | 'id'
+  | 'minimumConsumation'
+  | 'name'
+  | 'private'
+  | 'signupMessage'
+> & {
   participantsCount: number
   totalDonation: number
 }
 
-export default function SignupForm({ accentColor, backgroundColor, event, slotAvailability, cardColor }: SignupFormProps) {
+export default function SignupForm({
+  accentColor,
+  backgroundColor,
+  event,
+  slotAvailability,
+  cardColor,
+}: SignupFormProps) {
   const dialogTitleId = useId()
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -29,7 +45,10 @@ export default function SignupForm({ accentColor, backgroundColor, event, slotAv
   const [selectedDay, setSelectedDay] = useState('')
   const [selectedSlot, setSelectedSlot] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [minimumsAcknowledged, setMinimumsAcknowledged] = useState(false)
   const [participantsCount, setParticipantsCount] = useState(event.participantsCount)
+  const minimumLabels = useMemo(() => getMinimumLabels(event), [event])
+  const hasMinimums = minimumLabels.length > 0
   const availableSlots = useMemo(
     () => slotAvailability.filter((slot) => slot.isAvailable),
     [slotAvailability],
@@ -108,6 +127,7 @@ export default function SignupForm({ accentColor, backgroundColor, event, slotAv
   const openDialog = () => {
     setError(null)
     setSubmitted(false)
+    setMinimumsAcknowledged(false)
     setIsOpen(true)
     trackSignupFormOpen({
       eventId: event.id,
@@ -116,8 +136,9 @@ export default function SignupForm({ accentColor, backgroundColor, event, slotAv
   }
 
   return (
-    <section className="rounded-2xl border border-border p-5 text-card-foreground shadow-xl shadow-black/15"
-    style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor) }}
+    <section
+      className="rounded-2xl border border-border p-5 text-card-foreground shadow-xl shadow-black/15"
+      style={{ backgroundColor: cardColor, color: getContrastTextColor(cardColor) }}
     >
       <div className="flex items-start gap-3">
         <div
@@ -134,8 +155,21 @@ export default function SignupForm({ accentColor, backgroundColor, event, slotAv
         </div>
       </div>
 
-      <Participants accentColor={accentColor} backgroundColor={backgroundColor} event={event} participantsCount={participantsCount} />
-      
+      {eventHasEnded && (
+        <Participants
+          accentColor={accentColor}
+          backgroundColor={backgroundColor}
+          event={event}
+          participantsCount={participantsCount}
+        />
+      )}
+
+      {event.signupMessage && (
+        <p className="mt-5 rounded-lg bg-background/10 p-3 text-sm leading-6 opacity-75">
+          {event.signupMessage}
+        </p>
+      )}
+
       <Button
         className="mt-4 w-full"
         disabled={eventIsPrivate || availableSlots.length === 0 || eventHasEnded}
@@ -204,17 +238,25 @@ export default function SignupForm({ accentColor, backgroundColor, event, slotAv
                     const form = submitEvent.currentTarget
                     const formData = new FormData(form)
 
+                    if (hasMinimums && !minimumsAcknowledged) {
+                      setError('Confirmă că ai luat la cunoștință minimele pentru acest eveniment.')
+                      setIsSubmitting(false)
+                      return
+                    }
+
                     try {
                       await register({
                         day: formData.get('day') as string,
                         email: formData.get('email') as string,
                         eventId: event.id,
+                        minimumsAcknowledged: hasMinimums ? minimumsAcknowledged : undefined,
                         name: formData.get('name') as string,
                         phone: formData.get('phone') as string,
                         questions: formData.get('questions') as string,
                         slot: formData.get('slot') as string,
                       })
                       form.reset()
+                      setMinimumsAcknowledged(false)
                       setParticipantsCount((currentCount) => currentCount + 1)
                       setSubmitted(true)
                       trackEventSignup({
@@ -343,12 +385,36 @@ export default function SignupForm({ accentColor, backgroundColor, event, slotAv
                     />
                   </label>
 
+                  {hasMinimums && (
+                    <label className="flex items-start gap-3 rounded-md border border-border bg-background/35 p-3 text-sm leading-6">
+                      <input
+                        checked={minimumsAcknowledged}
+                        className="mt-1 size-4 shrink-0 accent-current"
+                        name="minimumsAcknowledged"
+                        onChange={(changeEvent) =>
+                          setMinimumsAcknowledged(changeEvent.target.checked)
+                        }
+                        required
+                        type="checkbox"
+                      />
+                      <span>
+                        Confirm că am luat la cunoștință{' '}
+                        {formatMinimumsAcknowledgementText(minimumLabels)} pentru acest eveniment.
+                      </span>
+                    </label>
+                  )}
+
                   {error && <p className="text-sm text-destructive">{error}</p>}
 
                   <div className="mt-2 flex gap-3">
                     <Button
                       className="flex-1"
-                      disabled={isSubmitting || !selectedDay || !selectedSlot}
+                      disabled={
+                        isSubmitting ||
+                        !selectedDay ||
+                        !selectedSlot ||
+                        (hasMinimums && !minimumsAcknowledged)
+                      }
                       type="submit"
                     >
                       {isSubmitting ? 'Se trimite...' : 'Confirmă înscrierea'}
@@ -394,6 +460,7 @@ async function register(args: {
   email: string
   eventId: string
   day: string
+  minimumsAcknowledged?: boolean
   name: string
   phone: string
   questions: string
@@ -404,6 +471,7 @@ async function register(args: {
       day: args.day,
       email: args.email,
       event: args.eventId,
+      minimumsAcknowledged: args.minimumsAcknowledged,
       name: args.name,
       phone: args.phone,
       questions: args.questions,
@@ -419,8 +487,38 @@ async function register(args: {
   if (!response.ok) {
     throw new Error(json?.errors?.[0]?.message ?? json?.message ?? 'Înscrierea a eșuat.')
   }
+}
 
-  
+function getMinimumLabels(event: Pick<Event, 'donation' | 'minimumConsumation'>) {
+  const labels: string[] = []
+  const donation = formatDonationMinimum(event.donation)
+  const consumation = formatCurrencyMinimum(event.minimumConsumation)
+
+  if (donation) labels.push(`donația minimă de ${donation}`)
+  if (consumation) labels.push(`consumația minimă de ${consumation}`)
+
+  return labels
+}
+
+function formatMinimumsAcknowledgementText(labels: string[]) {
+  if (labels.length <= 1) return labels[0] ?? 'minimele'
+  return `${labels.slice(0, -1).join(', ')} și ${labels.at(-1)}`
+}
+
+function formatDonationMinimum(value: Event['donation']) {
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const parsed = Number(trimmed)
+  if (Number.isFinite(parsed)) return parsed > 0 ? `${trimmed} RON` : null
+
+  return trimmed
+}
+
+function formatCurrencyMinimum(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? `${value} RON` : null
 }
 
 function Participants({
@@ -438,38 +536,35 @@ function Participants({
   const percentage = capacity > 0 ? Math.min((participantsCount / capacity) * 100, 100) : 0
 
   return (
-    <div className="mt-5 rounded-xl p-4 flex flex-col gap-4"
-    style={{backgroundColor: backgroundColor, color: getContrastTextColor(backgroundColor)}}
+    <div
+      className="mt-5 rounded-xl p-4 flex flex-col gap-4"
+      style={{ backgroundColor: backgroundColor, color: getContrastTextColor(backgroundColor) }}
     >
-      <div> 
+      <div>
         <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="flex items-center gap-2 opacity-80">
-          <Users aria-hidden className="size-4" />
-          Participanți
-        </span>
-        <span className="font-bold text-xl">
-          {participantsCount}
-          {capacity > 0 && ` / ${capacity}`}
-        </span>
-        
+          <span className="flex items-center gap-2 opacity-80">
+            <Users aria-hidden className="size-4" />
+            Participanți
+          </span>
+          <span className="font-bold text-xl">
+            {participantsCount}
+            {capacity > 0 && ` / ${capacity}`}
+          </span>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/20">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ backgroundColor: accentColor, width: `${percentage}%` }}
-            />
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ backgroundColor: accentColor, width: `${percentage}%` }}
+          />
         </div>
       </div>
 
       <div className="flex flex-col justify-between text-sm">
-        
-          <span className="flex items-center gap-2 opacity-80">
-              <Coins aria-hidden className="size-4"/>
-              Donații Strânse
-            </span>
-          <span className="font-bold text-xl text-right">
-            {event.totalDonation} RON
-          </span>
+        <span className="flex items-center gap-2 opacity-80">
+          <Coins aria-hidden className="size-4" />
+          Donații Strânse
+        </span>
+        <span className="font-bold text-xl text-right">{event.totalDonation} RON</span>
       </div>
     </div>
   )

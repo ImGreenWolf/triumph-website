@@ -27,6 +27,7 @@ import {
 } from '@/utilities/eventRegistration'
 import { generateMeta } from '@/utilities/generateMeta'
 import { getMediaUrl } from '@/utilities/getMediaUrl'
+import { getLocationMapEmbedURL, getLocationPhotoURL } from '@/utilities/locationPhoto'
 import configPromise from '@payload-config'
 import {
   CalendarDays,
@@ -45,6 +46,8 @@ import EventPhotoBoard, {
   type EventPhotoBoardImage,
   type EventPhotoBoardMode,
 } from './EventPhotoBoard.client'
+import LocationMapDropdown from './LocationMapDropdown.client'
+import LocationVisual from './LocationVisual.client'
 import PageClient from './page.client'
 import SignupForm from './SignupForm'
 import { DocumentIcon } from '@payloadcms/ui'
@@ -124,9 +127,12 @@ export default async function Event({ params: paramsPromise }: Args) {
   const eventDays = event.days?.filter((day) => day.eventDate) ?? []
   const compactProgram = eventDays.length > 5
   const location = getEventLocation(event.location)
+  const locationPhotoURL = await getLocationPhotoURL(location)
+  const locationMapEmbedURL = getLocationMapEmbedURL(location)
   const googleMapsURL = getGoogleMapsURL(location)
   const inspoboardItems = getInspoboardItems(event.inspoboard)
   const galleryItems = getGalleryItems(galleryPhotos.docs as GalleryPhoto[])
+  const minimumDetails = getMinimumDetails(event)
   const photoBoardDefaultMode: EventPhotoBoardMode =
     galleryItems.length > 0 && (isEventCompleted(event) || inspoboardItems.length === 0)
       ? 'gallery'
@@ -175,39 +181,93 @@ export default async function Event({ params: paramsPromise }: Args) {
                     day.eventDate ? (
                       <div
                         className={
-                          compactProgram ? 'rounded-lg bg-background/10 px-2.5 py-2' : undefined
+                          compactProgram
+                            ? 'rounded-lg bg-background/10 px-2.5 py-2'
+                            : 'rounded-xl bg-background/10 p-3'
                         }
                         key={day.id || day.eventDate}
                       >
-                        <p
+                        <div
                           className={
-                            compactProgram ? 'text-xs font-bold capitalize' : 'font-bold capitalize'
+                            compactProgram ? 'flex items-center gap-2' : 'flex items-center gap-3'
                           }
                         >
-                          {compactProgram
-                            ? formatCompactEventDayLabel(day.eventDate)
-                            : formatEventDayLabel(day.eventDate)}
-                        </p>
+                          <span
+                            className={
+                              compactProgram
+                                ? 'text-3xl font-black leading-none text-[var(--event-accent)]'
+                                : 'text-5xl font-black leading-none text-[var(--event-accent)]'
+                            }
+                          >
+                            {getEventDateParts(day.eventDate).day}
+                          </span>
+                          <span className="min-w-0">
+                            <span
+                              className={
+                                compactProgram
+                                  ? 'block text-xs font-bold capitalize leading-4'
+                                  : 'block text-base font-bold capitalize leading-5'
+                              }
+                            >
+                              {getEventDateParts(day.eventDate).weekday}
+                            </span>
+                            <span
+                              className={
+                                compactProgram
+                                  ? 'block text-[11px] font-semibold leading-4 opacity-60'
+                                  : 'block text-sm font-semibold leading-5 opacity-60'
+                              }
+                            >
+                              {getEventDateParts(day.eventDate).monthYear}
+                            </span>
+                          </span>
+                        </div>
                         {compactProgram ? (
-                          <p className="mt-0.5 text-[11px] leading-4 opacity-60">
-                            {formatSlotCount(day.slots?.length ?? 0)}
+                          <p
+                            className={
+                              day.slots?.length === 1
+                                ? 'mt-2 rounded-md bg-[var(--event-accent)]/20 px-2 py-1 text-xs font-black leading-4'
+                                : 'mt-0.5 text-[11px] leading-4 opacity-60'
+                            }
+                          >
+                            {day.slots?.length === 1
+                              ? formatEventSlotLabel(day.slots[0]?.startTime, day.slots[0]?.endTime)
+                              : formatSlotCount(day.slots?.length ?? 0)}
                           </p>
                         ) : (
                           day.slots &&
                           day.slots.length > 0 && (
-                            <p className="mt-1 leading-5 flex flex-wrap gap-2">
-                              {day.slots.map((slot) => (
-                                <span
-                                  className={
-                                    eventDays.length > 3
-                                      ? 'rounded-xl text-[10px] px-2 py-0.5 bg-[var(--event-accent)]/80'
-                                      : 'rounded-xl text-xs px-3 py-1 bg-[var(--event-accent)]/80'
-                                  }
-                                >
-                                  {formatEventSlotLabel(slot.startTime, slot.endTime)}
-                                </span>
-                              ))}
-                            </p>
+                            <div
+                              className={
+                                day.slots.length === 1
+                                  ? 'mt-4 rounded-lg border border-[var(--event-accent)]/40 bg-[var(--event-accent)]/18 px-4 py-3 shadow-sm'
+                                  : 'mt-3 flex flex-wrap gap-2 leading-5'
+                              }
+                            >
+                              {day.slots.map((slot) => {
+                                const slotLabel = formatEventSlotLabel(slot.startTime, slot.endTime)
+
+                                return day.slots?.length === 1 ? (
+                                  <div key={slot.id || slotLabel}>
+                                    <p className="text-xs font-semibold uppercase opacity-60">
+                                      Interval
+                                    </p>
+                                    <p className="mt-1 text-xl font-black">{slotLabel}</p>
+                                  </div>
+                                ) : (
+                                  <span
+                                    className={
+                                      eventDays.length > 3
+                                        ? 'rounded-xl text-[10px] px-2 py-0.5 bg-[var(--event-accent)]/80'
+                                        : 'rounded-xl text-xs px-3 py-1 bg-[var(--event-accent)]/80'
+                                    }
+                                    key={slot.id || slotLabel}
+                                  >
+                                    {slotLabel}
+                                  </span>
+                                )
+                              })}
+                            </div>
                           )
                         )}
                       </div>
@@ -223,21 +283,21 @@ export default async function Event({ params: paramsPromise }: Args) {
                   cardColor={cardColor}
                   label="Locație"
                 >
-                  <p className="font-bold">{location.name}</p>
+                  <LocationVisual
+                    alt={location.name}
+                    photoURL={locationPhotoURL}
+                  />
+                  <p className="text-2xl font-black leading-tight">{location.name}</p>
                   {location.formattedAddress && (
-                    <p className="mt-1 text-sm leading-5 opacity-60">{location.formattedAddress}</p>
+                    <p className="mt-2 text-base font-semibold leading-6 opacity-65">
+                      {location.formattedAddress}
+                    </p>
                   )}
-                  {googleMapsURL && (
-                    <a
-                      className="mt-4 inline-flex items-center gap-1.5 text-md font-semibold text-[var(--event-accent)] transition hover:opacity-50"
-                      href={googleMapsURL}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      Deschide în Maps
-                      <ExternalLink aria-hidden className="size-3.5" />
-                    </a>
-                  )}
+                  <LocationMapDropdown
+                    googleMapsURL={googleMapsURL}
+                    locationName={location.name}
+                    mapEmbedURL={locationMapEmbedURL}
+                  />
                 </DetailCard>
               )}
             </section>
@@ -303,18 +363,23 @@ export default async function Event({ params: paramsPromise }: Args) {
                   </div>
                 </DetailCard>
               )}
-              {event.donation && (
+              {minimumDetails.length > 0 && (
                 <DetailCard
                   accentColor={accentColor}
                   cardColor={cardColor}
                   icon={HandHelping}
-                  label="Donație minimă"
+                  label="Donații eveniment"
                 >
-                  {!isNaN(parseInt(event.donation)) ? (
-                    <p className="text-2xl font-bold">{event.donation} RON</p>
-                  ) : (
-                    <p className="text-2xl font-bold">{event.donation}</p>
-                  )}
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    {minimumDetails.map((minimum) => (
+                      <div className="rounded-lg bg-background/10 p-3" key={minimum.label}>
+                        <p className="text-xs font-semibold uppercase opacity-55">
+                          {minimum.label}
+                        </p>
+                        <p className="mt-1 text-2xl font-bold">{minimum.value}</p>
+                      </div>
+                    ))}
+                  </div>
                 </DetailCard>
               )}
               {event.documents?.length != 0 && (
@@ -324,8 +389,11 @@ export default async function Event({ params: paramsPromise }: Args) {
                   icon={HandHelping}
                   label="Acorduri Necesare"
                 >
-                  {event.documents?.map((document) => (
-                    <div className="text-[var(--event-accent)] underline inline-flex items-center gap-2">
+                  {event.documents?.map((document, index) => (
+                    <div
+                      className="text-[var(--event-accent)] underline inline-flex items-center gap-2"
+                      key={document.id || `${document.label}-${index}`}
+                    >
                       <a
                         href={
                           typeof document.document == 'string'
@@ -347,10 +415,13 @@ export default async function Event({ params: paramsPromise }: Args) {
                 event={{
                   capacity: event.capacity,
                   days: event.days,
+                  donation: event.donation,
                   id: event.id,
+                  minimumConsumation: event.minimumConsumation,
                   name: event.name,
                   participantsCount,
                   private: event.private,
+                  signupMessage: event.signupMessage,
                   totalDonation: await getTotalDonations(registrations.docs),
                 }}
                 slotAvailability={slotAvailability}
@@ -379,6 +450,50 @@ function formatSlotCount(slotCount: number) {
   if (slotCount === 1) return '1 interval'
 
   return `${slotCount} intervale`
+}
+
+function getEventDateParts(eventDate: string) {
+  const parts = new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    month: 'long',
+    weekday: 'long',
+    year: 'numeric',
+  }).formatToParts(new Date(eventDate))
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
+
+  return {
+    day: getPart('day'),
+    monthYear: `${getPart('month')} ${getPart('year')}`.trim(),
+    weekday: getPart('weekday'),
+  }
+}
+
+function getMinimumDetails(event: Pick<Event, 'donation' | 'minimumConsumation'>) {
+  const details: Array<{ label: string; value: string }> = []
+  const donation = formatDonationMinimum(event.donation)
+  const consumation = formatCurrencyMinimum(event.minimumConsumation)
+
+  if (donation) details.push({ label: 'Donație minimă', value: donation })
+  if (consumation) details.push({ label: 'Consumație minimă', value: consumation })
+
+  return details
+}
+
+function formatDonationMinimum(value: Event['donation']) {
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const parsed = Number(trimmed)
+  if (Number.isFinite(parsed)) return parsed > 0 ? `${trimmed} RON` : null
+
+  return trimmed
+}
+
+function formatCurrencyMinimum(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? `${value} RON` : null
 }
 
 function getInspoboardItems(inspoboard: Event['inspoboard']): EventPhotoBoardImage[] {

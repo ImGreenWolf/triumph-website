@@ -3,10 +3,16 @@ import { describe, expect, it } from 'vitest'
 import {
   formatCompactEventDayLabel,
   formatEventDayLabel,
+  formatEventSlotLabel,
   getEventSlotAvailability,
+  getEventSlotRegistrationDeadline,
   isEventSlotRegistrationOpen,
   REGISTRATION_CUTOFF_MINUTES,
 } from '@/utilities/eventRegistration'
+import {
+  eventRequiresMinimumsAcknowledgement,
+  validateMinimumsAcknowledgement,
+} from '@/collections/Events'
 
 describe('event registration availability', () => {
   it('includes the year in full and compact event date labels', () => {
@@ -107,6 +113,51 @@ describe('event registration availability', () => {
         localDate(2026, 5, 16),
       ),
     ).toBe(false)
+  })
+
+  it('renders an interval with no fixed end as its start time only', () => {
+    const startTime = localDate(2026, 5, 15, 18, 30).toISOString()
+
+    expect(formatEventSlotLabel(startTime, null)).toBe('18:30')
+  })
+
+  it('uses the start time as the deadline for an interval with no fixed end', () => {
+    const eventDate = localDate(2026, 5, 15).toISOString()
+    const startTime = localDate(2026, 5, 15, 18, 30).toISOString()
+    const beforeStart = localDate(2026, 5, 15, 18, 29)
+    const atStart = localDate(2026, 5, 15, 18, 30)
+
+    expect(getEventSlotRegistrationDeadline({ eventDate, startTime, endTime: null })).toEqual(
+      atStart,
+    )
+    expect(isEventSlotRegistrationOpen({ eventDate, startTime, endTime: null }, beforeStart)).toBe(
+      true,
+    )
+    expect(isEventSlotRegistrationOpen({ eventDate, startTime, endTime: null }, atStart)).toBe(
+      false,
+    )
+  })
+
+  it('requires public acknowledgement when an event has minimum donation or consumation', () => {
+    const minimumDonationEvent = {
+      donation: '50',
+      minimumConsumation: null,
+    }
+    const minimumConsumationEvent = {
+      donation: null,
+      minimumConsumation: 25,
+    }
+    const freeEvent = {
+      donation: '',
+      minimumConsumation: 0,
+    }
+
+    expect(eventRequiresMinimumsAcknowledgement(minimumDonationEvent)).toBe(true)
+    expect(eventRequiresMinimumsAcknowledgement(minimumConsumationEvent)).toBe(true)
+    expect(eventRequiresMinimumsAcknowledgement(freeEvent)).toBe(false)
+    expect(validateMinimumsAcknowledgement(minimumDonationEvent, false)).toBe(false)
+    expect(validateMinimumsAcknowledgement(minimumDonationEvent, true)).toBe(true)
+    expect(validateMinimumsAcknowledgement(freeEvent, false)).toBe(true)
   })
 })
 

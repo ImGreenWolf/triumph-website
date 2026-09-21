@@ -40,9 +40,7 @@ export function getEventStartDate(event: Pick<Event, 'days'>) {
 export function getEventEndDate(event: Pick<Event, 'days'>) {
   const ends = getEventDays(event).flatMap((day) => {
     const slotEnds = day.slots.flatMap((slot) => {
-      const range = getEventSlotDateRange(day.eventDate, slot)
-      const end = range.end ?? range.start
-      return end ? [end] : []
+      return compactDate(getEventSlotEndBoundaryDate(day.eventDate, slot))
     })
 
     return slotEnds.length > 0 ? slotEnds : compactDate(toDayBoundary(day.eventDate, true))
@@ -164,6 +162,14 @@ export function getEventSlotDateRange(
   }
 
   return { end, start }
+}
+
+export function getEventSlotEndBoundaryDate(
+  eventDate: string,
+  slot: Pick<EventSlot, 'endTime' | 'startTime'>,
+) {
+  const range = getEventSlotDateRange(eventDate, slot)
+  return range.end ?? range.start
 }
 
 export function isEventSlotUpcoming(eventDate: string, time?: string | null, now = new Date()) {
