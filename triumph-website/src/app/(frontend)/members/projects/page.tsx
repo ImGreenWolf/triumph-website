@@ -14,6 +14,7 @@ import ProjectManagerDashboard, {
   type ManagedEventDay,
   type ManagedEventSlot,
 } from './ProjectManagerDashboard'
+import { hasBoardRole, isBoardMember } from '@/utilities/membersAccess'
 
 export const metadata: Metadata = {
   description: 'Înscrieri, check-in și rapoarte pentru evenimentele coordonate.',
@@ -27,6 +28,7 @@ export default async function ProjectManagerPage() {
   if (!auth.user) redirect('/members/login')
 
   const user = auth.user as User
+  const globalAccess = isBoardMember(user)
   const eventResult = await payload.find({
     collection: 'events',
     depth: 1,
@@ -37,7 +39,7 @@ export default async function ProjectManagerPage() {
 
     where: {
       coordonators: {
-        contains: user.id,
+        contains: !globalAccess && user.id,
       },
     },
   })
