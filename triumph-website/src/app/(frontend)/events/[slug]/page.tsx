@@ -330,6 +330,24 @@ export default async function Event({ params: paramsPromise }: Args) {
 
           {!event.private && (
             <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-28">
+               <SignupForm
+                accentColor={accentColor}
+                backgroundColor={backgroundColor}
+                cardColor={cardColor}
+                event={{
+                  capacity: event.capacity,
+                  days: event.days,
+                  donation: event.donation,
+                  id: event.id,
+                  minimumConsumation: event.minimumConsumation,
+                  name: event.name,
+                  participantsCount,
+                  private: event.private,
+                  signupMessage: event.signupMessage,
+                  totalDonation: await getTotalDonations(registrations.docs),
+                }}
+                slotAvailability={slotAvailability}
+              />
               {event.cause && typeof event.cause === 'object' && (
                 <DetailCard
                   accentColor={accentColor}
@@ -373,7 +391,7 @@ export default async function Event({ params: paramsPromise }: Args) {
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                     {minimumDetails.map((minimum) => (
                       <div className="rounded-lg bg-background/10 p-3" key={minimum.label}>
-                        <p className="text-xs font-semibold uppercase opacity-55">
+                        <p className="text-xs font-semibold uppercase opacity-55 max-w-0">
                           {minimum.label}
                         </p>
                         <p className="mt-1 text-2xl font-bold">{minimum.value}</p>
@@ -408,24 +426,7 @@ export default async function Event({ params: paramsPromise }: Args) {
                   ))}
                 </DetailCard>
               )}
-              <SignupForm
-                accentColor={accentColor}
-                backgroundColor={backgroundColor}
-                cardColor={cardColor}
-                event={{
-                  capacity: event.capacity,
-                  days: event.days,
-                  donation: event.donation,
-                  id: event.id,
-                  minimumConsumation: event.minimumConsumation,
-                  name: event.name,
-                  participantsCount,
-                  private: event.private,
-                  signupMessage: event.signupMessage,
-                  totalDonation: await getTotalDonations(registrations.docs),
-                }}
-                slotAvailability={slotAvailability}
-              />
+             
             </aside>
           )}
         </div>

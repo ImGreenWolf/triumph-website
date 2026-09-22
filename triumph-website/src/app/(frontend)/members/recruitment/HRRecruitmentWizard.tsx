@@ -378,11 +378,22 @@ export default function HRRecruitmentWizard(props: {
                 indeplinite.
               </p>
             </div>
-            <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
-              <HeaderStat label="Formulare" value={String(workflow.metrics.submitted)} />
-              <HeaderStat label="Asignati" value={String(workflow.metrics.assigned)} />
-              <HeaderStat label="Programati" value={String(workflow.metrics.scheduled)} />
-              <HeaderStat label="Decizii finale" value={String(workflow.metrics.finalPending)} />
+            <div className="grid min-w-0 gap-3 sm:min-w-[26rem]">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <HeaderStat label="Formulare" value={String(workflow.metrics.submitted)} />
+                <HeaderStat label="Asignati" value={String(workflow.metrics.assigned)} />
+                <HeaderStat label="Programati" value={String(workflow.metrics.scheduled)} />
+                <HeaderStat label="Decizii finale" value={String(workflow.metrics.finalPending)} />
+              </div>
+              <button
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.08] px-4 text-sm font-bold text-white transition hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-55 sm:justify-self-end"
+                disabled={applications.length === 0}
+                onClick={() => exportRecruitmentApplications(applications, commissions)}
+                type="button"
+              >
+                <Download className="size-4" />
+                Exporta CSV
+              </button>
             </div>
           </div>
           <div className="mt-6 grid gap-2 border-t border-white/10 pt-5 text-sm sm:grid-cols-3">
@@ -1359,9 +1370,11 @@ function ApplicationDrawer(props: {
   onClose: () => void
   senderEmail: string
 }) {
-  const defaultMailSubject= "Răspuns Întrebare Formular Înscriere | Interact București Triumph"
+  const defaultMailSubject = 'Răspuns Întrebare Formular Înscriere | Interact București Triumph'
   const [notes, setNotes] = useState('')
-  const [mailSubject, setMailSubject] = useState('Răspuns Întrebare Formular Înscriere | Interact București Triumph')
+  const [mailSubject, setMailSubject] = useState(
+    'Răspuns Întrebare Formular Înscriere | Interact București Triumph',
+  )
   const [mailBody, setMailBody] = useState('')
   const [selectedAnswerIndex, setSelectedAnswerIndex] = useState('')
   const mailBodyRef = useRef<HTMLTextAreaElement>(null)
@@ -1417,7 +1430,7 @@ function ApplicationDrawer(props: {
         },
         customMailBusyKey,
       )
-      setMailSubject(defaultMailSubject) 
+      setMailSubject(defaultMailSubject)
       setMailBody('')
       setSelectedAnswerIndex('')
     } catch {
@@ -2098,4 +2111,161 @@ function formatDateTime(value: string | null | undefined) {
 function formatDateRange(start: string | null, end: string | null) {
   if (!start && !end) return 'Neconfigurat'
   return `${formatDate(start)} - ${formatDate(end)}`
+}
+
+function exportRecruitmentApplications(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+) {
+  const csv = buildRecruitmentApplicationsCSV(applications, commissions)
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.download = `recruitment-applications-${new Date().toISOString().slice(0, 10)}.csv`
+  link.href = url
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+function buildRecruitmentApplicationsCSV(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+) {
+  const answerHeaders = getCSVAnswerHeaders(applications)
+  const headers = [
+    'ID',
+    'Nume',
+    'Email',
+    'Telefon',
+    'Instagram',
+    'Status',
+    'Comisie',
+    'Trimis la',
+    'Data interview',
+    'Prezenta interview',
+    'Email interview trimis la',
+    'Email final trimis la',
+    'Coordonatori cunoscuti',
+    'Coordonatori verificati',
+    'Note interne',
+    'Note interview',
+    'Documente',
+    ...answerHeaders,
+  ]
+  const rows = [...applications]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .map((application) => {
+      const answerValues = getCSVAnswerValues(application)
+
+      return [
+        application.id,
+        application.name,
+        application.email,
+        application.phone,
+        application.instagram,
+        getCSVStatusLabel(application.status),
+        getCSVCommissionLabel(application, commissions),
+        formatExportDateTime(application.createdAt),
+        formatExportDateTime(application.interviewDate),
+        application.interviewAttendance || '',
+        formatExportDateTime(application.interviewMailSentAt),
+        formatExportDateTime(application.finalMailSentAt),
+        getCSVUserNames(application.knownCoordinatorIds, commissions),
+        getCSVUserNames(application.reviewedCoordinatorIds, commissions),
+        application.notes,
+        application.interviewNotes
+          .map((note) =>
+            [formatExportDateTime(note.createdAt), note.author?.name || 'Membru board', note.note]
+              .filter(Boolean)
+              .join(' - '),
+          )
+          .join('\n'),
+        application.formUploads
+          .map((upload) => [upload.label, upload.filename, upload.url].filter(Boolean).join(' - '))
+          .join('\n'),
+        ...answerHeaders.map((header) => answerValues.get(header)?.join('\n') || ''),
+      ]
+    })
+
+  return [headers, ...rows].map((row) => row.map(formatCSVCell).join(',')).join('\r\n')
+}
+
+function getCSVAnswerHeaders(applications: ManagedApplication[]) {
+  const headers: string[] = []
+  const seen = new Set<string>()
+
+  applications.forEach((application) => {
+    application.formAnswers.forEach((answer) => {
+      const header = getCSVAnswerHeader(answer)
+      if (seen.has(header)) return
+
+      seen.add(header)
+      headers.push(header)
+    })
+  })
+
+  return headers
+}
+
+function getCSVAnswerValues(application: ManagedApplication) {
+  return application.formAnswers.reduce((values, answer) => {
+    const header = getCSVAnswerHeader(answer)
+    values.set(header, [...(values.get(header) ?? []), answer.value])
+    return values
+  }, new Map<string, string[]>())
+}
+
+function getCSVAnswerHeader(answer: ManagedApplication['formAnswers'][number]) {
+  return `Raspuns: ${normalizeCSVText(answer.label || answer.field || 'Camp formular')}`
+}
+
+function getCSVStatusLabel(status: ManagedApplicationStatus) {
+  return statusLabels[status] || status
+}
+
+function getCSVCommissionLabel(application: ManagedApplication, commissions: ManagedCommission[]) {
+  if (!application.commissionId) return ''
+  return (
+    commissions.find((commission) => commission.id === application.commissionId)?.label ||
+    application.commissionId
+  )
+}
+
+function getCSVUserNames(ids: string[], commissions: ManagedCommission[]) {
+  const users = new Map<string, string>()
+
+  commissions.forEach((commission) => {
+    commission.coordinators.forEach((coordinator) => {
+      users.set(coordinator.id, coordinator.name)
+    })
+  })
+
+  return ids.map((id) => users.get(id) || id).join('\n')
+}
+
+function formatCSVCell(value: unknown) {
+  const text = normalizeCSVText(String(value ?? ''))
+  const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text
+  return `"${safeText.replaceAll('"', '""')}"`
+}
+
+function normalizeCSVText(value: string) {
+  return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim()
+}
+
+function formatExportDateTime(value: string | null | undefined) {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime())
+    ? ''
+    : new Intl.DateTimeFormat('ro-RO', {
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(date)
 }
