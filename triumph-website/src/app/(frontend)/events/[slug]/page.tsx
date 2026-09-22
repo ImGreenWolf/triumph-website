@@ -6,13 +6,7 @@ import { Media } from '@/components/Media'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import RichText from '@/components/RichText'
 import { EventHero } from '@/heros/EventHero'
-import type {
-  Event,
-  EventRegistration,
-  GalleryPhoto,
-  Media as MediaType,
-  User,
-} from '@/payload-types'
+import type { Event, GalleryPhoto, Media as MediaType, User } from '@/payload-types'
 import {
   getContrastTextColor,
   getEventLocation,
@@ -23,7 +17,6 @@ import {
   formatCompactEventDayLabel,
   formatEventDayLabel,
   formatEventSlotLabel,
-  getEventSlotAvailability,
 } from '@/utilities/eventRegistration'
 import { generateMeta } from '@/utilities/generateMeta'
 import { getMediaUrl } from '@/utilities/getMediaUrl'
@@ -39,18 +32,17 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { draftMode } from 'next/headers'
-import { getPayload, Payload } from 'payload'
-import { cache } from 'react'
+import { getPayload } from 'payload'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 import EventPhotoBoard, {
   type EventPhotoBoardImage,
   type EventPhotoBoardMode,
 } from './EventPhotoBoard.client'
+import { getEventSignupData, queryEventBySlug } from './eventData'
 import LocationMapDropdown from './LocationMapDropdown.client'
 import LocationVisual from './LocationVisual.client'
 import PageClient from './page.client'
 import SignupForm from './SignupForm'
-import { DocumentIcon } from '@payloadcms/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,25 +66,8 @@ export default async function Event({ params: paramsPromise }: Args) {
     headers: await getPayloadAuthHeaders(),
   })
   const user = auth?.user as User | undefined
-  const [registrations, galleryPhotos] = await Promise.all([
-    payload.find({
-      collection: 'event-registrations',
-      depth: 0,
-      limit: 0,
-      overrideAccess: true,
-      pagination: false,
-      select: {
-        day: true,
-        slot: true,
-        status: true,
-        donation: true,
-      },
-      where: {
-        event: {
-          equals: event.id,
-        },
-      },
-    }),
+  const [signupData, galleryPhotos] = await Promise.all([
+    getEventSignupData(event),
     payload.find({
       collection: 'gallery-photos',
       depth: 1,
@@ -114,13 +89,6 @@ export default async function Event({ params: paramsPromise }: Args) {
       },
     }),
   ])
-  const slotAvailability = getEventSlotAvailability({
-    event,
-    registrations: registrations.docs,
-  })
-  const participantsCount = registrations.docs.filter(
-    (registration) => registration.status !== 'cancelled',
-  ).length
   const accentColor = event.useColors && event.secondaryColor ? event.secondaryColor : '#00a2e0'
   const cardColor = event.useColors && event.cardColor ? event.cardColor : '#141e34'
   const backgroundColor = event.useColors && event.primaryColor ? event.primaryColor : '#141e34'
@@ -283,10 +251,7 @@ export default async function Event({ params: paramsPromise }: Args) {
                   cardColor={cardColor}
                   label="Locație"
                 >
-                  <LocationVisual
-                    alt={location.name}
-                    photoURL={locationPhotoURL}
-                  />
+                  <LocationVisual alt={location.name} photoURL={locationPhotoURL} />
                   <p className="text-2xl font-black leading-tight">{location.name}</p>
                   {location.formattedAddress && (
                     <p className="mt-2 text-base font-semibold leading-6 opacity-65">
@@ -330,23 +295,13 @@ export default async function Event({ params: paramsPromise }: Args) {
 
           {!event.private && (
             <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-28">
-               <SignupForm
+              <SignupForm
                 accentColor={accentColor}
                 backgroundColor={backgroundColor}
                 cardColor={cardColor}
-                event={{
-                  capacity: event.capacity,
-                  days: event.days,
-                  donation: event.donation,
-                  id: event.id,
-                  minimumConsumation: event.minimumConsumation,
-                  name: event.name,
-                  participantsCount,
-                  private: event.private,
-                  signupMessage: event.signupMessage,
-                  totalDonation: await getTotalDonations(registrations.docs),
-                }}
-                slotAvailability={slotAvailability}
+                event={signupData.signupEvent}
+                signupHref={`/events/${encodeURIComponent(decodedSlug)}/signup`}
+                slotAvailability={signupData.slotAvailability}
               />
               {event.cause && typeof event.cause === 'object' && (
                 <DetailCard
@@ -426,7 +381,6 @@ export default async function Event({ params: paramsPromise }: Args) {
                   ))}
                 </DetailCard>
               )}
-             
             </aside>
           )}
         </div>
@@ -434,17 +388,6 @@ export default async function Event({ params: paramsPromise }: Args) {
     </article>
   )
 }
-
-const getTotalDonations = cache(
-  async (
-    registrations: Pick<EventRegistration, 'day' | 'slot' | 'donation' | 'status' | 'id'>[],
-  ) => {
-    if (!registrations || !registrations) return 0
-    return (
-      registrations.reduce((sum, evReg) => (sum += (evReg as EventRegistration).donation), 0) || 0
-    )
-  },
-)
 
 function formatSlotCount(slotCount: number) {
   if (slotCount === 0) return 'Fără intervale'
@@ -574,22 +517,3 @@ export async function generateMetadata({ params: paramsPromise }: Args): Promise
 
   return generateMeta({ doc: event })
 }
-
-const queryEventBySlug = cache(async ({ slug }: { slug: string }) => {
-  const { isEnabled: draft } = await draftMode()
-  const payload = await getPayload({ config: configPromise })
-  const result = await payload.find({
-    collection: 'events',
-    draft,
-    limit: 1,
-    overrideAccess: draft,
-    pagination: false,
-    where: {
-      slug: {
-        equals: slug,
-      },
-    },
-  })
-
-  return (result.docs?.[0] as Event | undefined) || null
-})

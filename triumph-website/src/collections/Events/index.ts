@@ -352,6 +352,18 @@ export const Events: CollectionConfig<'events'> = {
       relationTo: 'users',
     },
     {
+      name: 'checkInMembers',
+      type: 'relationship',
+      label: 'Check-in team',
+      admin: {
+        description:
+          'Members listed here can view this event in the members dashboard and process check-in without becoming project managers.',
+        position: 'sidebar',
+      },
+      hasMany: true,
+      relationTo: 'users',
+    },
+    {
       name: 'private',
       type: 'checkbox',
       defaultValue: false,

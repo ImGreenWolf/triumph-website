@@ -97,18 +97,29 @@ export default async function DashboardPage() {
     slug: 'members-dashboard',
   })) as MembersDashboard
 
+  const hasBoardAccess = isBoardMember(member)
   const managedEvents = await payload.find({
     collection: 'events',
     depth: 0,
     limit: 1,
     overrideAccess: true,
-    where: {
-      coordonators: {
-        contains: member.id,
-      },
-    },
+    where: hasBoardAccess
+      ? undefined
+      : {
+          or: [
+            {
+              coordonators: {
+                contains: member.id,
+              },
+            },
+            {
+              checkInMembers: {
+                contains: member.id,
+              },
+            },
+          ],
+        },
   })
-  const hasBoardAccess = isBoardMember(member)
   const managedCommissions = await payload.find({
     collection: 'comissions',
     depth: 0,

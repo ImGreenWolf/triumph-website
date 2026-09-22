@@ -2,6 +2,11 @@ import payloadConfig from '@payload-config'
 import { getPayload, type Payload } from 'payload'
 
 import type { Event, EventRegistration, User } from '@/payload-types'
+import {
+  canCheckInEvent,
+  canManageEvent,
+  getRelationshipID,
+} from '@/utilities/eventAccess'
 import { findEventSlot } from '@/utilities/eventRegistration'
 
 const allowedStatuses = new Set(['registered', 'present', 'absent'])
@@ -73,7 +78,7 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Evenimentul nu a fost găsit.' }, { status: 404 })
   }
 
-  if (!canManageEvent(event, authentication.user)) {
+  if (!canCheckInEvent(event, authentication.user)) {
     return Response.json(
       { message: 'Nu ai permisiunea de a gestiona acest eveniment.' },
       { status: 403 },
@@ -195,7 +200,7 @@ export async function PATCH(request: Request) {
     id: eventID,
     overrideAccess: true,
   })) as Event
-  if (!canManageEvent(event, authentication.user)) {
+  if (!canCheckInEvent(event, authentication.user)) {
     return Response.json(
       { message: 'Nu ai permisiunea de a gestiona acest eveniment.' },
       { status: 403 },
@@ -303,10 +308,6 @@ export async function DELETE(request: Request) {
   })
 }
 
-function getRelationshipID(value: string | { id: string }) {
-  return typeof value === 'string' ? value : value.id
-}
-
 async function authenticateRequest(request: Request, payload: Payload) {
   if (request.headers.get('sec-fetch-site') === 'cross-site') {
     return { response: Response.json({ message: 'Cerere nepermisă.' }, { status: 403 }) }
@@ -329,12 +330,6 @@ async function authenticateRequest(request: Request, payload: Payload) {
   }
 
   return { user: auth.user as User }
-}
-
-function canManageEvent(event: Event, user: User) {
-  return (event.coordonators ?? []).some(
-    (coordinator) => getRelationshipID(coordinator) === user.id,
-  )
 }
 
 function normalizeText(value: unknown) {

@@ -3,7 +3,7 @@ import { getPayload } from 'payload'
 
 import { importParticipantsFromCSV } from '@/collections/Events/bulkUpload'
 import type { Event, User } from '@/payload-types'
-import { isBoardMember } from '@/utilities/membersAccess'
+import { canManageEvent } from '@/utilities/eventAccess'
 
 const MAX_CSV_SIZE = 5 * 1024 * 1024
 
@@ -71,11 +71,8 @@ export async function POST(request: Request) {
   }
 
   const user = auth.user as User
-  const canManage = (event.coordonators ?? []).some(
-    (coordinator) => getRelationshipID(coordinator) === user.id || isBoardMember(user),
-  )
 
-  if (!canManage) {
+  if (!canManageEvent(event, user)) {
     return Response.json(
       { message: 'Nu ai permisiunea de a importa participanți în acest eveniment.' },
       { status: 403 },
@@ -96,10 +93,6 @@ export async function POST(request: Request) {
       : 'Nu a fost importat niciun participant.'
 
   return Response.json({ message, ...result }, { status })
-}
-
-function getRelationshipID(value: string | { id: string }) {
-  return typeof value === 'string' ? value : value.id
 }
 
 function isUploadedFile(value: FormDataEntryValue | null): value is File {

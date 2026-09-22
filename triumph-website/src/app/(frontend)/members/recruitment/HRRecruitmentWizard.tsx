@@ -51,6 +51,7 @@ import {
 } from '@/utilities/recruitmentWorkflow'
 import type { GooglePlaceLocation } from '@/utilities/googlePlace'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
+import { cn } from '@/utilities/ui'
 
 export type ManagedUser = {
   clubMail?: string | null
@@ -613,6 +614,7 @@ function ApplicationReviewStep(props: {
                 <p className="text-xs font-semibold text-[#526071]">
                   Trimis {formatDate(application.createdAt)}
                 </p>
+                
                 <button
                   className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-[#dfe5ec] bg-white px-3 text-xs font-bold transition hover:border-[#00a2e0] hover:text-[#007fb3] min-[380px]:w-auto"
                   onClick={() => props.onOpen(application.id)}
@@ -631,6 +633,7 @@ function ApplicationReviewStep(props: {
               <tr>
                 <th className="px-3 py-3">Aplicant</th>
                 <th className="px-3 py-3">Trimis</th>
+                <th className="px-3 py-3">Question</th>
                 <th className="px-3 py-3">Status</th>
                 <th className="px-3 py-3 text-right">Detalii</th>
               </tr>
@@ -644,6 +647,9 @@ function ApplicationReviewStep(props: {
                   </td>
                   <td className="px-3 py-3.5 text-[#526071]">
                     {formatDate(application.createdAt)}
+                  </td>
+                  <td className={cn("px-3 py-3.5 text-[#526071] tracking-tight max-w-30 truncate", application.customMailHistory.length!=0 && "opacity-25")}>
+                     {application.formAnswers.find(item => item.field == "question")?.value}
                   </td>
                   <td className="px-3 py-3.5">
                     {application.status !== 'submitted' && (

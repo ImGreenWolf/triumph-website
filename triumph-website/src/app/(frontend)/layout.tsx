@@ -104,3 +104,44 @@ export const metadata: Metadata = {
     creator: '@payloadcms',
   },
 }
+
+
+import { MongoClient } from 'mongodb'
+
+const uri = process.env.DATABASE_URL!
+
+const start = performance.now()
+
+const client = new MongoClient(uri)
+
+await client.connect()
+
+console.log(
+  'CONNECT:',
+  Math.round(performance.now() - start),
+  'ms'
+)
+
+const pingStart = performance.now()
+
+await client.db().command({ ping: 1 })
+
+console.log(
+  'PING:',
+  Math.round(performance.now() - pingStart),
+  'ms'
+)
+
+for (let i = 1; i <= 20; i++) {
+  const start = performance.now()
+
+  await client.db().command({ ping: 1 })
+
+  console.log(
+    `PING ${i}:`,
+    Math.round(performance.now() - start),
+    'ms'
+  )
+}
+
+await client.close()

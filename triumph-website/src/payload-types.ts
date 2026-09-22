@@ -1122,6 +1122,10 @@ export interface Event {
   };
   coordonators?: (string | User)[] | null;
   /**
+   * Members listed here can view this event in the members dashboard and process check-in without becoming project managers.
+   */
+  checkInMembers?: (string | User)[] | null;
+  /**
    * Disable public signups for this event.
    */
   private?: boolean | null;
@@ -3468,6 +3472,7 @@ export interface EventsSelect<T extends boolean = true> {
         description?: T;
       };
   coordonators?: T;
+  checkInMembers?: T;
   private?: T;
   capacity?: T;
   populatedCoordonators?:

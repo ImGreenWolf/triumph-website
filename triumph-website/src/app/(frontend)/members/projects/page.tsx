@@ -5,6 +5,7 @@ import payloadConfig from '@payload-config'
 import { getPayload } from 'payload'
 
 import type { Event, EventRegistration, User } from '@/payload-types'
+import { getEventAccessLevel, getRelationshipID } from '@/utilities/eventAccess'
 import { getEventSlotDateRange } from '@/utilities/eventDisplay'
 import { formatEventDayLabel, formatEventSlotLabel } from '@/utilities/eventRegistration'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
@@ -14,7 +15,7 @@ import ProjectManagerDashboard, {
   type ManagedEventDay,
   type ManagedEventSlot,
 } from './ProjectManagerDashboard'
-import { hasBoardRole, isBoardMember } from '@/utilities/membersAccess'
+import { isBoardMember } from '@/utilities/membersAccess'
 
 export const metadata: Metadata = {
   description: 'Înscrieri, check-in și rapoarte pentru evenimentele coordonate.',
@@ -37,11 +38,22 @@ export default async function ProjectManagerPage() {
     pagination: false,
     sort: '-updatedAt',
 
-    where: {
-      coordonators: {
-        contains: !globalAccess && user.id,
-      },
-    },
+    where: globalAccess
+      ? undefined
+      : {
+          or: [
+            {
+              coordonators: {
+                contains: user.id,
+              },
+            },
+            {
+              checkInMembers: {
+                contains: user.id,
+              },
+            },
+          ],
+        },
   })
   const events = eventResult.docs as Event[]
   const eventIDs = events.map((event) => event.id)
@@ -63,13 +75,13 @@ export default async function ProjectManagerPage() {
   const registrations = registrationResult.docs as EventRegistration[]
 
   const managedEvents: ManagedEvent[] = events
-    .map((event) => serializeEvent(event, registrations))
+    .map((event) => serializeEvent(event, registrations, user))
     .sort((left, right) => compareNullableDates(left.startTime, right.startTime))
 
   return <ProjectManagerDashboard events={managedEvents} userName={user.name || user.email} />
 }
 
-function serializeEvent(event: Event, registrations: EventRegistration[]): ManagedEvent {
+function serializeEvent(event: Event, registrations: EventRegistration[], user: User): ManagedEvent {
   const days: ManagedEventDay[] = (event.days ?? [])
     .filter((day): day is NonNullable<Event['days']>[number] & { eventDate: string; id: string } =>
       Boolean(day?.eventDate && day.id),
@@ -126,7 +138,9 @@ function serializeEvent(event: Event, registrations: EventRegistration[]): Manag
 
   return {
     days,
+    accessLevel: getEventAccessLevel(event, user) === 'manager' ? 'manager' : 'check-in',
     cardColor: event.cardColor,
+    checkInMembers: getCheckInMembers(event),
     endTime: getBoundaryTime(slotEndTimes, 'latest') ?? getDayBoundary(lastEventDay, true),
     id: event.id,
     location: getLocationName(event.location),
@@ -190,10 +204,6 @@ function getDayBoundary(value: string | null, endOfDay: boolean) {
   return date.toISOString()
 }
 
-function getRelationshipID(value: string | { id: string }) {
-  return typeof value === 'string' ? value : value.id
-}
-
 function normalizeText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -217,4 +227,15 @@ function getLocationName(value: Event['location']) {
   }
 
   return null
+}
+
+function getCheckInMembers(event: Event) {
+  return ((event as Event & { checkInMembers?: unknown[] }).checkInMembers ?? [])
+    .filter((member): member is User => Boolean(member && typeof member === 'object' && 'id' in member))
+    .map((member) => ({
+      email: member.email,
+      id: String(member.id),
+      name: member.name || member.email,
+      role: member.role,
+    }))
 }

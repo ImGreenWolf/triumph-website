@@ -3,7 +3,15 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion'
-import { Fragment, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import {
   ArrowLeft,
   BarChart3,
@@ -21,6 +29,7 @@ import {
   LayoutDashboard,
   MapPin,
   Search,
+  ShieldCheck,
   Sparkles,
   TrendingUp,
   Trash2,
@@ -36,7 +45,7 @@ import {
 } from 'lucide-react'
 
 import { useHeaderTheme } from '@/providers/HeaderTheme'
-import type { Event, EventRegistration } from '@/payload-types'
+import type { Event, EventRegistration, User } from '@/payload-types'
 import { Media } from '@/components/Media'
 import Counter from '@/components/ui/counter'
 import { getEventTheme } from '@/utilities/eventTheme'
@@ -76,6 +85,15 @@ type WalkInParticipantInput = {
   slotId: string
 }
 
+type EventAccessLevel = 'manager' | 'check-in'
+
+type CheckInMember = {
+  email: string
+  id: string
+  name: string
+  role: User['role']
+}
+
 export type ManagedEventSlot = {
   capacity: NonNullable<PayloadEventSlot['capacity']>
   endTime: Exclude<PayloadEventSlot['endTime'], undefined>
@@ -102,6 +120,8 @@ export type ManagedEvent = Pick<
   | 'slug'
   | 'useColors'
 > & {
+  accessLevel: EventAccessLevel
+  checkInMembers: CheckInMember[]
   days: ManagedEventDay[]
   endTime: string | null
   location: string | null
@@ -110,14 +130,28 @@ export type ManagedEvent = Pick<
   donation: number
 }
 
-type Tab = 'overview' | 'check-in' | 'report'
-type CounterTab = Exclude<Tab, 'check-in'>
+type Tab = 'overview' | 'check-in' | 'report' | 'team'
+type CounterTab = 'overview' | 'report'
 
 const tabs: Array<{ icon: typeof LayoutDashboard; label: string; value: Tab }> = [
   { icon: LayoutDashboard, label: 'Overview', value: 'overview' },
   { icon: UserCheck, label: 'Check-in', value: 'check-in' },
   { icon: BarChart3, label: 'Raport final', value: 'report' },
+  { icon: ShieldCheck, label: 'Echipă check-in', value: 'team' },
 ]
+
+const memberRoleLabels: Record<User['role'], string> = {
+  active: 'Membru Activ',
+  aspirer: 'Membru Aspirant',
+  'hr-director': 'HR Director',
+  passive: 'Membru Pasiv',
+  'past-president': 'Past President',
+  president: 'Președinte',
+  'pr-director': 'PR Director',
+  secretary: 'Secretar',
+  treasurer: 'Trezorier',
+  'vice-president': 'Vice Președinte',
+}
 
 const panelVariants = {
   hidden: { opacity: 0, y: 14 },
@@ -154,6 +188,12 @@ export default function ProjectManagerDashboard(props: {
 
   const event = events.find((candidate) => candidate.id === selectedEventID) ?? events[0]
   const metrics = useMemo(() => (event ? calculateMetrics(event) : null), [event])
+  const canManageEvent = event?.accessLevel === 'manager'
+
+  useEffect(() => {
+    if (!event || event.accessLevel === 'manager') return
+    if (tab === 'report' || tab === 'team') setTab('check-in')
+  }, [event, tab])
 
   function updateRegistration(updated: Partial<ManagedRegistration> & { id: string }) {
     setEvents((current) =>
@@ -180,8 +220,18 @@ export default function ProjectManagerDashboard(props: {
     )
   }
 
+  const updateCheckInMembers = useCallback((eventID: string, members: CheckInMember[]) => {
+    setEvents((current) =>
+      current.map((candidate) =>
+        candidate.id === eventID ? { ...candidate, checkInMembers: members } : candidate,
+      ),
+    )
+  }, [])
+
   function openTab(nextTab: Tab) {
-    if (nextTab !== 'check-in') {
+    if (!canManageEvent && (nextTab === 'report' || nextTab === 'team')) return
+
+    if (nextTab === 'overview' || nextTab === 'report') {
       setOpenedCounterTabs((current) =>
         current[nextTab] ? current : { ...current, [nextTab]: true },
       )
@@ -263,7 +313,7 @@ export default function ProjectManagerDashboard(props: {
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-accent bg-accent/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent">
-                  Project manager
+                  {canManageEvent ? 'Project manager' : 'Echipă check-in'}
                 </span>
                 <PhaseBadge phase={phase} />
               </div>
@@ -338,30 +388,32 @@ export default function ProjectManagerDashboard(props: {
           </div>
 
           <nav className="-mx-4 mt-6 flex gap-1 overflow-x-auto border-b border-current/10 px-4 sm:mx-0 sm:mt-8 sm:px-0">
-            {tabs.map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  className={`relative inline-flex h-11 shrink-0 items-center gap-2 px-3 text-sm font-semibold transition sm:h-12 sm:px-4 ${
-                    tab === item.value ? 'opacity-100' : 'opacity-50 hover:opacity-80'
-                  }`}
-                  key={item.value}
-                  onClick={() => openTab(item.value)}
-                  type="button"
-                >
-                  <Icon className="size-4" />
-                  {item.label}
-                  {item.value === 'check-in' && metrics.unprocessed > 0 && (
-                    <span className="min-w-5 rounded-full bg-[#f7a81b] px-1.5 py-0.5 text-center text-[10px] font-bold text-[#101a31]">
-                      {metrics.unprocessed}
-                    </span>
-                  )}
-                  {tab === item.value && (
-                    <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />
-                  )}
-                </button>
-              )
-            })}
+            {tabs
+              .filter((item) => canManageEvent || (item.value !== 'report' && item.value !== 'team'))
+              .map((item) => {
+                const Icon = item.icon
+                return (
+                  <button
+                    className={`relative inline-flex h-11 shrink-0 items-center gap-2 px-3 text-sm font-semibold transition sm:h-12 sm:px-4 ${
+                      tab === item.value ? 'opacity-100' : 'opacity-50 hover:opacity-80'
+                    }`}
+                    key={item.value}
+                    onClick={() => openTab(item.value)}
+                    type="button"
+                  >
+                    <Icon className="size-4" />
+                    {item.label}
+                    {item.value === 'check-in' && metrics.unprocessed > 0 && (
+                      <span className="min-w-5 rounded-full bg-[#f7a81b] px-1.5 py-0.5 text-center text-[10px] font-bold text-[#101a31]">
+                        {metrics.unprocessed}
+                      </span>
+                    )}
+                    {tab === item.value && (
+                      <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />
+                    )}
+                  </button>
+                )
+              })}
           </nav>
         </div>
       </section>
@@ -388,6 +440,7 @@ export default function ProjectManagerDashboard(props: {
           )}
           {tab === 'check-in' && (
             <CheckIn
+              canManageEvent={canManageEvent}
               event={event}
               onRegistrationCreate={addRegistration}
               onRegistrationUpdate={updateRegistration}
@@ -399,6 +452,12 @@ export default function ProjectManagerDashboard(props: {
             <div hidden={tab !== 'report'}>
               <FinalReport event={event} metrics={metrics} />
             </div>
+          )}
+          {canManageEvent && tab === 'team' && (
+            <CheckInTeam
+              event={event}
+              onMembersUpdate={updateCheckInMembers}
+            />
           )}
         </motion.main>
       </AnimatePresence>
@@ -564,13 +623,15 @@ function Overview(props: {
 }
 
 function CheckIn(props: {
+  canManageEvent: boolean
   event: ManagedEvent
   onRegistrationCreate: (registration: ManagedRegistration) => void
   onRegistrationUpdate: (registration: Partial<ManagedRegistration> & { id: string }) => void
   onTogglePersonalData: () => void
   showPersonalData: boolean
 }) {
-  const { event, onRegistrationCreate, onRegistrationUpdate, showPersonalData } = props
+  const { canManageEvent, event, onRegistrationCreate, onRegistrationUpdate, showPersonalData } =
+    props
   const [query, setQuery] = useState('')
   const [shift, setShift] = useState('all')
   const [status, setStatus] = useState('all')
@@ -815,14 +876,16 @@ function CheckIn(props: {
             <UserPlus className="size-3.5" />
             Adaugă participant
           </button>
-          <button
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent px-3 text-xs font-bold text-accent-foreground transition hover:opacity-90 sm:w-auto sm:px-4"
-            onClick={() => setImportOpen(true)}
-            type="button"
-          >
-            <Upload className="size-3.5" />
-            Importă CSV
-          </button>
+          {canManageEvent && (
+            <button
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent px-3 text-xs font-bold text-accent-foreground transition hover:opacity-90 sm:w-auto sm:px-4"
+              onClick={() => setImportOpen(true)}
+              type="button"
+            >
+              <Upload className="size-3.5" />
+              Importă CSV
+            </button>
+          )}
         </div>
       </div>
 
@@ -1051,6 +1114,7 @@ function CheckIn(props: {
           saving={savingID === editing.id}
           showPersonalData={showPersonalData}
           managedEvent={event}
+          canDelete={canManageEvent}
         />
       )}
       {walkInOpen && (
@@ -1061,7 +1125,208 @@ function CheckIn(props: {
           saving={creatingWalkIn}
         />
       )}
-      {importOpen && <ParticipantImportDialog event={event} onClose={() => setImportOpen(false)} />}
+      {canManageEvent && importOpen && (
+        <ParticipantImportDialog event={event} onClose={() => setImportOpen(false)} />
+      )}
+    </div>
+  )
+}
+
+function CheckInTeam(props: {
+  event: ManagedEvent
+  onMembersUpdate: (eventID: string, members: CheckInMember[]) => void
+}) {
+  const { event, onMembersUpdate } = props
+  const [candidates, setCandidates] = useState<CheckInMember[]>([])
+  const [selectedIDs, setSelectedIDs] = useState<string[]>(
+    event.checkInMembers.map((member) => member.id),
+  )
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadMembers() {
+      setLoading(true)
+      setNotice(null)
+
+      try {
+        const response = await fetch(
+          `/members/projects/access?eventId=${encodeURIComponent(event.id)}`,
+          {
+            credentials: 'include',
+            signal: controller.signal,
+          },
+        )
+        const result = (await response.json()) as {
+          candidates?: CheckInMember[]
+          members?: CheckInMember[]
+          message?: string
+        }
+
+        if (!response.ok || !result.candidates) {
+          throw new Error(result.message || 'Echipa de check-in nu a putut fi încărcată.')
+        }
+
+        setCandidates(result.candidates)
+        setSelectedIDs((result.members ?? []).map((member) => member.id))
+        onMembersUpdate(event.id, result.members ?? [])
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+
+        setNotice({
+          kind: 'error',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Echipa de check-in nu a putut fi încărcată.',
+        })
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
+
+    void loadMembers()
+
+    return () => controller.abort()
+  }, [event.id, onMembersUpdate])
+
+  function toggleMember(memberID: string) {
+    setSelectedIDs((current) =>
+      current.includes(memberID)
+        ? current.filter((candidateID) => candidateID !== memberID)
+        : [...current, memberID],
+    )
+  }
+
+  async function saveMembers() {
+    setSaving(true)
+    setNotice(null)
+
+    try {
+      const response = await fetch('/members/projects/access', {
+        body: JSON.stringify({ eventId: event.id, memberIds: selectedIDs }),
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+      })
+      const result = (await response.json()) as {
+        members?: CheckInMember[]
+        message?: string
+      }
+
+      if (!response.ok || !result.members) {
+        throw new Error(result.message || 'Echipa de check-in nu a putut fi salvată.')
+      }
+
+      onMembersUpdate(event.id, result.members)
+      setSelectedIDs(result.members.map((member) => member.id))
+      setNotice({ kind: 'success', message: 'Echipa de check-in a fost actualizată.' })
+    } catch (error) {
+      setNotice({
+        kind: 'error',
+        message:
+          error instanceof Error ? error.message : 'Echipa de check-in nu a putut fi salvată.',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const selectedSet = new Set(selectedIDs)
+
+  return (
+    <div className="grid gap-5">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
+            Acces eveniment
+          </p>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight">Echipă check-in</h2>
+          <p className="mt-1 max-w-2xl text-sm text-[#748094]">
+            Membrii adăugați aici pot vedea evenimentul și pot procesa check-in-ul, fără acces la
+            raportul final sau importuri.
+          </p>
+        </div>
+        <button
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-bold text-accent-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={loading || saving}
+          onClick={saveMembers}
+          type="button"
+        >
+          <Check className="size-4" />
+          {saving ? 'Se salvează…' : 'Salvează echipa'}
+        </button>
+      </div>
+
+      {notice && (
+        <div
+          className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold ${
+            notice.kind === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          }`}
+        >
+          {notice.kind === 'success' ? (
+            <CheckCircle2 className="size-4" />
+          ) : (
+            <XCircle className="size-4" />
+          )}
+          {notice.message}
+        </div>
+      )}
+
+      <Panel className="overflow-hidden p-0" stagger={false}>
+        <div className="border-b border-[#e5e9ef] p-4 sm:p-5">
+          <PanelHeader
+            description={`${selectedIDs.length} membri selectați pentru ${event.name}`}
+            title="Membri eligibili"
+          />
+        </div>
+
+        {loading ? (
+          <InlineEmpty text="Se încarcă membrii eligibili…" />
+        ) : (
+          <div className="grid gap-2 p-3 sm:grid-cols-2 sm:p-4 xl:grid-cols-3">
+            {candidates.map((member) => (
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
+                  selectedSet.has(member.id)
+                    ? 'border-accent bg-accent/10'
+                    : 'border-[#e4e8ef] bg-white hover:border-accent/45'
+                }`}
+                key={member.id}
+              >
+                <input
+                  checked={selectedSet.has(member.id)}
+                  className="mt-1 size-4 accent-[#00a2e0]"
+                  disabled={saving}
+                  onChange={() => toggleMember(member.id)}
+                  type="checkbox"
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-bold text-[#152039]">
+                    {member.name}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-[#6b7688]">
+                    {member.email}
+                  </span>
+                  <span className="mt-2 inline-flex rounded-full bg-[#eef2f7] px-2 py-0.5 text-[11px] font-bold text-[#536071]">
+                    {formatMemberRole(member.role)}
+                  </span>
+                </span>
+              </label>
+            ))}
+            {candidates.length === 0 && (
+              <div className="sm:col-span-2 xl:col-span-3">
+                <InlineEmpty text="Nu există membri non-board disponibili." />
+              </div>
+            )}
+          </div>
+        )}
+      </Panel>
     </div>
   )
 }
@@ -1291,6 +1556,7 @@ function WalkInParticipantDialog(props: {
 }
 
 function CheckInDialog(props: {
+  canDelete: boolean
   deleting: boolean
   onClose: () => void
   onDelete: () => void | Promise<void>
@@ -1301,6 +1567,7 @@ function CheckInDialog(props: {
   managedEvent: ManagedEvent
 }) {
   const {
+    canDelete,
     deleting,
     onClose,
     onDelete,
@@ -1442,22 +1709,26 @@ function CheckInDialog(props: {
         </div>
 
         <div className="flex flex-col gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <button
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-5 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={busy}
-            onClick={() => {
-              if (deleteRequested) {
-                void onDelete()
-                return
-              }
+          {canDelete ? (
+            <button
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-5 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={busy}
+              onClick={() => {
+                if (deleteRequested) {
+                  void onDelete()
+                  return
+                }
 
-              setDeleteRequested(true)
-            }}
-            type="button"
-          >
-            <Trash2 className="size-4" />
-            {deleting ? 'Se șterge…' : deleteRequested ? 'Confirmă ștergerea' : 'Șterge'}
-          </button>
+                setDeleteRequested(true)
+              }}
+              type="button"
+            >
+              <Trash2 className="size-4" />
+              {deleting ? 'Se șterge…' : deleteRequested ? 'Confirmă ștergerea' : 'Șterge'}
+            </button>
+          ) : (
+            <span className="hidden sm:block" />
+          )}
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <button
               className="h-11 rounded-lg border border-[#d7dde6] bg-white px-5 text-sm font-bold text-[#536071] disabled:cursor-not-allowed disabled:opacity-60"
@@ -2277,6 +2548,10 @@ function formatParticipantContact(registration: Pick<ManagedRegistration, 'email
   return (
     [registration.email, registration.phone].filter(Boolean).join(' · ') || 'Fără date de contact'
   )
+}
+
+function formatMemberRole(role: User['role']) {
+  return memberRoleLabels[role] ?? role
 }
 
 function downloadParticipantTemplate(event: ManagedEvent) {
