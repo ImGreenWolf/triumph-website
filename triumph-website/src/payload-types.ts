@@ -2267,6 +2267,14 @@ export interface Application {
           id?: string | null;
         }[]
       | null;
+    formReviewComments?:
+      | {
+          author: string | User;
+          comment: string;
+          createdAt: string;
+          id?: string | null;
+        }[]
+      | null;
     interviewNotes?:
       | {
           author: string | User;
@@ -3637,6 +3645,14 @@ export interface ApplicationsSelect<T extends boolean = true> {
               body?: T;
               sentAt?: T;
               sentBy?: T;
+              id?: T;
+            };
+        formReviewComments?:
+          | T
+          | {
+              author?: T;
+              comment?: T;
+              createdAt?: T;
               id?: T;
             };
         interviewNotes?:

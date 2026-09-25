@@ -67,6 +67,16 @@ function createPayload(candidate: Application = application) {
   }
 }
 
+function mockRoutePayload(user: User, candidate: Application = application) {
+  const mocks = createPayload(candidate)
+  getPayloadMock.mockResolvedValueOnce({
+    ...mocks.payload,
+    auth: vi.fn().mockResolvedValue({ user }),
+  })
+
+  return mocks
+}
+
 describe('custom candidate email', () => {
   it('rejects an expired session at the route boundary', async () => {
     getPayloadMock.mockResolvedValueOnce({
@@ -289,5 +299,92 @@ describe('custom candidate email', () => {
       cursor: 17,
       value: 'Salut Ana Popescu final',
     })
+  })
+})
+
+describe('form review comments', () => {
+  it('lets HR add a timestamped comment to a first-stage form review', async () => {
+    const mocks = mockRoutePayload(boardUser)
+
+    const response = (await PATCH(
+      new Request('http://localhost/members/recruitment/applications', {
+        body: JSON.stringify({
+          action: 'add-form-comment',
+          applicationId: application.id,
+          comment: '  Comentariu intern pentru formular.  ',
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+      }),
+    )) as Response
+
+    expect(response.status).toBe(200)
+
+    const updateInput = mocks.update.mock.calls[0]?.[0]
+    const comments = updateInput.data.reviewProcess.formReviewComments
+    expect(comments).toHaveLength(1)
+    expect(comments[0]).toMatchObject({
+      author: boardUser.id,
+      comment: 'Comentariu intern pentru formular.',
+    })
+    expect(comments[0].createdAt).toEqual(expect.any(String))
+
+    const result = (await response.json()) as {
+      application: {
+        formReviewComments: Array<{
+          authorId: string
+          comment: string
+          createdAt: string
+          id: string
+        }>
+      }
+    }
+    expect(result.application.formReviewComments).toHaveLength(1)
+    expect(result.application.formReviewComments[0]).toMatchObject({
+      authorId: boardUser.id,
+      comment: 'Comentariu intern pentru formular.',
+      createdAt: expect.any(String),
+      id: expect.any(String),
+    })
+  })
+
+  it.each(['', 'x'.repeat(2001)])('rejects invalid comment content %#', async (comment) => {
+    const mocks = mockRoutePayload(boardUser)
+
+    const response = (await PATCH(
+      new Request('http://localhost/members/recruitment/applications', {
+        body: JSON.stringify({
+          action: 'add-form-comment',
+          applicationId: application.id,
+          comment,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+      }),
+    )) as Response
+
+    expect(response.status).toBe(400)
+    expect(mocks.findByID).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it('does not expose form comments in the commission workspace', async () => {
+    const mocks = mockRoutePayload({ ...boardUser, role: 'active' })
+
+    const response = (await PATCH(
+      new Request('http://localhost/members/commissions/applications', {
+        body: JSON.stringify({
+          action: 'add-form-comment',
+          applicationId: application.id,
+          comment: 'Comentariu',
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+      }),
+    )) as Response
+
+    expect(response.status).toBe(403)
+    expect(mocks.findByID).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 })

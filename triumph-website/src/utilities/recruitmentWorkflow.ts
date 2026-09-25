@@ -58,7 +58,10 @@ export type RecruitmentWorkflowState = {
   gates: Record<RecruitmentStepKey, Gate>
   metrics: {
     accepted: number
+    acceptedForms: number
+    verifiedForms: number
     assigned: number
+    totalForms: number
     finalPending: number
     interviewsPending: number
     mailedInterviews: number
@@ -204,6 +207,10 @@ export function getRecruitmentWorkflowState(args: {
       accepted: applications.filter((application) => application.status === 'interview-passed')
         .length,
       assigned: assigned.length,
+      totalForms: applications.length,
+      acceptedForms: applications.filter(
+        (application) => application.status === 'coordonator-review',
+      ).length,
       finalPending: pendingFinalMails.length,
       interviewsPending: unresolvedInterviews.length,
       mailedInterviews: interviewApplications.filter(
@@ -213,6 +220,9 @@ export function getRecruitmentWorkflowState(args: {
       submitted: submissionQueue.length,
       waitlisted: applications.filter(
         (application) => application.status === 'submission-waitlisted',
+      ).length,
+      verifiedForms: applications.filter(
+        (application) => application.status === 'submitted',
       ).length,
     },
     window: {

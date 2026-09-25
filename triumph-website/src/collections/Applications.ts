@@ -163,6 +163,33 @@ export const Applications: CollectionConfig = {
           ],
         },
         {
+          name: 'formReviewComments',
+          type: 'array',
+          label: 'Form review comments',
+          admin: {
+            readOnly: true,
+          },
+          fields: [
+            {
+              name: 'author',
+              type: 'relationship',
+              relationTo: 'users',
+              required: true,
+            },
+            {
+              name: 'comment',
+              type: 'textarea',
+              required: true,
+              maxLength: 2000,
+            },
+            {
+              name: 'createdAt',
+              type: 'date',
+              required: true,
+            },
+          ],
+        },
+        {
           name: 'interviewNotes',
           type: 'array',
           fields: [

@@ -71,6 +71,7 @@ export type ManagedApplication = {
     label: string
     value: string
   }[]
+  formReviewComments: ManagedFormReviewComment[]
   finalMailSentAt: string | null
   id: string
   interviewDate: string | null
@@ -89,6 +90,13 @@ export type ManagedInterviewNote = {
   createdAt: string
   id: string
   note: string
+}
+
+export type ManagedFormReviewComment = {
+  author: ManagedUser | null
+  comment: string
+  createdAt: string
+  id: string
 }
 
 export type ManagedRecruitmentPoolApplicant = {
@@ -126,6 +134,7 @@ type ApplicationPatch = Partial<
     | 'aspirerUserId'
     | 'commissionId'
     | 'finalMailSentAt'
+    | 'formReviewComments'
     | 'interviewDate'
     | 'interviewMailSentAt'
     | 'knownCoordinatorIds'
@@ -138,7 +147,10 @@ type ApplicationPatch = Partial<
   interviewNotes?: ManagedInterviewNote[]
 }
 
-type ServerApplicationPatch = Omit<ApplicationPatch, 'interviewNotes'> & {
+type ServerApplicationPatch = Omit<ApplicationPatch, 'formReviewComments' | 'interviewNotes'> & {
+  formReviewComments?: Array<
+    ManagedFormReviewComment | { authorId: string; comment: string; createdAt: string; id: string }
+  >
   interviewNotes?: Array<
     ManagedInterviewNote | { authorId: string; createdAt: string; id: string; note: string }
   >
@@ -2232,14 +2244,23 @@ function normalizeApplicationPatch(
   patch: ServerApplicationPatch,
   user: ManagedUser,
 ): ApplicationPatch {
-  if (!patch.interviewNotes) {
-    const { interviewNotes: _interviewNotes, ...rest } = patch
-    return rest
+  const { formReviewComments, interviewNotes, ...rest } = patch
+  const normalized: ApplicationPatch = rest
+
+  if (formReviewComments) {
+    normalized.formReviewComments = formReviewComments.map((comment) => {
+      if ('author' in comment) return comment
+      return {
+        author: comment.authorId === user.id ? user : null,
+        comment: comment.comment,
+        createdAt: comment.createdAt,
+        id: comment.id,
+      }
+    })
   }
 
-  return {
-    ...patch,
-    interviewNotes: patch.interviewNotes.map((note) => {
+  if (interviewNotes) {
+    normalized.interviewNotes = interviewNotes.map((note) => {
       if ('author' in note) return note
       return {
         author: note.authorId === user.id ? user : null,
@@ -2247,8 +2268,10 @@ function normalizeApplicationPatch(
         id: note.id,
         note: note.note,
       }
-    }),
+    })
   }
+
+  return normalized
 }
 
 function formatMailBatchNotice(result: MailBatchResult) {

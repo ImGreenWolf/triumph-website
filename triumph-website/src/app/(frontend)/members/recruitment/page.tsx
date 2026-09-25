@@ -132,6 +132,12 @@ function serializeApplication(application: Application): ManagedApplication {
     finalMailSentAt: normalizeDate(review.finalMailSentAt),
     formAnswers: answers,
     formUploads: getSubmissionUploads(submission),
+    formReviewComments: (review.formReviewComments ?? []).map((comment) => ({
+      author: serializeUser(comment.author),
+      comment: comment.comment,
+      createdAt: comment.createdAt,
+      id: comment.id ?? `${getRelationshipID(comment.author)}-${comment.createdAt}`,
+    })),
     id: application.id,
     instagram: normalizeInstagramUsername(findSubmissionValue(answers, ['insta', 'instagram'])),
     interviewAttendance: review.interviewAttendance ?? null,

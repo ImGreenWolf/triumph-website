@@ -45,6 +45,9 @@ export async function GET(request: Request) {
       role: {
         not_in: [...boardRoles],
       },
+      id: {
+        not_in: event.coordonators
+      }
     },
   })
   const candidates = (users.docs as User[]).map(serializeUser)
@@ -110,12 +113,14 @@ export async function PATCH(request: Request) {
             {
               id: {
                 in: memberIDs,
+                
               },
             },
             {
               role: {
                 not_in: [...boardRoles],
               },
+              
             },
           ],
         },

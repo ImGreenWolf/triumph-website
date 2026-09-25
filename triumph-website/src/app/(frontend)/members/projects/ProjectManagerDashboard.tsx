@@ -28,6 +28,7 @@ import {
   HandCoins,
   LayoutDashboard,
   MapPin,
+  QrCode,
   Search,
   ShieldCheck,
   Sparkles,
@@ -49,6 +50,11 @@ import type { Event, EventRegistration, User } from '@/payload-types'
 import { Media } from '@/components/Media'
 import Counter from '@/components/ui/counter'
 import { getEventTheme } from '@/utilities/eventTheme'
+import {
+  QrScannerSurface,
+  type QrScannerNotice,
+  type QrScannerOverlayTone,
+} from '../_components/QrScannerSurface'
 
 type PayloadEventDay = NonNullable<Event['days']>[number]
 type PayloadEventSlot = NonNullable<NonNullable<PayloadEventDay['slots']>>[number]
@@ -389,7 +395,9 @@ export default function ProjectManagerDashboard(props: {
 
           <nav className="-mx-4 mt-6 flex gap-1 overflow-x-auto border-b border-current/10 px-4 sm:mx-0 sm:mt-8 sm:px-0">
             {tabs
-              .filter((item) => canManageEvent || (item.value !== 'report' && item.value !== 'team'))
+              .filter(
+                (item) => canManageEvent || (item.value !== 'report' && item.value !== 'team'),
+              )
               .map((item) => {
                 const Icon = item.icon
                 return (
@@ -454,10 +462,7 @@ export default function ProjectManagerDashboard(props: {
             </div>
           )}
           {canManageEvent && tab === 'team' && (
-            <CheckInTeam
-              event={event}
-              onMembersUpdate={updateCheckInMembers}
-            />
+            <CheckInTeam event={event} onMembersUpdate={updateCheckInMembers} />
           )}
         </motion.main>
       </AnimatePresence>
@@ -479,8 +484,8 @@ function Overview(props: {
     .slice(0, 6)
 
   return (
-    <div className="grid gap-6">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:gap-6">
+      <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <MetricCard
           accent="blue"
           detail={`${metrics.remainingCapacity} locuri disponibile`}
@@ -515,22 +520,22 @@ function Overview(props: {
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.8fr)]">
+      <section className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.8fr)]">
         <Panel>
           <PanelHeader
             description="Ocuparea capacității pentru fiecare zi și interval orar."
             title="Înscrieri pe ture"
           />
-          <div className="mt-6 space-y-7">
+          <div className="mt-4 space-y-5 sm:mt-6 sm:space-y-7">
             {event.days.map((day) => (
               <div key={day.id}>
-                <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3">
                   <h3 className="text-sm font-bold capitalize">{day.label}</h3>
                   <span className="text-xs font-medium text-[#7a8497]">
                     {sumDayRegistrations(event, day.id)} înscrieri
                   </span>
                 </div>
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
                   {day.slots.map((slot) => {
                     const registrations = activeRegistrationsForSlot(event, day.id, slot.id).length
                     const presence = activeRegistrationsForSlot(event, day.id, slot.id).filter(
@@ -540,16 +545,16 @@ function Overview(props: {
                     const presencePercentage = percentageOf(presence, slot.capacity)
                     return (
                       <div
-                        className="rounded-xl border border-current/10 bg-white/5 p-4"
+                        className="rounded-lg border border-current/10 bg-white/5 p-3 sm:rounded-xl sm:p-4"
                         key={slot.id}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="flex items-center gap-1.5 text-xs font-semibold opacity-65">
+                            <p className="flex items-center gap-1.5 text-[11px] font-semibold opacity-65 sm:text-xs">
                               <Clock3 className="size-3.5" />
                               {formatSlotTimeRange(slot)}
                             </p>
-                            <p className="mt-2 text-lg font-bold">
+                            <p className="mt-1.5 text-base font-bold sm:mt-2 sm:text-lg">
                               {registrations}
                               <span className="text-sm font-medium opacity-55">
                                 {' '}
@@ -557,12 +562,12 @@ function Overview(props: {
                               </span>
                             </p>
                           </div>
-                          <div className="inline-flex align-bottom items-end">
-                            <span className={`rounded-md px-2 py-1 text-xs `}>
+                          <div className="inline-flex shrink-0 items-end align-bottom">
+                            <span className="rounded-md px-1.5 py-0.5 text-[11px] sm:px-2 sm:py-1 sm:text-xs">
                               {presencePercentage}%
                             </span>
                             <span
-                              className={`rounded-md px-3 py-1 text-md font-bold ${getFillBadgeClass(percentage)}`}
+                              className={`rounded-md px-2 py-0.5 text-sm font-bold sm:px-3 sm:py-1 sm:text-base ${getFillBadgeClass(percentage)}`}
                             >
                               {percentage}%
                             </span>
@@ -589,9 +594,9 @@ function Overview(props: {
               title="Înscrieri recente"
             />
           </div>
-          <div className="mt-5 divide-y divide-[#edf0f4]">
+          <div className="mt-4 divide-y divide-[#edf0f4] sm:mt-5">
             {recentRegistrations.map((registration) => (
-              <div className="flex items-center gap-3 py-3.5" key={registration.id}>
+              <div className="flex items-center gap-3 py-3" key={registration.id}>
                 <Avatar name={registration.name} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold">
@@ -637,6 +642,8 @@ function CheckIn(props: {
   const [status, setStatus] = useState('all')
   const [editing, setEditing] = useState<ManagedRegistration | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [resumeScannerAfterCheckIn, setResumeScannerAfterCheckIn] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
   const [walkInOpen, setWalkInOpen] = useState(false)
   const [creatingWalkIn, setCreatingWalkIn] = useState(false)
   const [deletingID, setDeletingID] = useState<string | null>(null)
@@ -675,6 +682,7 @@ function CheckIn(props: {
         message: `Înscrierea nu se poate face deoarece donația minimă este de ${formatCurrency(event.donation)}.`,
       })
       setEditing(null)
+      setResumeScannerAfterCheckIn(false)
       return
     }
 
@@ -707,6 +715,10 @@ function CheckIn(props: {
       onRegistrationUpdate(result.registration)
       setDonationErrorIDs((current) => current.filter((id) => id !== args.registration.id))
       setEditing(null)
+      if (args.status === 'present' && resumeScannerAfterCheckIn) {
+        setScannerOpen(true)
+      }
+      setResumeScannerAfterCheckIn(false)
       setNotice({ kind: 'success', message: 'Înscriere actualizată.' })
     } catch (error) {
       setNotice({
@@ -773,6 +785,7 @@ function CheckIn(props: {
       onRegistrationUpdate(result.registration)
       setDonationErrorIDs((current) => current.filter((id) => id !== registration.id))
       setEditing(null)
+      setResumeScannerAfterCheckIn(false)
       setNotice({ kind: 'success', message: 'Participant șters din lista de check-in.' })
     } catch (error) {
       setNotice({
@@ -875,6 +888,17 @@ function CheckIn(props: {
           >
             <UserPlus className="size-3.5" />
             Adaugă participant
+          </button>
+          <button
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#cfd6df] bg-white px-3 text-xs font-bold text-[#344054] transition hover:bg-[#f5f7fa] sm:w-auto sm:px-4"
+            onClick={() => {
+              setResumeScannerAfterCheckIn(false)
+              setScannerOpen(true)
+            }}
+            type="button"
+          >
+            <QrCode className="size-3.5" />
+            Scanează QR
           </button>
           {canManageEvent && (
             <button
@@ -1104,7 +1128,10 @@ function CheckIn(props: {
 
       {editing && (
         <CheckInDialog
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            setEditing(null)
+            setResumeScannerAfterCheckIn(false)
+          }}
           onDelete={() => deleteRegistration(editing)}
           onSave={(values) =>
             saveRegistration({ ...values, registration: editing, status: 'present' })
@@ -1123,6 +1150,21 @@ function CheckIn(props: {
           onClose={() => setWalkInOpen(false)}
           onSave={createWalkInParticipant}
           saving={creatingWalkIn}
+        />
+      )}
+      {scannerOpen && (
+        <EventRegistrationScannerDialog
+          event={event}
+          onClose={() => {
+            setScannerOpen(false)
+            setResumeScannerAfterCheckIn(false)
+          }}
+          onRegistrationFound={(registration) => {
+            setScannerOpen(false)
+            setResumeScannerAfterCheckIn(true)
+            setEditing(registration)
+          }}
+          showPersonalData={showPersonalData}
         />
       )}
       {canManageEvent && importOpen && (
@@ -1179,9 +1221,7 @@ function CheckInTeam(props: {
         setNotice({
           kind: 'error',
           message:
-            error instanceof Error
-              ? error.message
-              : 'Echipa de check-in nu a putut fi încărcată.',
+            error instanceof Error ? error.message : 'Echipa de check-in nu a putut fi încărcată.',
         })
       } finally {
         if (!controller.signal.aborted) setLoading(false)
@@ -1551,6 +1591,140 @@ function WalkInParticipantDialog(props: {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+const EVENT_SCANNER_READY_NOTICE: QrScannerNotice = {
+  message: 'Camera este pregătită pentru codurile participanților.',
+  title: 'Pregătit pentru scanare',
+  tone: 'idle',
+}
+
+function EventRegistrationScannerDialog(props: {
+  event: ManagedEvent
+  onClose: () => void
+  onRegistrationFound: (registration: ManagedRegistration) => void
+  showPersonalData: boolean
+}) {
+  const { event, onClose, onRegistrationFound, showPersonalData } = props
+  const [notice, setNotice] = useState<QrScannerNotice>(EVENT_SCANNER_READY_NOTICE)
+
+  useEffect(() => {
+    function closeOnEscape(keyboardEvent: KeyboardEvent) {
+      if (keyboardEvent.key === 'Escape') onClose()
+    }
+
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
+
+  const handleScan = useCallback(
+    (value: string): QrScannerOverlayTone => {
+      const registrationID = extractEventRegistrationID(value)
+
+      if (!registrationID) {
+        setNotice({
+          message: 'Codul scanat nu conține o înscriere validă.',
+          title: 'Scanare respinsă',
+          tone: 'error',
+        })
+        return 'error'
+      }
+
+      const registration = event.registrations.find((candidate) => candidate.id === registrationID)
+
+      if (!registration) {
+        setNotice({
+          message: 'Înscrierea scanată nu aparține acestui eveniment.',
+          title: 'Participant negăsit',
+          tone: 'error',
+        })
+        return 'error'
+      }
+
+      if (registration.status === 'cancelled') {
+        setNotice({
+          message: 'Înscrierea anulată nu poate fi procesată la check-in.',
+          title: 'Înscriere anulată',
+          tone: 'warning',
+        })
+        return 'warning'
+      }
+
+      setNotice({
+        message: showPersonalData ? registration.name : maskName(registration.name),
+        title:
+          registration.status === 'present'
+            ? 'Participant deja confirmat'
+            : 'Participant identificat',
+        tone: registration.status === 'present' ? 'warning' : 'success',
+      })
+      onRegistrationFound(registration)
+
+      return registration.status === 'present' ? 'warning' : 'success'
+    },
+    [event.registrations, onRegistrationFound, showPersonalData],
+  )
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-[#09101f]/65 p-0 backdrop-blur-sm sm:items-center sm:p-5"
+      onMouseDown={(mouseEvent) => {
+        if (mouseEvent.target === mouseEvent.currentTarget) onClose()
+      }}
+    >
+      <div className="max-h-[96vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+        <div className="flex items-start justify-between border-b border-[#e7ebf0] px-4 py-4 sm:px-6 sm:py-5">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
+              Scanner QR
+            </p>
+            <h2 className="mt-1.5 break-words text-xl font-bold text-[#152039]">{event.name}</h2>
+            <p className="mt-1 text-xs text-[#7a8497]">
+              Codul deschide confirmarea pentru înscrierea scanată.
+            </p>
+          </div>
+          <button
+            aria-label="Închide"
+            className="flex size-9 items-center justify-center rounded-lg text-[#7a8497] transition hover:bg-[#f2f4f7]"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="bg-[#f8fafc] p-3 sm:p-5">
+          <QrScannerSurface
+            busyLabel="Se caută înscrierea"
+            className="sm:aspect-[4/5] lg:aspect-video xl:aspect-video"
+            notice={notice}
+            onCameraError={(message) =>
+              setNotice({
+                message,
+                title: 'Camera indisponibilă',
+                tone: 'error',
+              })
+            }
+            onScan={handleScan}
+            onScanError={(message) =>
+              setNotice({
+                message,
+                title: 'Eroare la scanare',
+                tone: 'error',
+              })
+            }
+            onScanStart={() =>
+              setNotice({
+                message: 'Se caută înscrierea participantului.',
+                title: 'Scanare în curs',
+                tone: 'idle',
+              })
+            }
+          />
+        </div>
+      </div>
     </div>
   )
 }
@@ -1992,7 +2166,7 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
         </button>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
         <MetricCard
           accent="amber"
           detail="donații confirmate"
@@ -2149,7 +2323,7 @@ function Panel(props: { children: ReactNode; className?: string; stagger?: boole
 
   return (
     <motion.section
-      className={`pm-dashboard-card rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-6 ${props.className ?? ''}`}
+      className={`pm-dashboard-card rounded-xl border border-border bg-card p-3.5 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:rounded-2xl sm:p-6 ${props.className ?? ''}`}
       initial={stagger ? undefined : false}
       variants={stagger ? panelVariants : undefined}
     >
@@ -2161,8 +2335,8 @@ function Panel(props: { children: ReactNode; className?: string; stagger?: boole
 function PanelHeader(props: { description: string; title: string }) {
   return (
     <div>
-      <h2 className="text-lg font-bold">{props.title}</h2>
-      <p className="mt-1 text-sm opacity-60">{props.description}</p>
+      <h2 className="text-base font-bold sm:text-lg">{props.title}</h2>
+      <p className="mt-0.5 text-xs leading-5 opacity-60 sm:mt-1 sm:text-sm">{props.description}</p>
     </div>
   )
 }
@@ -2186,38 +2360,44 @@ function MetricCard(props: {
 
   return (
     <motion.article
-      className="pm-dashboard-card rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-5"
+      className="pm-dashboard-card min-w-0 rounded-xl border border-border bg-card p-3 text-card-foreground shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:rounded-2xl sm:p-5"
       variants={panelVariants}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.08em] opacity-60">{props.label}</p>
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase leading-3 tracking-[0.08em] opacity-60 sm:text-xs sm:leading-4">
+            {props.label}
+          </p>
           {props.numberValue == undefined && (
-            <p className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{props.value}</p>
+            <p className="mt-2 break-words text-xl font-bold tracking-tight sm:mt-3 sm:text-3xl">
+              {props.value}
+            </p>
           )}
           {props.numberValue != undefined && (
-            <span className="inline-flex align-bottom items-bottom mt-3 ">
+            <span className="mt-2 inline-flex items-end align-bottom sm:mt-3">
               <Counter
                 animateChanges={false}
                 animateOnMount
                 value={Math.round(props.numberValue)}
-                fontSize={36}
-                className="text-2xl font-bold sm:text-3xl"
+                fontSize={28}
+                className="text-xl font-bold sm:text-3xl"
                 gap={0}
                 topGradientStyle={{}}
                 bottomGradientStyle={{}}
               />
-              <p className="pb-1 text-2xl font-bold tracking-tight sm:text-3xl">
+              <p className="pb-0.5 text-xl font-bold tracking-tight sm:pb-1 sm:text-3xl">
                 {props.numberUnit}
               </p>
             </span>
           )}
-          <p className="mt-1.5 text-xs font-medium opacity-60">{props.detail}</p>
+          <p className="mt-1 text-[11px] font-medium leading-4 opacity-60 sm:mt-1.5 sm:text-xs">
+            {props.detail}
+          </p>
         </div>
         <div
-          className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${colors[props.accent]}`}
+          className={`flex size-8 shrink-0 items-center justify-center rounded-lg sm:size-10 sm:rounded-xl ${colors[props.accent]}`}
         >
-          <Icon className="size-5" />
+          <Icon className="size-4 sm:size-5" />
         </div>
       </div>
     </motion.article>
@@ -2548,6 +2728,30 @@ function formatParticipantContact(registration: Pick<ManagedRegistration, 'email
   return (
     [registration.email, registration.phone].filter(Boolean).join(' · ') || 'Fără date de contact'
   )
+}
+
+function extractEventRegistrationID(value: string) {
+  const trimmed = value.trim()
+
+  if (!trimmed) return null
+
+  try {
+    const url = new URL(trimmed)
+    const queryID =
+      url.searchParams.get('registrationId') ||
+      url.searchParams.get('registration') ||
+      url.searchParams.get('id')
+
+    if (queryID) return queryID
+
+    const lastSegment = url.pathname.split('/').filter(Boolean).at(-1)
+
+    return lastSegment || trimmed
+  } catch {
+    const queryMatch = trimmed.match(/[?&](?:registrationId|registration|id)=([^&]+)/)
+
+    return queryMatch?.[1] ? decodeURIComponent(queryMatch[1]) : trimmed
+  }
 }
 
 function formatMemberRole(role: User['role']) {

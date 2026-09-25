@@ -40,6 +40,14 @@ type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
         note: string
       }[]
     | null
+  formReviewComments?:
+    | {
+        author: string | User
+        comment: string
+        createdAt: string
+        id?: string | null
+      }[]
+    | null
   interviewScheduleToken?: string | null
   interviewScheduleTokenCreatedAt?: string | null
   interviewAttendance?: 'scheduled' | 'late' | 'absent' | 'completed' | null
@@ -157,6 +165,10 @@ export async function PATCH(request: Request) {
 
     if (action === 'update-recruitment-config') {
       return await updateRecruitmentConfig({ body, payload, user })
+    }
+
+    if (action === 'add-form-comment') {
+      return await addFormReviewComment({ body, payload, user })
     }
 
     if (action === 'add-note') {
@@ -607,6 +619,36 @@ async function addInterviewNote(args: {
         author: args.user.id,
         createdAt: new Date().toISOString(),
         note,
+      },
+    ],
+  })
+
+  return Response.json({ application: serializeApplicationUpdate(updated) })
+}
+
+async function addFormReviewComment(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  requireBoard(args.user)
+
+  const comment = normalizeText(args.body.comment)
+  if (!comment || comment.length > 2000) {
+    return Response.json(
+      { message: 'Comentariul trebuie sa aiba intre 1 si 2000 caractere.' },
+      { status: 400 },
+    )
+  }
+
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+  const updated = await updateApplicationReview(args.payload, application, {
+    formReviewComments: [
+      ...(application.reviewProcess?.formReviewComments ?? []),
+      {
+        author: args.user.id,
+        comment,
+        createdAt: new Date().toISOString(),
       },
     ],
   })
@@ -1302,6 +1344,12 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
     interviewDate: application.reviewProcess?.interviewDate ?? null,
     interviewAttendance: application.reviewProcess?.interviewAttendance ?? null,
     interviewMailSentAt: application.reviewProcess?.interviewMailSentAt ?? null,
+    formReviewComments: (application.reviewProcess?.formReviewComments ?? []).map((comment) => ({
+      authorId: getRelationshipID(comment.author),
+      comment: comment.comment,
+      createdAt: comment.createdAt,
+      id: comment.id ?? `${getRelationshipID(comment.author)}-${comment.createdAt}`,
+    })),
     interviewNotes: (application.reviewProcess?.interviewNotes ?? []).map((note) => ({
       authorId: getRelationshipID(note.author),
       createdAt: note.createdAt,

@@ -32,6 +32,14 @@ type ApplicationWithExtendedReview = Application & {
           note: string
         }[]
       | null
+    formReviewComments?:
+      | {
+          author: string | User
+          comment: string
+          createdAt: string
+          id?: string | null
+        }[]
+      | null
     coordonatorReviewChecks?: (string | User)[] | null
     finalMailSentAt?: string | null
     finalMailSentBy?: string | User | null
@@ -192,6 +200,12 @@ function serializeApplication(application: ApplicationWithExtendedReview): Manag
     createdAt: application.createdAt,
     email: application.email,
     formAnswers: getSubmissionAnswers(application.formSubmission),
+    formReviewComments: (reviewProcess.formReviewComments ?? []).map((comment) => ({
+      author: serializeUser(comment.author),
+      comment: comment.comment,
+      createdAt: comment.createdAt,
+      id: comment.id ?? `${getRelationshipID(comment.author)}-${comment.createdAt}`,
+    })),
     finalMailSentAt: normalizeDate(reviewProcess.finalMailSentAt),
     id: application.id,
     interviewAttendance: reviewProcess.interviewAttendance ?? null,

@@ -424,7 +424,7 @@ export const Events: CollectionConfig<'events'> = {
       type: 'join',
       collection: 'event-registrations',
       on: 'event',
-      defaultLimit: 5,
+      defaultLimit: 0,
       admin: {
         allowCreate: false,
         components: {

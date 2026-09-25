@@ -46,6 +46,7 @@ import {
 import {
   getRecruitmentWorkflowState,
   recruitmentSteps,
+  RecruitmentWorkflowState,
   type RecruitmentStepKey,
   type WorkflowApplicationStatus,
 } from '@/utilities/recruitmentWorkflow'
@@ -76,6 +77,13 @@ export type ManagedInterviewNote = {
   createdAt: string
   id: string
   note: string
+}
+
+export type ManagedFormReviewComment = {
+  author: ManagedUser | null
+  comment: string
+  createdAt: string
+  id: string
 }
 
 export type ManagedCustomMail = {
@@ -116,6 +124,7 @@ export type ManagedApplication = {
   email: string
   finalMailSentAt: string | null
   formAnswers: Array<{ field: string; label: string; value: string }>
+  formReviewComments: ManagedFormReviewComment[]
   formUploads: ManagedUpload[]
   id: string
   instagram: string
@@ -157,6 +166,9 @@ type ApplicationPatch = Partial<
 > & {
   customMailHistory?: Array<
     ManagedCustomMail | (Omit<ManagedCustomMail, 'sentBy'> & { sentById: string })
+  >
+  formReviewComments?: Array<
+    ManagedFormReviewComment | { authorId: string; comment: string; createdAt: string; id: string }
   >
   id: string
   interviewNotes?: Array<
@@ -209,6 +221,34 @@ const statusLabels: Record<ManagedApplicationStatus, string> = {
   submitted: '',
   'submission-rejected': 'Refuzat',
   'submission-waitlisted': 'Lista de asteptare',
+}
+
+
+function Metrics({workflow}:{workflow: RecruitmentWorkflowState}) {
+  switch(workflow.currentStep) {
+    case 'forms':
+      return (
+        <>
+        <HeaderStat label="Total" value={String(workflow.metrics.totalForms)} />
+        <HeaderStat label="Acceptati" value={String(workflow.metrics.accepted)} />
+        <HeaderStat label="Lista Asteptare" value={String(workflow.metrics.waitlisted)} />
+        <HeaderStat label="Rata Acceptare" value={String(workflow.metrics.acceptedForms/workflow.metrics.verifiedForms*100)} />
+        </>
+      )
+    case 'coordinator-review':
+      return (
+        <>
+        <HeaderStat label="Formulare" value={String(workflow.metrics.submitted)} />
+        <HeaderStat label="Asignati" value={String(workflow.metrics.assigned)} />
+        <HeaderStat label="Programati" value={String(workflow.metrics.scheduled)} />
+        <HeaderStat label="Decizii finale" value={String(workflow.metrics.finalPending)} />
+        </>
+      )
+    case 'assignment':
+    case 'invitations':
+    case 'interviews':
+    case 'results':
+  }
 }
 
 export default function HRRecruitmentWizard(props: {
@@ -283,6 +323,16 @@ export default function HRRecruitmentWizard(props: {
                   : mail,
               )
             : application.customMailHistory,
+          formReviewComments: patch.formReviewComments
+            ? patch.formReviewComments.map((comment) =>
+                'authorId' in comment
+                  ? {
+                      ...comment,
+                      author: comment.authorId === props.user.id ? props.user : null,
+                    }
+                  : comment,
+              )
+            : application.formReviewComments,
           interviewNotes: patch.interviewNotes
             ? patch.interviewNotes.map((note) =>
                 'authorId' in note
@@ -381,10 +431,7 @@ export default function HRRecruitmentWizard(props: {
             </div>
             <div className="grid min-w-0 gap-3 sm:min-w-[26rem]">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <HeaderStat label="Formulare" value={String(workflow.metrics.submitted)} />
-                <HeaderStat label="Asignati" value={String(workflow.metrics.assigned)} />
-                <HeaderStat label="Programati" value={String(workflow.metrics.scheduled)} />
-                <HeaderStat label="Decizii finale" value={String(workflow.metrics.finalPending)} />
+                <Metrics workflow={workflow}></Metrics>
               </div>
               <button
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.08] px-4 text-sm font-bold text-white transition hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-55 sm:justify-self-end"
@@ -593,6 +640,9 @@ function ApplicationReviewStep(props: {
             <h3 className="text-lg font-bold">Aplicatii</h3>
             <p className="mt-1 text-sm text-[#748094]">
               {pending} formulare au nevoie de o decizie.
+            </p>
+            <p className="mt-1 text-sm text-[#748094]">
+              {ordered.length} formulare totale.
             </p>
           </div>
           <span className="text-sm font-semibold text-[#526071]">{ordered.length} total</span>
@@ -1377,7 +1427,7 @@ function ApplicationDrawer(props: {
   senderEmail: string
 }) {
   const defaultMailSubject = 'Răspuns Întrebare Formular Înscriere | Interact București Triumph'
-  const [notes, setNotes] = useState('')
+  const [formComment, setFormComment] = useState('')
   const [mailSubject, setMailSubject] = useState(
     'Răspuns Întrebare Formular Înscriere | Interact București Triumph',
   )
@@ -1385,8 +1435,8 @@ function ApplicationDrawer(props: {
   const [selectedAnswerIndex, setSelectedAnswerIndex] = useState('')
   const mailBodyRef = useRef<HTMLTextAreaElement>(null)
 
-  useEffect(() => setNotes(props.application?.notes ?? ''), [props.application])
   useEffect(() => {
+    setFormComment('')
     setMailSubject(defaultMailSubject)
     setMailBody('')
     setSelectedAnswerIndex('')
@@ -1395,9 +1445,13 @@ function ApplicationDrawer(props: {
   if (!props.application) return null
   const application = props.application
   const canReview = ['submitted', 'submission-waitlisted'].includes(application.status)
+  const formCommentBusyKey = `form-comment-${application.id}`
   const customMailBusyKey = `send-custom-mail-${application.id}`
   const customMailHistory = [...application.customMailHistory].sort(
     (first, second) => new Date(second.sentAt).getTime() - new Date(first.sentAt).getTime(),
+  )
+  const formReviewComments = [...application.formReviewComments].sort(
+    (first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime(),
   )
 
   function insertSelectedAnswer() {
@@ -1439,6 +1493,25 @@ function ApplicationDrawer(props: {
       setMailSubject(defaultMailSubject)
       setMailBody('')
       setSelectedAnswerIndex('')
+    } catch {
+      // The parent action displays the server error.
+    }
+  }
+
+  async function addFormComment() {
+    const comment = formComment.trim()
+    if (!comment) return
+
+    try {
+      await props.onAction(
+        {
+          action: 'add-form-comment',
+          applicationId: application.id,
+          comment,
+        },
+        formCommentBusyKey,
+      )
+      setFormComment('')
     } catch {
       // The parent action displays the server error.
     }
@@ -1638,19 +1711,60 @@ function ApplicationDrawer(props: {
             )}
           </details>
           <section>
-            <label
-              className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]"
-              htmlFor="review-notes"
-            >
-              Note interne
-            </label>
-            <textarea
-              className="mt-3 min-h-28 w-full rounded-md border border-[#dfe5ec] p-3 text-sm outline-none focus:border-[#00a2e0]"
-              id="review-notes"
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder="Observatii pentru etapele urmatoare"
-              value={notes}
-            />
+            <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]">
+              Comentarii HR
+            </h3>
+            <div className="mt-3 grid gap-3">
+              <div className="grid gap-2">
+                {formReviewComments.map((comment) => (
+                  <div className="rounded-md bg-[#f8fafc] px-3 py-2.5 text-sm" key={comment.id}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-bold text-[#152039]">
+                        {comment.author?.name || 'Membru board'}
+                      </p>
+                      <p className="text-xs font-medium text-[#748094]">
+                        {formatDateTime(comment.createdAt)}
+                      </p>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap break-words leading-6 text-[#526071]">
+                      {comment.comment}
+                    </p>
+                  </div>
+                ))}
+                {formReviewComments.length === 0 && (
+                  <p className="rounded-md bg-[#f8fafc] px-3 py-3 text-sm text-[#748094]">
+                    Nu exista comentarii pentru formular.
+                  </p>
+                )}
+              </div>
+              <label className="grid gap-1.5 text-sm font-bold" htmlFor="form-review-comment">
+                Comentariu nou
+                <textarea
+                  className="min-h-28 w-full rounded-md border border-[#dfe5ec] p-3 text-sm outline-none focus:border-[#00a2e0]"
+                  id="form-review-comment"
+                  maxLength={2000}
+                  onChange={(event) => setFormComment(event.target.value)}
+                  placeholder="Adauga observatii pentru etapa de review formular"
+                  value={formComment}
+                />
+              </label>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-xs font-medium text-[#748094]">
+                  {formComment.length.toLocaleString('ro-RO')} / 2.000 caractere
+                </span>
+                <button
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#dfe5ec] px-4 text-sm font-bold text-[#152039] hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-55"
+                  disabled={props.busyKey === formCommentBusyKey || !formComment.trim()}
+                  onClick={() => void addFormComment()}
+                  type="button"
+                >
+                  <FileText className="size-4" />
+                  {props.busyKey === formCommentBusyKey
+                    ? 'Se salveaza...'
+                    : 'Adauga comentariu'}
+                </button>
+              </div>
+            </div>
           </section>
           {canReview ? (
             <div className="grid gap-2 sm:grid-cols-3">
@@ -1662,7 +1776,6 @@ function ApplicationDrawer(props: {
                     {
                       action: 'review-submission',
                       applicationId: application.id,
-                      notes,
                       status: 'submission-rejected',
                     },
                     `review-${application.id}-submission-rejected`,
@@ -1678,7 +1791,6 @@ function ApplicationDrawer(props: {
                     {
                       action: 'review-submission',
                       applicationId: application.id,
-                      notes,
                       status: 'submission-waitlisted',
                     },
                     `review-${application.id}-submission-waitlisted`,
@@ -1694,7 +1806,6 @@ function ApplicationDrawer(props: {
                     {
                       action: 'review-submission',
                       applicationId: application.id,
-                      notes,
                       status: 'coordonator-review',
                     },
                     `review-${application.id}-coordonator-review`,
@@ -2157,6 +2268,7 @@ function buildRecruitmentApplicationsCSV(
     'Coordonatori cunoscuti',
     'Coordonatori verificati',
     'Note interne',
+    'Comentarii formular',
     'Note interview',
     'Documente',
     ...answerHeaders,
@@ -2182,6 +2294,17 @@ function buildRecruitmentApplicationsCSV(
         getCSVUserNames(application.knownCoordinatorIds, commissions),
         getCSVUserNames(application.reviewedCoordinatorIds, commissions),
         application.notes,
+        application.formReviewComments
+          .map((comment) =>
+            [
+              formatExportDateTime(comment.createdAt),
+              comment.author?.name || 'Membru board',
+              comment.comment,
+            ]
+              .filter(Boolean)
+              .join(' - '),
+          )
+          .join('\n'),
         application.interviewNotes
           .map((note) =>
             [formatExportDateTime(note.createdAt), note.author?.name || 'Membru board', note.note]
