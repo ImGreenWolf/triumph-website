@@ -222,7 +222,7 @@ export function getRecruitmentWorkflowState(args: {
         (application) => application.status === 'submission-waitlisted',
       ).length,
       verifiedForms: applications.filter(
-        (application) => application.status === 'submitted',
+        (application) => application.status !== 'submitted',
       ).length,
     },
     window: {

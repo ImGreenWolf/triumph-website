@@ -232,7 +232,7 @@ function Metrics({workflow}:{workflow: RecruitmentWorkflowState}) {
         <HeaderStat label="Total" value={String(workflow.metrics.totalForms)} />
         <HeaderStat label="Acceptati" value={String(workflow.metrics.accepted)} />
         <HeaderStat label="Lista Asteptare" value={String(workflow.metrics.waitlisted)} />
-        <HeaderStat label="Rata Acceptare" value={String(workflow.metrics.acceptedForms/workflow.metrics.verifiedForms*100)} />
+        <HeaderStat label="Rata Acceptare" value={String(Math.round(workflow.metrics.acceptedForms/workflow.metrics.verifiedForms*100))+"%"} />
         </>
       )
     case 'coordinator-review':
