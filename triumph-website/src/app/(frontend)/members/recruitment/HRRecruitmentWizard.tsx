@@ -16,10 +16,12 @@ import {
   LockKeyhole,
   Mail,
   MailCheck,
+  NotebookTextIcon,
   Plus,
   Search,
   Send,
   Settings2,
+  TextQuoteIcon,
   Trash2,
   UserCheck,
   X,
@@ -658,12 +660,19 @@ function ApplicationReviewStep(props: {
                   <p className="break-words text-sm font-bold">{application.name}</p>
                   <p className="mt-0.5 break-all text-xs text-[#748094]">{application.email}</p>
                 </div>
+                {application.formReviewComments.length!=0 && <p className='flex items-center gap-1'>{application.formReviewComments.length} <NotebookTextIcon size={16}/></p>}
                 {application.status !== 'submitted' && <StatusBadge status={application.status} />}
               </div>
               <div className="mt-3 flex flex-col gap-3 border-t border-[#edf0f4] pt-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
-                <p className="text-xs font-semibold text-[#526071]">
-                  Trimis {formatDate(application.createdAt)}
-                </p>
+                <div>
+                   <p className="text-xs font-semibold text-[#526071]">
+                    Trimis {formatDate(application.createdAt)}
+                  </p>
+                  <p className={cn("text-xs font-semibold text-[#526071] truncate", application.customMailHistory.length!=0 && "opacity-25")}>
+                    {application.formAnswers.find(item => item.field == "question")?.value.substring(0, 25)}
+                  </p>
+                </div>
+               
                 
                 <button
                   className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-[#dfe5ec] bg-white px-3 text-xs font-bold transition hover:border-[#00a2e0] hover:text-[#007fb3] min-[380px]:w-auto"
@@ -1988,7 +1997,7 @@ function NoticeBanner({ notice }: { notice: Notice }) {
 function StatusBadge({ status }: { status: ManagedApplicationStatus }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.06em] ${status === 'submission-rejected' || status === 'interview-rejected' || status === 'interview-withdrawn' ? 'bg-red-50 text-red-700' : status === 'submission-waitlisted' || status === 'absent' ? 'bg-amber-100 text-amber-800' : status === 'interview-passed' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-800'}`}
+      className={`inline-flex not-md:max-w-20 rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.06em] ${status === 'submission-rejected' || status === 'interview-rejected' || status === 'interview-withdrawn' ? 'bg-red-50 text-red-700' : status === 'submission-waitlisted' || status === 'absent' ? 'bg-amber-100 text-amber-800' : status === 'interview-passed' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-800'}`}
     >
       {statusLabels[status]}
     </span>
