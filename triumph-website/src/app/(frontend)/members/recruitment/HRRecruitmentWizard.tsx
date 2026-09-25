@@ -266,6 +266,7 @@ export default function HRRecruitmentWizard(props: {
   const [applications, setApplications] = useState(props.applications)
   const [commissions, setCommissions] = useState(props.commissions)
   const [config, setConfig] = useState(props.config)
+  const [applicationsListVersion, setApplicationsListVersion] = useState(0)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [detailID, setDetailID] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -363,6 +364,9 @@ export default function HRRecruitmentWizard(props: {
       if (!response.ok) throw new Error(result.message || 'Actiunea nu a putut fi salvata.')
 
       if (result.application) patchApplication(result.application)
+      if (body.action === 'add-form-comment') {
+        setApplicationsListVersion((current) => current + 1)
+      }
       result.bulkReview?.applications.forEach(patchApplication)
       if (result.deletedApplicationId) {
         setApplications((current) =>
@@ -499,6 +503,7 @@ export default function HRRecruitmentWizard(props: {
               applications={visibleApplications}
               busyKey={busyKey}
               config={config}
+              key={applicationsListVersion}
               onAction={runAction}
               onOpen={setDetailID}
             />
@@ -692,8 +697,9 @@ function ApplicationReviewStep(props: {
               <tr>
                 <th className="px-3 py-3">Aplicant</th>
                 <th className="px-3 py-3">Trimis</th>
-                <th className="px-3 py-3">Question</th>
+                <th className="px-3 py-3">Intrebare</th>
                 <th className="px-3 py-3">Status</th>
+                <th className="px-3 py-3">Commentarii</th>
                 <th className="px-3 py-3 text-right">Detalii</th>
               </tr>
             </thead>
@@ -714,6 +720,9 @@ function ApplicationReviewStep(props: {
                     {application.status !== 'submitted' && (
                       <StatusBadge status={application.status} />
                     )}
+                  </td>
+                  <td className={cn("px-3 py-3.5 text-[#526071] tracking-tight max-w-30 truncate")}>
+                     {application.formReviewComments.length != 0 && (application.formReviewComments.length == 1 ? application.formReviewComments[0].comment : application.formReviewComments[0].comment.substring(0,25) + ` | +${application.formReviewComments.length-1}`)}
                   </td>
                   <td className="px-3 py-3.5 text-right">
                     <button
