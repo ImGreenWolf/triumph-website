@@ -18,6 +18,7 @@ import {
   MailCheck,
   NotebookTextIcon,
   Plus,
+  RefreshCw,
   Search,
   Send,
   Settings2,
@@ -29,6 +30,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -186,6 +188,7 @@ type MailBatchResult = {
 }
 
 type ActionResult = {
+  applications?: ManagedApplication[]
   application?: ApplicationPatch
   bulkReview?: {
     applications: ApplicationPatch[]
@@ -232,9 +235,9 @@ function Metrics({workflow}:{workflow: RecruitmentWorkflowState}) {
       return (
         <>
         <HeaderStat label="Total" value={String(workflow.metrics.totalForms)} />
-        <HeaderStat label="Acceptati" value={String(workflow.metrics.accepted)} />
-        <HeaderStat label="Lista Asteptare" value={String(workflow.metrics.waitlisted)} />
-        <HeaderStat label="Rata Acceptare" value={String(Math.round(workflow.metrics.acceptedForms/workflow.metrics.verifiedForms*100))+"%"} />
+        <HeaderStat label="Acceptati" value={String(workflow.metrics.acceptedForms)} />
+        <HeaderStat label="Formulare Neverificate" value={String(workflow.metrics.totalForms - (workflow.metrics.waitlisted + workflow.metrics.acceptedForms))} />
+        <HeaderStat label="Rata Acceptare" tooltip='Rata de acceptare este calculata in functie de formularele care au fost verificate' value={String(Math.round(workflow.metrics.acceptedForms/workflow.metrics.verifiedForms*100))+"%"} />
         </>
       )
     case 'coordinator-review':
@@ -266,16 +269,76 @@ export default function HRRecruitmentWizard(props: {
   const [applications, setApplications] = useState(props.applications)
   const [commissions, setCommissions] = useState(props.commissions)
   const [config, setConfig] = useState(props.config)
-  const [applicationsListVersion, setApplicationsListVersion] = useState(0)
+  const [applicationsLastRefreshedAt, setApplicationsLastRefreshedAt] = useState<string | null>(
+    null,
+  )
+  const [applicationsRefreshing, setApplicationsRefreshing] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [detailID, setDetailID] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [query, setQuery] = useState('')
+  const applicationsRefreshInFlightRef = useRef<Promise<void> | null>(null)
 
   useEffect(() => setHeaderTheme('light'), [setHeaderTheme])
   useEffect(() => setApplications(props.applications), [props.applications])
   useEffect(() => setCommissions(props.commissions), [props.commissions])
   useEffect(() => setConfig(props.config), [props.config])
+
+  const refreshApplications = useCallback(async (showBusy = false) => {
+    if (applicationsRefreshInFlightRef.current) {
+      if (showBusy) {
+        setApplicationsRefreshing(true)
+        void applicationsRefreshInFlightRef.current.finally(() => setApplicationsRefreshing(false))
+      }
+
+      return applicationsRefreshInFlightRef.current
+    }
+
+    const refresh = (async () => {
+      if (showBusy) setApplicationsRefreshing(true)
+
+      try {
+        const response = await fetch('/members/recruitment/applications', {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+          method: 'GET',
+        })
+        const result = (await response.json()) as ActionResult
+        if (!response.ok) {
+          throw new Error(result.message || 'Aplicatiile nu au putut fi reimprospatate.')
+        }
+
+        if (result.applications) {
+          setApplications(result.applications)
+          setApplicationsLastRefreshedAt(new Date().toISOString())
+        }
+      } catch (error) {
+        if (showBusy) {
+          setNotice({
+            kind: 'error',
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Aplicatiile nu au putut fi reimprospatate.',
+          })
+        }
+      } finally {
+        if (showBusy) setApplicationsRefreshing(false)
+        applicationsRefreshInFlightRef.current = null
+      }
+    })()
+
+    applicationsRefreshInFlightRef.current = refresh
+    return refresh
+  }, [])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void refreshApplications()
+    }, 30_000)
+
+    return () => window.clearInterval(interval)
+  }, [refreshApplications])
 
   const workflow = useMemo(
     () =>
@@ -364,9 +427,7 @@ export default function HRRecruitmentWizard(props: {
       if (!response.ok) throw new Error(result.message || 'Actiunea nu a putut fi salvata.')
 
       if (result.application) patchApplication(result.application)
-      if (body.action === 'add-form-comment') {
-        setApplicationsListVersion((current) => current + 1)
-      }
+      if (body.action === 'add-form-comment') void refreshApplications()
       result.bulkReview?.applications.forEach(patchApplication)
       if (result.deletedApplicationId) {
         setApplications((current) =>
@@ -386,7 +447,6 @@ export default function HRRecruitmentWizard(props: {
       if (result.recruitmentConfig) setConfig(result.recruitmentConfig)
 
       setNotice({ kind: 'success', message: getActionMessage(result) })
-      router.refresh()
       return result
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Actiunea nu a putut fi salvata.'
@@ -501,11 +561,13 @@ export default function HRRecruitmentWizard(props: {
           {activeStep === 'forms' && (
             <ApplicationReviewStep
               applications={visibleApplications}
+              applicationsLastRefreshedAt={applicationsLastRefreshedAt}
+              applicationsRefreshing={applicationsRefreshing}
               busyKey={busyKey}
               config={config}
-              key={applicationsListVersion}
               onAction={runAction}
               onOpen={setDetailID}
+              onRefreshApplications={() => refreshApplications(true)}
             />
           )}
           {activeStep === 'coordinator-review' && (
@@ -626,10 +688,13 @@ function WizardSidebar(props: {
 
 function ApplicationReviewStep(props: {
   applications: ManagedApplication[]
+  applicationsLastRefreshedAt: string | null
+  applicationsRefreshing: boolean
   busyKey: string | null
   config: ManagedRecruitmentConfig
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
   onOpen: (id: string) => void
+  onRefreshApplications: () => Promise<void>
 }) {
   const ordered = [...props.applications].sort((left, right) => {
     const reviewedDifference =
@@ -642,17 +707,32 @@ function ApplicationReviewStep(props: {
     <div className="grid min-w-0 gap-5">
       <DeadlineEditor busyKey={props.busyKey} config={props.config} onAction={props.onAction} />
       <Panel>
-        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
             <h3 className="text-lg font-bold">Aplicatii</h3>
             <p className="mt-1 text-sm text-[#748094]">
               {pending} formulare au nevoie de o decizie.
             </p>
-            <p className="mt-1 text-sm text-[#748094]">
-              {ordered.length} formulare totale.
-            </p>
           </div>
-          <span className="text-sm font-semibold text-[#526071]">{ordered.length} total</span>
+          <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+            <span className="text-xs font-semibold text-[#748094]">
+              {props.applicationsLastRefreshedAt
+                ? `Actualizat ${formatDateTime(props.applicationsLastRefreshedAt)}`
+                : 'Actualizare automata la 30s'}
+            </span>
+            <button
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-[#dfe5ec] bg-white px-3 text-xs font-bold text-[#152039] transition hover:border-[#00a2e0] hover:text-[#007fb3] disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={props.applicationsRefreshing}
+              onClick={() => void props.onRefreshApplications()}
+              type="button"
+            >
+              <RefreshCw
+                className={`size-4 ${props.applicationsRefreshing ? 'animate-spin' : ''}`}
+              />
+              {props.applicationsRefreshing ? 'Se actualizeaza...' : 'Reimprospateaza'}
+            </button>
+            <span className="text-sm font-semibold text-[#526071]">{ordered.length} total</span>
+          </div>
         </div>
         <div className="mt-5 grid gap-3 md:hidden">
           {ordered.map((application) => (
@@ -1951,9 +2031,9 @@ function Panel({ children }: { children: ReactNode }) {
     </section>
   )
 }
-function HeaderStat({ label, value }: { label: string; value: string }) {
+function HeaderStat({ label, value, tooltip }: { label: string; value: string, tooltip?: string }) {
   return (
-    <div className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-2">
+    <div className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-2" title={tooltip}>
       <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white/50">{label}</p>
       <p className="mt-1 text-xl font-bold">{value}</p>
     </div>
