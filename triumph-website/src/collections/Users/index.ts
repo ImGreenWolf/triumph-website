@@ -347,6 +347,7 @@ export const Users: CollectionConfig = {
     {
       name: 'name',
       type: 'text',
+      index: true,
       access: {
         update: canManageUsers,
       },
