@@ -16,6 +16,12 @@ type VideoHeroProps = Page['hero'] & {
   posterVertical?: MediaType | string | null
 }
 
+type PosterAsset = {
+  fallbackUrl: string
+  placeholderUrl: string
+  srcSet: string
+}
+
 function Title({ title }: any) {
   return (
     <>
@@ -47,13 +53,39 @@ const getVideoUrl = (media: MediaType | null) => {
 
 const getPosterUrl = (media: MediaType | null) => {
   const url =
-    media?.sizes?.xlarge?.url ||
     media?.sizes?.large?.url ||
     media?.sizes?.medium?.url ||
+    media?.sizes?.xlarge?.url ||
     media?.thumbnailURL ||
     media?.url
 
   return url ? getMediaUrl(url, media?.updatedAt) : ''
+}
+
+const getPosterAsset = (media: MediaType | null): PosterAsset | null => {
+  if (!media) return null
+
+  const candidates = [
+    media.sizes?.small,
+    media.sizes?.medium,
+    media.sizes?.large,
+    media.sizes?.xlarge,
+    media.width && media.url ? { url: media.url, width: media.width } : null,
+  ].filter((size): size is { url: string; width: number } => Boolean(size?.url && size.width))
+
+  const placeholder =
+    media.sizes?.thumbnail?.url || media.sizes?.small?.url || media.thumbnailURL || media.url
+  const fallback = media.sizes?.medium?.url || media.sizes?.large?.url || media.url || placeholder
+
+  if (!placeholder || !fallback) return null
+
+  return {
+    fallbackUrl: getMediaUrl(fallback, media.updatedAt),
+    placeholderUrl: getMediaUrl(placeholder, media.updatedAt),
+    srcSet: candidates
+      .map((size) => `${getMediaUrl(size.url, media.updatedAt)} ${size.width}w`)
+      .join(', '),
+  }
 }
 
 const preloadHeroVideo = (media: MediaType | null, mediaQuery?: string) => {
@@ -69,12 +101,14 @@ const preloadHeroVideo = (media: MediaType | null, mediaQuery?: string) => {
   })
 }
 
-const preloadHeroPoster = (href: string, mediaQuery?: string) => {
-  if (!href) return
+const preloadHeroPoster = (asset: PosterAsset | null, mediaQuery?: string) => {
+  if (!asset?.fallbackUrl) return
 
-  preload(href, {
+  preload(asset.fallbackUrl, {
     as: 'image',
     fetchPriority: 'high',
+    imageSizes: '100vw',
+    imageSrcSet: asset.srcSet || undefined,
     media: mediaQuery,
   })
 }
@@ -110,9 +144,14 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
   const verticalPosterMedia = getImageMedia(posterVertical)
   const landscapeSrc = getVideoUrl(landscapeMedia)
   const verticalSrc = getVideoUrl(verticalMedia)
-  const landscapePosterUrl = getPosterUrl(landscapePosterMedia) || getPosterUrl(landscapeMedia)
-  const verticalPosterUrl = getPosterUrl(verticalPosterMedia) || getPosterUrl(verticalMedia)
+  const landscapePosterAsset = getPosterAsset(landscapePosterMedia)
+  const verticalPosterAsset = getPosterAsset(verticalPosterMedia)
+  const landscapePosterUrl = landscapePosterAsset?.fallbackUrl || getPosterUrl(landscapeMedia)
+  const verticalPosterUrl = verticalPosterAsset?.fallbackUrl || getPosterUrl(verticalMedia)
   const posterUrl = landscapePosterUrl || verticalPosterUrl
+  const landscapePlaceholderUrl = landscapePosterAsset?.placeholderUrl || landscapePosterUrl
+  const verticalPlaceholderUrl = verticalPosterAsset?.placeholderUrl || verticalPosterUrl
+  const placeholderUrl = landscapePlaceholderUrl || verticalPlaceholderUrl
   const isDesktop = useDesktopHeroVideo()
   const videoRef = useRef<HTMLVideoElement>(null)
   const selectedSrc =
@@ -127,8 +166,8 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
 
   preloadHeroVideo(verticalMedia, mobileVideoQuery)
   preloadHeroVideo(landscapeMedia, desktopVideoQuery)
-  preloadHeroPoster(verticalPosterUrl, mobileVideoQuery)
-  preloadHeroPoster(landscapePosterUrl, desktopVideoQuery)
+  preloadHeroPoster(verticalPosterAsset, mobileVideoQuery)
+  preloadHeroPoster(landscapePosterAsset, desktopVideoQuery)
 
   useEffect(() => {
     setIsVideoReady(false)
@@ -189,6 +228,33 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
       </div>
 
       <div className="select-none w-full absolute inset-0 h-full overflow-hidden bg-black">
+        {(landscapePlaceholderUrl || verticalPlaceholderUrl) && (
+          <picture
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full"
+          >
+            {verticalPlaceholderUrl && (
+              <source
+                media={landscapePlaceholderUrl ? mobileVideoQuery : undefined}
+                srcSet={verticalPlaceholderUrl}
+              />
+            )}
+            {landscapePlaceholderUrl && (
+              <source
+                media={verticalPlaceholderUrl ? desktopVideoQuery : undefined}
+                srcSet={landscapePlaceholderUrl}
+              />
+            )}
+            <img
+              alt=""
+              className="h-full w-full scale-105 object-cover blur-md"
+              decoding="async"
+              loading="eager"
+              src={placeholderUrl}
+            />
+          </picture>
+        )}
+
         {(landscapePosterUrl || verticalPosterUrl) && (
           <picture
             aria-hidden="true"
@@ -200,13 +266,15 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
             {verticalPosterUrl && (
               <source
                 media={landscapePosterUrl ? mobileVideoQuery : undefined}
-                srcSet={verticalPosterUrl}
+                sizes="100vw"
+                srcSet={verticalPosterAsset?.srcSet || verticalPosterUrl}
               />
             )}
             {landscapePosterUrl && (
               <source
                 media={verticalPosterUrl ? desktopVideoQuery : undefined}
-                srcSet={landscapePosterUrl}
+                sizes="100vw"
+                srcSet={landscapePosterAsset?.srcSet || landscapePosterUrl}
               />
             )}
             <img
