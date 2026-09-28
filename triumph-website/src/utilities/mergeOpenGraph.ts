@@ -13,7 +13,7 @@ const defaultOpenGraph: Metadata['openGraph'] = {
   description: 'Site-ul oficial al clubului Interact Bucuresti Triumph.',
   images: [
     {
-      url:  (typeof config.defaultOGImage == "object" ? config.defaultOGImage?.url : config.defaultOGImage) || `${getServerSideURL()}/website-template-OG.webp`,
+      url:  (typeof config.defaultOGImage == "object" ? config.defaultOGImage?.sizes?.og?.url : config.defaultOGImage) || `${getServerSideURL()}/website-template-OG.webp`,
       
     },
   ],

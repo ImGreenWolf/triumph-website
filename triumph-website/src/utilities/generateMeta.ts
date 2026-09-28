@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import type { Media, Page, Post, Config } from '../payload-types'
+import type { Media, Page, Post, Config, Event } from '../payload-types'
 
 import { mergeOpenGraph } from './mergeOpenGraph'
 import { getServerSideURL } from './getURL'
@@ -12,27 +12,29 @@ const config = await getCachedGlobal('siteConfig', 1)()
 const getImageURL = (image?: Media | Config['db']['defaultIDType'] | null) => {
   const serverUrl = getServerSideURL()
 
-  let url = serverUrl +  (typeof config.defaultOGImage == "object" ? config.defaultOGImage?.url : config.defaultOGImage)
+  let url = (typeof config.defaultOGImage == "object" ? config.defaultOGImage?.sizes?.og?.url : config.defaultOGImage)
 
   if (image && typeof image === 'object' && 'url' in image) {
     const ogUrl = image.sizes?.og?.url
 
-    url = ogUrl ? serverUrl + ogUrl : serverUrl + image.url
+    url = ogUrl ? ogUrl.startsWith('https') ? ogUrl :serverUrl + ogUrl : serverUrl + image.url
   }
 
   return url
 }
 
 export const generateMeta = async (args: {
-  doc: Partial<Page> | Partial<Post> | null
+  doc: Partial<Page> | Partial<Post> | Partial<Event> | null
 }): Promise<Metadata> => {
   const { doc } = args
 
   const ogImage = getImageURL(doc?.meta?.image)
 
-  const title = doc?.meta?.title
+  const title = 
+  'name' in doc! ? doc.name : 
+  ('title' in doc! && doc?.meta?.title
     ? doc?.meta?.title + ''
-    : 'Interact Bucureşti Triumph'
+    : 'Interact Bucureşti Triumph')
 
   return {
     description: doc?.meta?.description,
