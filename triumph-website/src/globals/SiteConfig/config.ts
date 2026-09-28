@@ -41,6 +41,11 @@ export const SiteConfig: GlobalConfig = {
           relationTo: 'media'
         },
         {
+          type: 'upload',
+          name: 'defaultOGImage',
+          relationTo: 'media'
+        },
+        {
           type: 'group',
           fields: [
             {

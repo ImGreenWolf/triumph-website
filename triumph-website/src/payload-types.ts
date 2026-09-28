@@ -4273,6 +4273,7 @@ export interface SiteConfig {
   lightModeIcon?: (string | null) | Media;
   darkModeLogo?: (string | null) | Media;
   darkModeIcon?: (string | null) | Media;
+  defaultOGImage?: (string | null) | Media;
   faviconIco?: (string | null) | Media;
   faviconSvg?: (string | null) | Media;
   updatedAt?: string | null;
@@ -4498,6 +4499,7 @@ export interface SiteConfigSelect<T extends boolean = true> {
   lightModeIcon?: T;
   darkModeLogo?: T;
   darkModeIcon?: T;
+  defaultOGImage?: T;
   faviconIco?: T;
   faviconSvg?: T;
   updatedAt?: T;

@@ -133,7 +133,7 @@ export const Users: CollectionConfig = {
   },
   trash: true,
   admin: {
-    defaultColumns: ['name', 'email', 'joinedAt','attendance', 'payments'],
+    defaultColumns: ['name', 'email', 'joinedAt',],
     useAsTitle: 'name',
     enableListViewSelectAPI: true,
     // formatDocURL: ({doc, collectionSlug, defaultURL}) => doc.slug ? `/members/u/${collectionSlug}/${doc.slug}` : defaultURL,

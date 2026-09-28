@@ -32,13 +32,13 @@ export const generateMeta = async (args: {
 
   return {
     description: doc?.meta?.description,
-    icons: [
-        {
-          rel: 'icon',
-          type: 'image/png',
-          url: '/logo.png'
-        }
-      ],
+    // icons: [
+    //     {
+    //       rel: 'icon',
+    //       type: 'image/png',
+    //       url: '/logo.png'
+    //     }
+    //   ],
     openGraph: mergeOpenGraph({
       description: doc?.meta?.description || '',
       images: ogImage
