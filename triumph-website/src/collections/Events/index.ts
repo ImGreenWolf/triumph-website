@@ -315,8 +315,6 @@ export const Events: CollectionConfig<'events'> = {
           fields: [
             OverviewField({
               titlePath: 'name',
-              descriptionPath: 'name.description',
-              imagePath: 'meta.image',
             }),
             MetaImageField({
               relationTo: 'media',
