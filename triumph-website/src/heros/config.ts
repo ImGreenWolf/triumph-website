@@ -108,6 +108,19 @@ export const hero: Field = {
       required: true,
     },
     {
+      name: 'posterLandscape',
+      type: 'upload',
+      admin: {
+        condition: (_, { type } = {}) => ['videoHero'].includes(type),
+        description: 'Shown immediately while the landscape hero video loads.',
+      },
+      filterOptions: {
+        mimeType: { contains: 'image' },
+      },
+      label: 'Landscape poster image',
+      relationTo: 'media',
+    },
+    {
       name: 'mediaVertical',
       type: 'upload',
       admin: {
@@ -115,6 +128,19 @@ export const hero: Field = {
       },
       relationTo: 'media',
       required: true,
+    },
+    {
+      name: 'posterVertical',
+      type: 'upload',
+      admin: {
+        condition: (_, { type } = {}) => ['videoHero'].includes(type),
+        description: 'Shown immediately while the mobile hero video loads.',
+      },
+      filterOptions: {
+        mimeType: { contains: 'image' },
+      },
+      label: 'Mobile poster image',
+      relationTo: 'media',
     },
   ],
   label: false,

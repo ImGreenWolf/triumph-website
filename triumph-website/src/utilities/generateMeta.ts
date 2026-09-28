@@ -46,7 +46,7 @@ export const generateMeta = async (args: {
     //     }
     //   ],
     openGraph: mergeOpenGraph({
-      description: doc?.meta?.description || '',
+      description: doc?.meta?.description || config.defaultDescription || '',
       images: ogImage
         ? [
             {

@@ -46,6 +46,18 @@ export const SiteConfig: GlobalConfig = {
           relationTo: 'media'
         },
         {
+          type: 'text',
+          name: 'defaultTitle'
+        },
+        {
+          type: 'text',
+          name: 'websiteName'
+        },
+        {
+          type: 'textarea',
+          name: 'defaultDescription'
+        },
+        {
           type: 'group',
           fields: [
             {

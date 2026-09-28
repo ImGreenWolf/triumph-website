@@ -260,7 +260,15 @@ export interface Page {
     media?: (string | null) | Media;
     galery?: (string | Media)[] | null;
     mediaLandscape?: (string | null) | Media;
+    /**
+     * Shown immediately while the landscape hero video loads.
+     */
+    posterLandscape?: (string | null) | Media;
     mediaVertical?: (string | null) | Media;
+    /**
+     * Shown immediately while the mobile hero video loads.
+     */
+    posterVertical?: (string | null) | Media;
   };
   layout: (
     | CallToActionBlock
@@ -2691,7 +2699,9 @@ export interface PagesSelect<T extends boolean = true> {
         media?: T;
         galery?: T;
         mediaLandscape?: T;
+        posterLandscape?: T;
         mediaVertical?: T;
+        posterVertical?: T;
       };
   layout?:
     | T
@@ -4274,6 +4284,9 @@ export interface SiteConfig {
   darkModeLogo?: (string | null) | Media;
   darkModeIcon?: (string | null) | Media;
   defaultOGImage?: (string | null) | Media;
+  defaultTitle?: string | null;
+  websiteName?: string | null;
+  defaultDescription?: string | null;
   faviconIco?: (string | null) | Media;
   faviconSvg?: (string | null) | Media;
   updatedAt?: string | null;
@@ -4500,6 +4513,9 @@ export interface SiteConfigSelect<T extends boolean = true> {
   darkModeLogo?: T;
   darkModeIcon?: T;
   defaultOGImage?: T;
+  defaultTitle?: T;
+  websiteName?: T;
+  defaultDescription?: T;
   faviconIco?: T;
   faviconSvg?: T;
   updatedAt?: T;
