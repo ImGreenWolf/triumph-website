@@ -114,6 +114,11 @@ export const Meetings: CollectionConfig = {
       },
     },
     {
+      name: 'onlineMeeting',
+      type: 'checkbox',
+      label: 'Ședință Online'
+    },
+    {
       name: 'endedBufferMinutes',
       type: 'number',
       label: 'Ended status buffer (minutes)',

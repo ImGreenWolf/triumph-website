@@ -745,7 +745,8 @@ function ApplicationReviewStep(props: {
                   <p className="break-words text-sm font-bold">{application.name}</p>
                   <p className="mt-0.5 break-all text-xs text-[#748094]">{application.email}</p>
                 </div>
-                {application.formReviewComments.length!=0 && <p className='flex items-center gap-1'>{application.formReviewComments.length} <NotebookTextIcon size={16}/></p>}
+                     {application.formReviewComments.length != 0 && (application.formReviewComments.length == 1 ? application.formReviewComments[0].comment.substring(0,25) : application.formReviewComments[0].comment.substring(0,25) + ` | +${application.formReviewComments.length-1}`)}
+
                 {application.status !== 'submitted' && <StatusBadge status={application.status} />}
               </div>
               <div className="mt-3 flex flex-col gap-3 border-t border-[#edf0f4] pt-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">

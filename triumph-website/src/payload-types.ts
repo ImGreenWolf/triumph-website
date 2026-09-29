@@ -837,6 +837,7 @@ export interface Meeting {
   id: string;
   meetingDate: string;
   durationMinutes: number;
+  onlineMeeting?: boolean | null;
   /**
    * Cat mai este vizibilă ședința după ce s-a terminat.
    */
@@ -3396,6 +3397,7 @@ export interface UsersSelect<T extends boolean = true> {
 export interface MeetingsSelect<T extends boolean = true> {
   meetingDate?: T;
   durationMinutes?: T;
+  onlineMeeting?: T;
   endedBufferMinutes?: T;
   status?: T;
   location?: T;

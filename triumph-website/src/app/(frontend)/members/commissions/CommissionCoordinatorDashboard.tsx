@@ -190,6 +190,7 @@ export default function CommissionCoordinatorDashboard(props: {
   commissions: ManagedCommission[]
   generalViewHref?: string
   isBoard: boolean
+  manageableCommissionIds: string[]
   recruitmentPool: ManagedRecruitmentPoolApplicant[]
   user: ManagedUser
 }) {
@@ -198,6 +199,7 @@ export default function CommissionCoordinatorDashboard(props: {
     commissions: initialCommissions,
     generalViewHref,
     isBoard,
+    manageableCommissionIds,
     recruitmentPool: initialRecruitmentPool,
     user,
   } = props
@@ -234,6 +236,10 @@ export default function CommissionCoordinatorDashboard(props: {
   const userCoordinatesSelectedCommission = Boolean(
     selectedCommission?.coordinators.some((coordinator) => coordinator.id === user.id),
   )
+  const canManageSelectedCommission = Boolean(
+    selectedCommission && manageableCommissionIds.includes(selectedCommission.id),
+  )
+  const canManageKnownReview = canManageSelectedCommission && userCoordinatesSelectedCommission
   const selectedApplications = useMemo(
     () =>
       selectedCommission
@@ -343,8 +349,7 @@ export default function CommissionCoordinatorDashboard(props: {
     return <EmptyState userName={user.name} />
   }
 
-  const pendingKnownReview =
-    !isBoard && userCoordinatesSelectedCommission && !selectedCommissionHasUserReview
+  const pendingKnownReview = canManageKnownReview && !selectedCommissionHasUserReview
   const reviewRemaining = recruitmentPool.filter(
     (applicant) => !applicant.reviewedCoordinatorIds.includes(user.id),
   ).length
@@ -376,9 +381,13 @@ export default function CommissionCoordinatorDashboard(props: {
             </Link>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="rounded border border-[#bde8f8] bg-[#eefaff] px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-[#007fb3]">
-                {isBoard ? 'Vizualizare board' : 'Spatiu coordonator'}
+                {canManageSelectedCommission
+                  ? 'Spatiu coordonator'
+                  : isBoard
+                    ? 'Vizualizare board'
+                    : 'Spatiu coordonator'}
               </span>
-              {isBoard && (
+              {isBoard && !canManageSelectedCommission && (
                 <span className="text-xs font-semibold text-[#748094]">Doar vizualizare</span>
               )}
             </div>
@@ -453,7 +462,7 @@ export default function CommissionCoordinatorDashboard(props: {
               onOpenKnownApplicants={() => setView('known-applicants')}
               pendingDecisions={pendingDecisions.length}
               pendingKnownReview={pendingKnownReview ? reviewRemaining : 0}
-              readOnly={isBoard}
+              readOnly={!canManageSelectedCommission}
               scheduledCandidates={scheduledCandidates.length}
               unresolvedCandidates={unresolvedCandidates.length}
             />
@@ -461,7 +470,7 @@ export default function CommissionCoordinatorDashboard(props: {
           {view === 'known-applicants' && (
             <KnownApplicantsTask
               busyKey={busyKey}
-              canManage={!isBoard && userCoordinatesSelectedCommission}
+              canManage={canManageKnownReview}
               commission={selectedCommission}
               hasConfirmedReview={selectedCommissionHasUserReview}
               onAction={runAction}
@@ -474,7 +483,7 @@ export default function CommissionCoordinatorDashboard(props: {
           {view === 'assigned-candidates' && (
             <AssignedCandidateList
               applications={selectedApplications}
-              canManage={!isBoard && userCoordinatesSelectedCommission}
+              canManage={canManageSelectedCommission}
               busyKey={busyKey}
               commission={selectedCommission}
               onAction={runAction}

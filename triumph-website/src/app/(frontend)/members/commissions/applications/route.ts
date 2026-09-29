@@ -438,7 +438,7 @@ async function updateCommissionSchedule(args: {
   user: User
 }) {
   const commission = await getCommission(args.payload, normalizeText(args.body.commissionId))
-  if (!canManageCommissionSchedule(commission, args.user, args.scope)) {
+  if (!(await canManageCommissionSchedule(args.payload, commission, args.user, args.scope))) {
     return Response.json(
       { message: 'Nu ai permisiunea de a edita programul acestei comisii.' },
       { status: 403 },
@@ -524,7 +524,7 @@ async function confirmCoordinatorReview(args: {
 }) {
   const commission = await getCommission(args.payload, normalizeText(args.body.commissionId))
 
-  if (!isCommissionCoordinator(commission, args.user)) {
+  if (!(await canManageCommission(args.payload, commission, args.user))) {
     return Response.json(
       { message: 'Nu poti confirma verificarea pentru aceasta comisie.' },
       { status: 403 },
@@ -597,7 +597,7 @@ async function addInterviewNote(args: {
   const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
   const commission = await getApplicationCommission(args.payload, application)
 
-  if (!canManageAssignedApplication(commission, args.user)) {
+  if (!(await canManageAssignedApplication(args.payload, commission, args.user))) {
     return Response.json(
       { message: 'Nu ai permisiunea de a nota acest candidat.' },
       { status: 403 },
@@ -663,7 +663,7 @@ async function setInterviewAttendance(args: {
 }) {
   const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
   const commission = await getApplicationCommission(args.payload, application)
-  if (!canManageAssignedApplication(commission, args.user)) {
+  if (!(await canManageAssignedApplication(args.payload, commission, args.user))) {
     return Response.json({ message: 'Nu ai permisiunea de a actualiza prezenta.' }, { status: 403 })
   }
 
@@ -721,7 +721,7 @@ async function finalDecision(args: {
   const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
   const commission = await getApplicationCommission(args.payload, application)
 
-  if (!canManageAssignedApplication(commission, args.user)) {
+  if (!(await canManageAssignedApplication(args.payload, commission, args.user))) {
     return Response.json(
       { message: 'Nu ai permisiunea de a decide pentru acest candidat.' },
       { status: 403 },
@@ -1221,17 +1221,29 @@ async function requireAllCoordinatorReviewApplicantsChecked(payload: Payload, us
   }
 }
 
-function canManageAssignedApplication(commission: ExtendedCommission, user: User) {
-  return canUseCoordinatorWorkspace(user) && isCommissionCoordinator(commission, user)
+async function canManageAssignedApplication(
+  payload: Payload,
+  commission: ExtendedCommission,
+  user: User,
+) {
+  return canManageCommission(payload, commission, user)
 }
 
-function canManageCommissionSchedule(
+async function canManageCommissionSchedule(
+  payload: Payload,
   commission: ExtendedCommission,
   user: User,
   scope: RouteScope,
 ) {
   if (scope === 'recruitment') return isBoardMember(user)
-  return canUseCoordinatorWorkspace(user) && isCommissionCoordinator(commission, user)
+  return canManageCommission(payload, commission, user)
+}
+
+async function canManageCommission(payload: Payload, commission: ExtendedCommission, user: User) {
+  if (isCommissionCoordinator(commission, user)) return true
+  if (user.role !== 'hr-director') return false
+
+  return userCoordinatesAnyCommission(payload, user)
 }
 
 function assertCommissionReadyForApplicant(
@@ -1295,22 +1307,11 @@ function assertScopeActionAccess(action: string, user: User, scope: RouteScope) 
     return
   }
 
-  if (!canUseCoordinatorWorkspace(user)) {
-    throw Object.assign(
-      new Error('Boardul poate consulta comisiile, dar nu poate modifica acest spatiu de lucru.'),
-      { status: 403 },
-    )
-  }
-
   if (!coordinatorActions.has(action)) {
     throw Object.assign(new Error('Aceasta actiune este disponibila numai in panoul HR.'), {
       status: 403,
     })
   }
-}
-
-function canUseCoordinatorWorkspace(user: User) {
-  return !isBoardMember(user) || user.role === 'hr-director'
 }
 
 function isReviewStatus(value: string): value is ApplicationStatus {

@@ -75,7 +75,6 @@ export default async function CommissionCoordinatorPage() {
     user: authUser,
   })) as User
   const hasBoardAccess = isBoardMember(member)
-  const isHRCoordinator = member.role === 'hr-director'
 
   const commissionResult = await payload.find({
     collection: 'comissions',
@@ -96,9 +95,11 @@ export default async function CommissionCoordinatorPage() {
   const coordinatedCommissions = accessibleCommissions.filter((commission) =>
     commission.coordinators.some((coordinator) => getRelationshipID(coordinator) === member.id),
   )
-  const useCoordinatorWorkspace = isHRCoordinator && coordinatedCommissions.length > 0
-  const commissions = useCoordinatorWorkspace ? coordinatedCommissions : accessibleCommissions
-  const isBoardReadOnly = hasBoardAccess && !useCoordinatorWorkspace
+  const canManageAllCommissions = member.role === 'hr-director' && coordinatedCommissions.length > 0
+  const commissions = accessibleCommissions
+  const manageableCommissionIds = canManageAllCommissions
+    ? commissions.map((commission) => commission.id)
+    : coordinatedCommissions.map((commission) => commission.id)
 
   if (!hasBoardAccess && commissions.length === 0) {
     return (
@@ -106,6 +107,7 @@ export default async function CommissionCoordinatorPage() {
         applications={[]}
         commissions={[]}
         isBoard={false}
+        manageableCommissionIds={[]}
         recruitmentPool={[]}
         user={{
           email: member.email,
@@ -118,7 +120,7 @@ export default async function CommissionCoordinatorPage() {
   }
 
   const commissionIDs = commissions.map((commission) => commission.id)
-  const applicationWhere: Where | undefined = isBoardReadOnly
+  const applicationWhere: Where | undefined = hasBoardAccess
     ? undefined
     : {
         or: [
@@ -145,12 +147,12 @@ export default async function CommissionCoordinatorPage() {
   })
   const applications = applicationResult.docs as ApplicationWithExtendedReview[]
 
-  const manageableCommissionIDs = new Set(commissionIDs)
+  const manageableCommissionIDSet = new Set(commissionIDs)
   const managedApplications = applications
     .filter((application) =>
-      isBoardReadOnly
+      hasBoardAccess
         ? true
-        : manageableCommissionIDs.has(getRelationshipID(application.reviewProcess?.comission)),
+        : manageableCommissionIDSet.has(getRelationshipID(application.reviewProcess?.comission)),
     )
     .map(serializeApplication)
   const recruitmentPool = applications
@@ -161,8 +163,9 @@ export default async function CommissionCoordinatorPage() {
     <CommissionCoordinatorDashboard
       applications={managedApplications}
       commissions={commissions.map(serializeCommission)}
-      generalViewHref={useCoordinatorWorkspace ? '/members/recruitment' : undefined}
-      isBoard={isBoardReadOnly}
+      generalViewHref={hasBoardAccess ? '/members/recruitment' : undefined}
+      isBoard={hasBoardAccess}
+      manageableCommissionIds={manageableCommissionIds}
       recruitmentPool={recruitmentPool}
       user={{
         email: member.email,

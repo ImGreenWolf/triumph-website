@@ -93,7 +93,7 @@ export default function CommissionInterviewWorkspace(props: {
   commissions: InterviewWorkspaceCommission[]
   defaultInterviewDate: string | null
   initialCommissionId: string
-  isReadOnly: boolean
+  manageableCommissionIds: string[]
   schedulingDeadline: string | null
   user: InterviewWorkspaceUser
 }) {
@@ -112,6 +112,7 @@ export default function CommissionInterviewWorkspace(props: {
   useEffect(() => setCommissions(props.commissions), [props.commissions])
 
   const commission = commissions.find((item) => item.id === selectedCommissionID) ?? commissions[0]
+  const isReadOnly = !commission || !props.manageableCommissionIds.includes(commission.id)
   const candidates = useMemo(
     () => applications.filter((application) => application.commissionId === commission?.id),
     [applications, commission],
@@ -282,7 +283,7 @@ export default function CommissionInterviewWorkspace(props: {
               application={selectedApplication}
               busyKey={busyKey}
               deadline={props.schedulingDeadline}
-              isReadOnly={props.isReadOnly}
+              isReadOnly={isReadOnly}
               onAction={runAction}
               onOpenDetails={() => setDetailsOpen(true)}
             />
@@ -295,11 +296,11 @@ export default function CommissionInterviewWorkspace(props: {
                 ['interviewed', 'absent'].includes(application.status),
               )}
               busyKey={busyKey}
-              isReadOnly={props.isReadOnly}
+              isReadOnly={isReadOnly}
               onAction={runAction}
             />
           )}
-          {!props.isReadOnly && (
+          {!isReadOnly && (
             <ScheduleSettings
               busyKey={busyKey}
               commission={commission}
