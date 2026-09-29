@@ -557,7 +557,12 @@ export default function HRRecruitmentWizard(props: {
               />
             </div>
           </div>
-
+              <StepFooter
+            activeStep={activeStep}
+            maximumStepIndex={maximumStepIndex}
+            onSelect={selectStep}
+            workflow={workflow}
+          />
           {activeStep === 'forms' && (
             <ApplicationReviewStep
               applications={visibleApplications}
@@ -598,12 +603,7 @@ export default function HRRecruitmentWizard(props: {
             <ResultStep applications={visibleApplications} busyKey={busyKey} onAction={runAction} />
           )}
 
-          <StepFooter
-            activeStep={activeStep}
-            maximumStepIndex={maximumStepIndex}
-            onSelect={selectStep}
-            workflow={workflow}
-          />
+          
         </section>
       </div>
 
@@ -851,6 +851,14 @@ function CoordinatorReviewStep(props: {
             <p className="mt-1 text-sm text-[#748094]">
               Pool curent: {pool.length} candidati acceptati.
             </p>
+            <p className="mt-1 text-sm text-[#748094]">
+              {coordinators.filter(a => 
+              a.commission.recruitmentReviews.some(
+              (review) => review.coordinatorId === a.coordinator.id,
+            )
+            ).length
+          }/{coordinators.length} Verificate
+            </p>
           </div>
           <Link
             className="text-sm font-bold text-[#007fb3] hover:underline"
@@ -881,9 +889,9 @@ function CoordinatorReviewStep(props: {
                     <p className="mt-0.5 text-xs text-[#748094]">{commission.label}</p>
                   </div>
                   <span
-                    className={`rounded-full px-2 py-1 text-[10px] truncate font-black uppercase ${confirmed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}
+                    className={`rounded-full px-2 py-1 text-[10px] truncate font-black uppercase ${confirmed ? 'bg-emerald-100 text-emerald-700' :  checked == 0 ?  'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}
                   >
-                    {confirmed ? 'Confirmat' : 'In lucru'}
+                    {confirmed ? 'Confirmat' : checked == 0 ? 'Neînceput' : 'In lucru'}
                   </span>
                 </div>
                 <div className="mt-3 flex justify-between text-xs font-semibold text-[#526071]">

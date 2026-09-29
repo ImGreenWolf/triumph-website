@@ -298,6 +298,31 @@ export default function CommissionCoordinatorDashboard(props: {
   }
 
   async function runAction<T extends Record<string, unknown>>(body: T, busyLabel: string) {
+    const optimisticKnownUpdate = getOptimisticKnownUpdate(body)
+    let previousApplication: ManagedApplication | undefined
+    let previousRecruitmentApplicant: ManagedRecruitmentPoolApplicant | undefined
+
+    if (optimisticKnownUpdate) {
+      previousApplication = applications.find(
+        (application) => application.id === optimisticKnownUpdate.applicationId,
+      )
+      previousRecruitmentApplicant = recruitmentPool.find(
+        (applicant) => applicant.id === optimisticKnownUpdate.applicationId,
+      )
+      setApplications((current) =>
+        current.map((application) => {
+          if (application.id !== optimisticKnownUpdate.applicationId) return application
+          return applyOptimisticKnownState(application, user.id, optimisticKnownUpdate.known)
+        }),
+      )
+      setRecruitmentPool((current) =>
+        current.map((applicant) => {
+          if (applicant.id !== optimisticKnownUpdate.applicationId) return applicant
+          return applyOptimisticKnownState(applicant, user.id, optimisticKnownUpdate.known)
+        }),
+      )
+    }
+
     setBusyKey(busyLabel)
     setNotice(null)
 
@@ -338,6 +363,25 @@ export default function CommissionCoordinatorDashboard(props: {
       router.refresh()
       return result
     } catch (error) {
+      if (optimisticKnownUpdate) {
+        if (previousApplication) {
+          setApplications((current) =>
+            current.map((application) =>
+              application.id === previousApplication?.id ? previousApplication : application,
+            ),
+          )
+        }
+        if (previousRecruitmentApplicant) {
+          setRecruitmentPool((current) =>
+            current.map((applicant) =>
+              applicant.id === previousRecruitmentApplicant?.id
+                ? previousRecruitmentApplicant
+                : applicant,
+            ),
+          )
+        }
+      }
+
       setNotice({
         kind: 'error',
         message: error instanceof Error ? error.message : 'Actiunea nu a putut fi salvata.',
@@ -514,6 +558,10 @@ export default function CommissionCoordinatorDashboard(props: {
       {jsonUploadWizardOpen && (
         <CommissionJsonUploadWizard
           commission={selectedCommission}
+          applications={recruitmentPool}
+          busyKey={busyKey}
+          user={user}
+          onAction={runAction}
           onClose={() => setJsonUploadWizardOpen(false)}
         />
       )}
@@ -521,29 +569,96 @@ export default function CommissionCoordinatorDashboard(props: {
   )
 }
 
+function getOptimisticKnownUpdate(body: Record<string, unknown>) {
+  if (body.action !== 'toggle-known') return null
+
+  const applicationId = typeof body.applicationId === 'string' ? body.applicationId : ''
+  const known = typeof body.known === 'boolean' ? body.known : null
+
+  if (!applicationId || known === null) return null
+
+  return { applicationId, known }
+}
+
+function applyOptimisticKnownState<
+  T extends {
+    knownCoordinatorIds: string[]
+    reviewedCoordinatorIds: string[]
+  },
+>(item: T, userId: string, known: boolean): T {
+  const knownCoordinatorIds = new Set(item.knownCoordinatorIds)
+  const reviewedCoordinatorIds = new Set(item.reviewedCoordinatorIds)
+
+  if (known) knownCoordinatorIds.add(userId)
+  else knownCoordinatorIds.delete(userId)
+  reviewedCoordinatorIds.add(userId)
+
+  return {
+    ...item,
+    knownCoordinatorIds: [...knownCoordinatorIds],
+    reviewedCoordinatorIds: [...reviewedCoordinatorIds],
+  }
+}
+
 async function handleCommissionJsonUpload(args: {
   commission: ManagedCommission
+  applications: ManagedRecruitmentPoolApplicant[]
   file: File
-  json: unknown
+  json: {
+    relationships_following: { title: string }[]
+  }
 }) {
   // Scaffold: add your custom JSON processing/import code here.
   // You already have args.commission, args.file, and parsed args.json available.
-  console.info('Commission JSON upload scaffold', {
-    commissionId: args.commission.id,
-    fileName: args.file.name,
-    json: args.json,
-  })
+  const applicationsHash = new Map<string, ManagedRecruitmentPoolApplicant>()
+  for (const applicant of args.applications) {
+    const instagram = normalizeInstagramHandle(applicant.instagram)
+    if (instagram) applicationsHash.set(instagram, applicant)
+  }
+
+  const conflictIds: string[] = []
+  for (const follower of args.json.relationships_following) {
+    const conflict = applicationsHash.get(normalizeInstagramHandle(follower.title))
+    if (conflict) conflictIds.push(conflict.id)
+  }
+
+  return { conflictIds: [...new Set(conflictIds)], total: args.json.relationships_following.length }
 }
 
-function CommissionJsonUploadWizard(props: { commission: ManagedCommission; onClose: () => void }) {
+function normalizeInstagramHandle(value: string | null | undefined) {
+  return (value ?? '').trim().replace(/^@/, '').toLocaleLowerCase('ro')
+}
+
+function CommissionJsonUploadWizard(props: {
+  user: ManagedUser
+  busyKey: string | null
+  onAction: <T extends Record<string, unknown>>(body: T, busyLabel: string) => Promise<unknown>
+  applications: ManagedRecruitmentPoolApplicant[]
+  commission: ManagedCommission
+  onClose: () => void
+}) {
   const [fileName, setFileName] = useState('')
-  const [message, setMessage] = useState('')
+  const [uploadResult, setUploadResult] = useState<{
+    conflictIds: string[]
+    total: number
+  } | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const matchedApplicants = uploadResult
+    ? uploadResult.conflictIds
+        .map((id) => props.applications.find((applicant) => applicant.id === id))
+        .filter((applicant): applicant is ManagedRecruitmentPoolApplicant => Boolean(applicant))
+    : []
+  const matchedKnown = matchedApplicants.filter((applicant) =>
+    applicant.knownCoordinatorIds.includes(props.user.id),
+  ).length
+  const matchedReviewed = matchedApplicants.filter((applicant) =>
+    applicant.reviewedCoordinatorIds.includes(props.user.id),
+  ).length
 
   async function uploadJson(file: File | undefined) {
     setError('')
-    setMessage('')
+    setUploadResult(null)
     if (!file) return
 
     if (!file.name.toLocaleLowerCase('ro').endsWith('.json')) {
@@ -555,13 +670,25 @@ function CommissionJsonUploadWizard(props: { commission: ManagedCommission; onCl
     setFileName(file.name)
 
     try {
-      const json = JSON.parse(await file.text()) as unknown
-      await handleCommissionJsonUpload({
+      const json = JSON.parse(await file.text()) as {
+        relationships_following?: { title?: unknown }[]
+      }
+      if (!Array.isArray(json.relationships_following)) {
+        throw new Error('JSON-ul trebuie sa contina relationships_following.')
+      }
+
+      const conflicts = await handleCommissionJsonUpload({
         commission: props.commission,
+        applications: props.applications,
         file,
-        json,
+        json: {
+          relationships_following: json.relationships_following
+            .map((item) => ({ title: typeof item.title === 'string' ? item.title : '' }))
+            .filter((item) => item.title),
+        },
       })
-      setMessage('JSON incarcat. Adauga logica ta in handleCommissionJsonUpload().')
+
+      setUploadResult(conflicts)
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'JSON-ul nu a putut fi citit.')
     } finally {
@@ -584,11 +711,12 @@ function CommissionJsonUploadWizard(props: { commission: ManagedCommission; onCl
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
-              Upload JSON
+              Incarca lista Following & Followers
             </p>
             <h2 className="mt-1 text-xl font-bold text-[#152039]">{props.commission.label}</h2>
             <p className="mt-1 text-sm text-[#526071]">
-              Incarca un fisier JSON pentru acest scaffold.
+              Descarca lista de Followers si Following din contul tau instagram si incarca fisierul
+              JSON pentru a vedea conflictele.
             </p>
           </div>
           <button
@@ -616,10 +744,22 @@ function CommissionJsonUploadWizard(props: { commission: ManagedCommission; onCl
           />
         </label>
 
-        {message && (
-          <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
-            {message}
-          </p>
+        {uploadResult && (
+          <div>
+            <p className="mt-4 whitespace-pre rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+              {matchedApplicants.length} cunoscuti in lista de aspiranti din {uploadResult.total}{' '}
+              conturi citite. {matchedReviewed} verificati, {matchedKnown} marcati ca ii cunosti.
+            </p>
+
+            <div className="max-h-100 overflow-y-scroll">
+              <ApplicantPoolList
+                applicants={matchedApplicants}
+                busyKey={props.busyKey}
+                onAction={props.onAction}
+                user={props.user}
+              />
+            </div>
+          </div>
         )}
         {error && (
           <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
@@ -1414,7 +1554,7 @@ function ApplicantPoolList(props: {
   const { applicants, busyKey, onAction, user } = props
 
   return (
-    <div className="grid gap-2 p-2 sm:gap-3 sm:p-3">
+    <div className="grid gap-2 p-2 @sm:gap-3 @sm:p-3 @container">
       {applicants.map((applicant) => {
         const known = applicant.knownCoordinatorIds.includes(user.id)
         const reviewed = applicant.reviewedCoordinatorIds.includes(user.id)
@@ -1423,7 +1563,7 @@ function ApplicantPoolList(props: {
         const unknownBusyLabel = `unknown-${applicant.id}`
         return (
           <article
-            className="grid gap-3 rounded-xl border border-[#e4e8ef] bg-white p-3 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4"
+            className="grid gap-3 rounded-xl border border-[#e4e8ef] bg-white p-3 shadow-sm @lg:grid-cols-[minmax(0,1fr)_auto] @sm:items-center @sm:p-4"
             key={applicant.id}
           >
             <div className="flex min-w-0 items-center gap-3">
@@ -1442,7 +1582,7 @@ function ApplicantPoolList(props: {
                 </p>
               </div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 @sm:grid-cols-2">
               <button
                 className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                   known
