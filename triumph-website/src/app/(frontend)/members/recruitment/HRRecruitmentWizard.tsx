@@ -139,6 +139,7 @@ export type ManagedApplication = {
   knownCoordinatorIds: string[]
   name: string
   notes: string
+  reviewMailSentAt: string | null
   phone: string
   reviewedCoordinatorIds: string[]
   status: ManagedApplicationStatus
@@ -164,6 +165,7 @@ type ApplicationPatch = Partial<
     | 'interviewMailSentAt'
     | 'knownCoordinatorIds'
     | 'notes'
+    | 'reviewMailSentAt'
     | 'reviewedCoordinatorIds'
     | 'status'
   >
@@ -228,25 +230,39 @@ const statusLabels: Record<ManagedApplicationStatus, string> = {
   'submission-waitlisted': 'Lista de asteptare',
 }
 
-
-function Metrics({workflow}:{workflow: RecruitmentWorkflowState}) {
-  switch(workflow.currentStep) {
+function Metrics({ workflow }: { workflow: RecruitmentWorkflowState }) {
+  switch (workflow.currentStep) {
     case 'forms':
       return (
         <>
-        <HeaderStat label="Total" value={String(workflow.metrics.totalForms)} />
-        <HeaderStat label="Acceptati" value={String(workflow.metrics.acceptedForms)} />
-        <HeaderStat label="Formulare Neverificate" value={String(workflow.metrics.totalForms - (workflow.metrics.waitlisted + workflow.metrics.acceptedForms))} />
-        <HeaderStat label="Rata Acceptare" tooltip='Rata de acceptare este calculata in functie de formularele care au fost verificate' value={String(Math.round(workflow.metrics.acceptedForms/workflow.metrics.verifiedForms*100))+"%"} />
+          <HeaderStat label="Total" value={String(workflow.metrics.totalForms)} />
+          <HeaderStat label="Acceptati" value={String(workflow.metrics.acceptedForms)} />
+          <HeaderStat
+            label="Formulare Neverificate"
+            value={String(
+              workflow.metrics.totalForms -
+                (workflow.metrics.waitlisted + workflow.metrics.acceptedForms),
+            )}
+          />
+          <HeaderStat
+            label="Rata Acceptare"
+            tooltip="Rata de acceptare este calculata in functie de formularele care au fost verificate"
+            value={
+              String(
+                Math.round((workflow.metrics.acceptedForms / workflow.metrics.verifiedForms) * 100),
+              ) + '%'
+            }
+          />
         </>
       )
     case 'coordinator-review':
+    case 'review-emails':
       return (
         <>
-        <HeaderStat label="Formulare" value={String(workflow.metrics.submitted)} />
-        <HeaderStat label="Asignati" value={String(workflow.metrics.assigned)} />
-        <HeaderStat label="Programati" value={String(workflow.metrics.scheduled)} />
-        <HeaderStat label="Decizii finale" value={String(workflow.metrics.finalPending)} />
+          <HeaderStat label="Formulare" value={String(workflow.metrics.submitted)} />
+          <HeaderStat label="Asignati" value={String(workflow.metrics.assigned)} />
+          <HeaderStat label="Emailuri review" value={String(workflow.metrics.reviewMailsPending)} />
+          <HeaderStat label="Programati" value={String(workflow.metrics.scheduled)} />
         </>
       )
     case 'assignment':
@@ -269,9 +285,6 @@ export default function HRRecruitmentWizard(props: {
   const [applications, setApplications] = useState(props.applications)
   const [commissions, setCommissions] = useState(props.commissions)
   const [config, setConfig] = useState(props.config)
-  const [applicationsLastRefreshedAt, setApplicationsLastRefreshedAt] = useState<string | null>(
-    null,
-  )
   const [applicationsRefreshing, setApplicationsRefreshing] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [detailID, setDetailID] = useState<string | null>(null)
@@ -284,18 +297,13 @@ export default function HRRecruitmentWizard(props: {
   useEffect(() => setCommissions(props.commissions), [props.commissions])
   useEffect(() => setConfig(props.config), [props.config])
 
-  const refreshApplications = useCallback(async (showBusy = false) => {
+  const refreshApplications = useCallback(async (showErrors = false) => {
     if (applicationsRefreshInFlightRef.current) {
-      if (showBusy) {
-        setApplicationsRefreshing(true)
-        void applicationsRefreshInFlightRef.current.finally(() => setApplicationsRefreshing(false))
-      }
-
       return applicationsRefreshInFlightRef.current
     }
 
     const refresh = (async () => {
-      if (showBusy) setApplicationsRefreshing(true)
+      setApplicationsRefreshing(true)
 
       try {
         const response = await fetch('/members/recruitment/applications', {
@@ -310,20 +318,17 @@ export default function HRRecruitmentWizard(props: {
 
         if (result.applications) {
           setApplications(result.applications)
-          setApplicationsLastRefreshedAt(new Date().toISOString())
         }
       } catch (error) {
-        if (showBusy) {
+        if (showErrors) {
           setNotice({
             kind: 'error',
             message:
-              error instanceof Error
-                ? error.message
-                : 'Aplicatiile nu au putut fi reimprospatate.',
+              error instanceof Error ? error.message : 'Aplicatiile nu au putut fi reimprospatate.',
           })
         }
       } finally {
-        if (showBusy) setApplicationsRefreshing(false)
+        setApplicationsRefreshing(false)
         applicationsRefreshInFlightRef.current = null
       }
     })()
@@ -427,6 +432,7 @@ export default function HRRecruitmentWizard(props: {
       if (!response.ok) throw new Error(result.message || 'Actiunea nu a putut fi salvata.')
 
       if (result.application) patchApplication(result.application)
+      if (result.applications) result.applications.forEach(patchApplication)
       if (body.action === 'add-form-comment') void refreshApplications()
       result.bulkReview?.applications.forEach(patchApplication)
       if (result.deletedApplicationId) {
@@ -557,7 +563,7 @@ export default function HRRecruitmentWizard(props: {
               />
             </div>
           </div>
-              <StepFooter
+          <StepFooter
             activeStep={activeStep}
             maximumStepIndex={maximumStepIndex}
             onSelect={selectStep}
@@ -566,7 +572,6 @@ export default function HRRecruitmentWizard(props: {
           {activeStep === 'forms' && (
             <ApplicationReviewStep
               applications={visibleApplications}
-              applicationsLastRefreshedAt={applicationsLastRefreshedAt}
               applicationsRefreshing={applicationsRefreshing}
               busyKey={busyKey}
               config={config}
@@ -577,6 +582,13 @@ export default function HRRecruitmentWizard(props: {
           )}
           {activeStep === 'coordinator-review' && (
             <CoordinatorReviewStep applications={visibleApplications} commissions={commissions} />
+          )}
+          {activeStep === 'review-emails' && (
+            <ReviewEmailStep
+              applications={visibleApplications}
+              busyKey={busyKey}
+              onAction={runAction}
+            />
           )}
           {activeStep === 'assignment' && (
             <AssignmentAndScheduleStep
@@ -602,8 +614,6 @@ export default function HRRecruitmentWizard(props: {
           {activeStep === 'results' && (
             <ResultStep applications={visibleApplications} busyKey={busyKey} onAction={runAction} />
           )}
-
-          
         </section>
       </div>
 
@@ -688,7 +698,6 @@ function WizardSidebar(props: {
 
 function ApplicationReviewStep(props: {
   applications: ManagedApplication[]
-  applicationsLastRefreshedAt: string | null
   applicationsRefreshing: boolean
   busyKey: string | null
   config: ManagedRecruitmentConfig
@@ -715,11 +724,6 @@ function ApplicationReviewStep(props: {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-            <span className="text-xs font-semibold text-[#748094]">
-              {props.applicationsLastRefreshedAt
-                ? `Actualizat ${formatDateTime(props.applicationsLastRefreshedAt)}`
-                : 'Actualizare automata la 30s'}
-            </span>
             <button
               className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-[#dfe5ec] bg-white px-3 text-xs font-bold text-[#152039] transition hover:border-[#00a2e0] hover:text-[#007fb3] disabled:cursor-not-allowed disabled:opacity-55"
               disabled={props.applicationsRefreshing}
@@ -745,21 +749,31 @@ function ApplicationReviewStep(props: {
                   <p className="break-words text-sm font-bold">{application.name}</p>
                   <p className="mt-0.5 break-all text-xs text-[#748094]">{application.email}</p>
                 </div>
-                     {application.formReviewComments.length != 0 && (application.formReviewComments.length == 1 ? application.formReviewComments[0].comment.substring(0,25) : application.formReviewComments[0].comment.substring(0,25) + ` | +${application.formReviewComments.length-1}`)}
+                {application.formReviewComments.length != 0 &&
+                  (application.formReviewComments.length == 1
+                    ? application.formReviewComments[0].comment.substring(0, 25)
+                    : application.formReviewComments[0].comment.substring(0, 25) +
+                      ` | +${application.formReviewComments.length - 1}`)}
 
                 {application.status !== 'submitted' && <StatusBadge status={application.status} />}
               </div>
               <div className="mt-3 flex flex-col gap-3 border-t border-[#edf0f4] pt-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                 <div>
-                   <p className="text-xs font-semibold text-[#526071]">
+                  <p className="text-xs font-semibold text-[#526071]">
                     Trimis {formatDate(application.createdAt)}
                   </p>
-                  <p className={cn("text-xs font-semibold text-[#526071] truncate", application.customMailHistory.length!=0 && "opacity-25")}>
-                    {application.formAnswers.find(item => item.field == "question")?.value.substring(0, 25)}
+                  <p
+                    className={cn(
+                      'text-xs font-semibold text-[#526071] truncate',
+                      application.customMailHistory.length != 0 && 'opacity-25',
+                    )}
+                  >
+                    {application.formAnswers
+                      .find((item) => item.field == 'question')
+                      ?.value.substring(0, 25)}
                   </p>
                 </div>
-               
-                
+
                 <button
                   className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-[#dfe5ec] bg-white px-3 text-xs font-bold transition hover:border-[#00a2e0] hover:text-[#007fb3] min-[380px]:w-auto"
                   onClick={() => props.onOpen(application.id)}
@@ -794,16 +808,25 @@ function ApplicationReviewStep(props: {
                   <td className="px-3 py-3.5 text-[#526071]">
                     {formatDate(application.createdAt)}
                   </td>
-                  <td className={cn("px-3 py-3.5 text-[#526071] tracking-tight max-w-30 truncate", application.customMailHistory.length!=0 && "opacity-25")}>
-                     {application.formAnswers.find(item => item.field == "question")?.value}
+                  <td
+                    className={cn(
+                      'px-3 py-3.5 text-[#526071] tracking-tight max-w-30 truncate',
+                      application.customMailHistory.length != 0 && 'opacity-25',
+                    )}
+                  >
+                    {application.formAnswers.find((item) => item.field == 'question')?.value}
                   </td>
                   <td className="px-3 py-3.5">
                     {application.status !== 'submitted' && (
                       <StatusBadge status={application.status} />
                     )}
                   </td>
-                  <td className={cn("px-3 py-3.5 text-[#526071] tracking-tight max-w-30 truncate")}>
-                     {application.formReviewComments.length != 0 && (application.formReviewComments.length == 1 ? application.formReviewComments[0].comment : application.formReviewComments[0].comment.substring(0,25) + ` | +${application.formReviewComments.length-1}`)}
+                  <td className={cn('px-3 py-3.5 text-[#526071] tracking-tight max-w-30 truncate')}>
+                    {application.formReviewComments.length != 0 &&
+                      (application.formReviewComments.length == 1
+                        ? application.formReviewComments[0].comment
+                        : application.formReviewComments[0].comment.substring(0, 25) +
+                          ` | +${application.formReviewComments.length - 1}`)}
                   </td>
                   <td className="px-3 py-3.5 text-right">
                     <button
@@ -852,12 +875,14 @@ function CoordinatorReviewStep(props: {
               Pool curent: {pool.length} candidati acceptati.
             </p>
             <p className="mt-1 text-sm text-[#748094]">
-              {coordinators.filter(a => 
-              a.commission.recruitmentReviews.some(
-              (review) => review.coordinatorId === a.coordinator.id,
-            )
-            ).length
-          }/{coordinators.length} Verificate
+              {
+                coordinators.filter((a) =>
+                  a.commission.recruitmentReviews.some(
+                    (review) => review.coordinatorId === a.coordinator.id,
+                  ),
+                ).length
+              }
+              /{coordinators.length} Verificate
             </p>
           </div>
           <Link
@@ -889,7 +914,7 @@ function CoordinatorReviewStep(props: {
                     <p className="mt-0.5 text-xs text-[#748094]">{commission.label}</p>
                   </div>
                   <span
-                    className={`rounded-full px-2 py-1 text-[10px] truncate font-black uppercase ${confirmed ? 'bg-emerald-100 text-emerald-700' :  checked == 0 ?  'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}
+                    className={`rounded-full px-2 py-1 text-[10px] truncate font-black uppercase ${confirmed ? 'bg-emerald-100 text-emerald-700' : checked == 0 ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}
                   >
                     {confirmed ? 'Confirmat' : checked == 0 ? 'Neînceput' : 'In lucru'}
                   </span>
@@ -1275,6 +1300,56 @@ function CommissionScheduleEditor(props: {
   )
 }
 
+function ReviewEmailStep(props: {
+  applications: ManagedApplication[]
+  busyKey: string | null
+  onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
+}) {
+  const reviewed = props.applications.filter((application) =>
+    ['coordonator-review', 'submission-rejected'].includes(application.status),
+  )
+  const unsent = reviewed.filter((application) => !application.reviewMailSentAt)
+  const accepted = reviewed.filter((application) => application.status === 'coordonator-review')
+  const rejected = reviewed.filter((application) => application.status === 'submission-rejected')
+
+  return (
+    <div className="grid gap-5">
+      <InfoPanel
+        icon={MailCheck}
+        text="Acest batch anunta rezultatul review-ului de formular pentru candidatii acceptati mai departe si cei respinsi. Verificarile coordonatorilor pot continua in paralel, iar invitatiile la interview raman in etapa separata."
+        title="Rezultat review formular"
+      />
+      <Panel>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-bold">Emailuri dupa formular</h3>
+            <p className="mt-1 text-sm text-[#748094]">
+              {unsent.length} netrimise · {accepted.length} acceptati · {rejected.length} respinsi
+            </p>
+          </div>
+          <button
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={unsent.length === 0 || isMailActionBusy(props.busyKey, 'send-review-mails')}
+            onClick={() =>
+              void props.onAction({ action: 'send-review-mails' }, 'send-review-mails')
+            }
+            type="button"
+          >
+            <Send className="size-4" />{' '}
+            {props.busyKey === 'send-review-mails' ? 'Se trimit...' : 'Trimite emailurile'}
+          </button>
+        </div>
+        <CandidateMailTable
+          applications={reviewed}
+          busyKey={props.busyKey}
+          kind="review"
+          onAction={props.onAction}
+        />
+      </Panel>
+    </div>
+  )
+}
+
 function InvitationStep(props: {
   applications: ManagedApplication[]
   busyKey: string | null
@@ -1300,7 +1375,9 @@ function InvitationStep(props: {
           </div>
           <button
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
-            disabled={unsent.length === 0 || props.busyKey === 'send-interview-mails'}
+            disabled={
+              unsent.length === 0 || isMailActionBusy(props.busyKey, 'send-interview-mails')
+            }
             onClick={() =>
               void props.onAction({ action: 'send-interview-mails' }, 'send-interview-mails')
             }
@@ -1310,7 +1387,12 @@ function InvitationStep(props: {
             {props.busyKey === 'send-interview-mails' ? 'Se trimit...' : 'Trimite emailurile'}
           </button>
         </div>
-        <CandidateMailTable applications={interviews} kind="interview" />
+        <CandidateMailTable
+          applications={interviews}
+          busyKey={props.busyKey}
+          kind="interview"
+          onAction={props.onAction}
+        />
       </Panel>
     </div>
   )
@@ -1389,7 +1471,7 @@ function ResultStep(props: {
           </div>
           <button
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
-            disabled={unsent.length === 0 || props.busyKey === 'send-final-mails'}
+            disabled={unsent.length === 0 || isMailActionBusy(props.busyKey, 'send-final-mails')}
             onClick={() => void props.onAction({ action: 'send-final-mails' }, 'send-final-mails')}
             type="button"
           >
@@ -1397,7 +1479,12 @@ function ResultStep(props: {
             {props.busyKey === 'send-final-mails' ? 'Se trimit...' : 'Trimite emailurile finale'}
           </button>
         </div>
-        <CandidateMailTable applications={final} kind="final" />
+        <CandidateMailTable
+          applications={final}
+          busyKey={props.busyKey}
+          kind="final"
+          onAction={props.onAction}
+        />
       </Panel>
     </div>
   )
@@ -1405,11 +1492,14 @@ function ResultStep(props: {
 
 function CandidateMailTable(props: {
   applications: ManagedApplication[]
-  kind: 'final' | 'interview'
+  busyKey: string | null
+  kind: 'final' | 'interview' | 'review'
+  onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
 }) {
+  const action = getMailAction(props.kind)
   return (
     <div className="mt-5 overflow-x-auto">
-      <table className="w-full min-w-[560px] text-left text-sm">
+      <table className="w-full min-w-[620px] text-left text-sm">
         <thead className="border-y border-[#edf0f4] text-[11px] font-black uppercase tracking-[0.1em] text-[#748094]">
           <tr>
             <th className="px-3 py-3">Candidat</th>
@@ -1422,7 +1512,11 @@ function CandidateMailTable(props: {
             const sentAt =
               props.kind === 'interview'
                 ? application.interviewMailSentAt
-                : application.finalMailSentAt
+                : props.kind === 'final'
+                  ? application.finalMailSentAt
+                  : application.reviewMailSentAt
+            const sendKey = `${action}:${application.id}`
+            const rowBusy = props.busyKey === sendKey
             return (
               <tr key={application.id}>
                 <td className="px-3 py-3">
@@ -1436,18 +1530,35 @@ function CandidateMailTable(props: {
                     ) : (
                       'Neprogramat'
                     )
+                  ) : props.kind === 'review' ? (
+                    <StatusBadge status={application.status} />
                   ) : (
                     <StatusBadge status={application.status} />
                   )}
                 </td>
                 <td className="px-3 py-3">
-                  {sentAt ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
-                      <CheckCircle2 className="size-4" /> Trimis {formatDate(sentAt)}
-                    </span>
-                  ) : (
-                    <span className="text-xs font-bold text-amber-700">Netimis</span>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {sentAt ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
+                        <CheckCircle2 className="size-4" /> Trimis {formatDate(sentAt)}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-xs font-bold text-amber-700">Netimis</span>
+                        <button
+                          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-[#dfe5ec] bg-white px-2.5 text-xs font-bold text-[#152039] transition hover:border-[#00a2e0] hover:text-[#007fb3] disabled:cursor-not-allowed disabled:opacity-55"
+                          disabled={Boolean(props.busyKey)}
+                          onClick={() =>
+                            void props.onAction({ action, applicationId: application.id }, sendKey)
+                          }
+                          type="button"
+                        >
+                          <Send className="size-3.5" />
+                          {rowBusy ? 'Se trimite...' : 'Trimite'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             )
@@ -1866,9 +1977,7 @@ function ApplicationDrawer(props: {
                   type="button"
                 >
                   <FileText className="size-4" />
-                  {props.busyKey === formCommentBusyKey
-                    ? 'Se salveaza...'
-                    : 'Adauga comentariu'}
+                  {props.busyKey === formCommentBusyKey ? 'Se salveaza...' : 'Adauga comentariu'}
                 </button>
               </div>
             </div>
@@ -1999,11 +2108,15 @@ function StepFooter(props: {
   const previous = recruitmentSteps[currentIndex - 1]
   const nextUnlocked = next && currentIndex + 1 <= props.maximumStepIndex
   const blockers = props.workflow.gates[props.activeStep].blockers
+  const blockerPrefix =
+    props.activeStep === 'review-emails' ? 'De rezolvat' : 'Pentru pasul urmator'
   return (
     <footer className="mt-5 flex flex-col gap-3 rounded-md border border-[#dfe5ec] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         {blockers.length > 0 ? (
-          <p className="text-sm text-[#748094]">Pentru pasul urmator: {blockers[0]}</p>
+          <p className="text-sm text-[#748094]">
+            {blockerPrefix}: {blockers[0]}
+          </p>
         ) : (
           <p className="text-sm font-semibold text-emerald-700">Etapa este completa.</p>
         )}
@@ -2040,7 +2153,7 @@ function Panel({ children }: { children: ReactNode }) {
     </section>
   )
 }
-function HeaderStat({ label, value, tooltip }: { label: string; value: string, tooltip?: string }) {
+function HeaderStat({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
   return (
     <div className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-2" title={tooltip}>
       <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white/50">{label}</p>
@@ -2262,6 +2375,14 @@ function normalizeStep(value: string | null): RecruitmentStepKey {
     ? (value as RecruitmentStepKey)
     : 'forms'
 }
+function getMailAction(kind: 'final' | 'interview' | 'review') {
+  if (kind === 'interview') return 'send-interview-mails'
+  if (kind === 'final') return 'send-final-mails'
+  return 'send-review-mails'
+}
+function isMailActionBusy(busyKey: string | null, action: string) {
+  return Boolean(busyKey === action || busyKey?.startsWith(`${action}:`))
+}
 function filterApplications(
   applications: ManagedApplication[],
   commissions: ManagedCommission[],
@@ -2371,6 +2492,7 @@ function buildRecruitmentApplicationsCSV(
     'Trimis la',
     'Data interview',
     'Prezenta interview',
+    'Email review formular trimis la',
     'Email interview trimis la',
     'Email final trimis la',
     'Coordonatori cunoscuti',
@@ -2397,6 +2519,7 @@ function buildRecruitmentApplicationsCSV(
         formatExportDateTime(application.createdAt),
         formatExportDateTime(application.interviewDate),
         application.interviewAttendance || '',
+        formatExportDateTime(application.reviewMailSentAt),
         formatExportDateTime(application.interviewMailSentAt),
         formatExportDateTime(application.finalMailSentAt),
         getCSVUserNames(application.knownCoordinatorIds, commissions),

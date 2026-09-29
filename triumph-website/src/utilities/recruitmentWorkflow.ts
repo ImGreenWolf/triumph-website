@@ -2,11 +2,12 @@ import { validateInterviewIntervals, type InterviewIntervalInput } from './inter
 
 export const recruitmentSteps = [
   { key: 'forms', label: 'Review formulare', number: 1 },
-  { key: 'coordinator-review', label: 'Verificare coordonatori', number: 2 },
-  { key: 'assignment', label: 'Asignare si program', number: 3 },
-  { key: 'invitations', label: 'Invitatii interview', number: 4 },
-  { key: 'interviews', label: 'Interview-uri', number: 5 },
-  { key: 'results', label: 'Rezultate finale', number: 6 },
+  { key: 'review-emails', label: 'Emailuri review formular', number: 2 },
+  { key: 'coordinator-review', label: 'Verificare coordonatori', number: 3 },
+  { key: 'assignment', label: 'Asignare si program', number: 4 },
+  { key: 'invitations', label: 'Invitatii interview', number: 5 },
+  { key: 'interviews', label: 'Interview-uri', number: 6 },
+  { key: 'results', label: 'Rezultate finale', number: 7 },
 ] as const
 
 export type RecruitmentStepKey = (typeof recruitmentSteps)[number]['key']
@@ -30,6 +31,7 @@ export type WorkflowApplication = {
   interviewDate?: string | null
   interviewMailSentAt?: string | null
   knownCoordinatorIds?: string[]
+  reviewMailSentAt?: string | null
   reviewedCoordinatorIds?: string[]
   status: WorkflowApplicationStatus
 }
@@ -65,6 +67,7 @@ export type RecruitmentWorkflowState = {
     finalPending: number
     interviewsPending: number
     mailedInterviews: number
+    reviewMailsPending: number
     scheduled: number
     submitted: number
     waitlisted: number
@@ -88,6 +91,9 @@ export function getRecruitmentWorkflowState(args: {
   const submissionQueue = applications.filter((application) => application.status === 'submitted')
   const coordinatorPool = applications.filter(
     (application) => application.status === 'coordonator-review',
+  )
+  const reviewEmailApplications = applications.filter((application) =>
+    ['coordonator-review', 'submission-rejected'].includes(application.status),
   )
   const assigned = applications.filter(
     (application) =>
@@ -119,6 +125,19 @@ export function getRecruitmentWorkflowState(args: {
   if (submissionQueue.length > 0)
     formsBlockers.push(`${submissionQueue.length} formulare asteapta review.`)
   const forms = { blockers: formsBlockers, complete: formsBlockers.length === 0 }
+
+  const pendingReviewMails = reviewEmailApplications.filter(
+    (application) => !application.reviewMailSentAt,
+  )
+  const reviewMailBlockers: string[] = forms.complete
+    ? pendingReviewMails.length > 0
+      ? [`${pendingReviewMails.length} emailuri de review formular nu sunt trimise.`]
+      : []
+    : ['Finalizeaza review-ul formularelor.']
+  const reviewEmails = {
+    blockers: reviewMailBlockers,
+    complete: forms.complete && reviewMailBlockers.length === 0,
+  }
 
   const coordinatorBlockers = getCoordinatorReviewBlockers(coordinatorPool, commissions)
   const coordinatorReview = {
@@ -196,9 +215,11 @@ export function getRecruitmentWorkflowState(args: {
     forms,
     interviews,
     invitations,
+    'review-emails': reviewEmails,
     results,
   }
-  const firstIncomplete = recruitmentSteps.find((step) => !gates[step.key].complete)
+  const blockingSteps = recruitmentSteps.filter((step) => step.key !== 'review-emails')
+  const firstIncomplete = blockingSteps.find((step) => !gates[step.key].complete)
 
   return {
     currentStep: firstIncomplete?.key ?? 'results',
@@ -216,14 +237,14 @@ export function getRecruitmentWorkflowState(args: {
       mailedInterviews: interviewApplications.filter(
         (application) => application.interviewMailSentAt,
       ).length,
+      reviewMailsPending: pendingReviewMails.length,
       scheduled: interviewApplications.filter((application) => application.interviewDate).length,
       submitted: submissionQueue.length,
       waitlisted: applications.filter(
         (application) => application.status === 'submission-waitlisted',
       ).length,
-      verifiedForms: applications.filter(
-        (application) => application.status !== 'submitted',
-      ).length,
+      verifiedForms: applications.filter((application) => application.status !== 'submitted')
+        .length,
     },
     window: {
       end: args.config.recruitmentEndDate ?? null,

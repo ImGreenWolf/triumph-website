@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   ListChecks,
   MailCheck,
+  RefreshCw,
   Search,
   Send,
   Sparkles,
@@ -25,7 +26,7 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from 'react'
 
 import { CompactCommissionOverview } from '@/app/(frontend)/members/_components/CompactCommissionOverview'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
@@ -82,6 +83,7 @@ export type ManagedApplication = {
   knownCoordinatorIds: string[]
   name: string
   notes: string
+  reviewMailSentAt: string | null
   reviewedCoordinatorIds: string[]
   status: ManagedApplicationStatus
 }
@@ -141,6 +143,7 @@ type ApplicationPatch = Partial<
     | 'interviewMailSentAt'
     | 'knownCoordinatorIds'
     | 'notes'
+    | 'reviewMailSentAt'
     | 'reviewedCoordinatorIds'
     | 'status'
   >
@@ -208,6 +211,7 @@ export default function CommissionCoordinatorDashboard(props: {
   const router = useRouter()
   const { setHeaderTheme } = useHeaderTheme()
   const prefersReducedMotion = useReducedMotion()
+  const [recruitmentRefreshing, startRecruitmentRefresh] = useTransition()
   const [applications, setApplications] = useState(initialApplications)
   const [commissions, setCommissions] = useState(initialCommissions)
   const [recruitmentPool, setRecruitmentPool] = useState(initialRecruitmentPool)
@@ -230,6 +234,17 @@ export default function CommissionCoordinatorDashboard(props: {
     setCommissions(initialCommissions)
     setRecruitmentPool(initialRecruitmentPool)
   }, [initialApplications, initialCommissions, initialRecruitmentPool])
+
+  const refreshRecruitmentData = useCallback(() => {
+    startRecruitmentRefresh(() => {
+      router.refresh()
+    })
+  }, [router, startRecruitmentRefresh])
+
+  useEffect(() => {
+    const intervalID = window.setInterval(refreshRecruitmentData, 30_000)
+    return () => window.clearInterval(intervalID)
+  }, [refreshRecruitmentData])
 
   const selectedCommission =
     commissions.find((commission) => commission.id === selectedCommissionId) ?? commissions[0]
@@ -482,6 +497,15 @@ export default function CommissionCoordinatorDashboard(props: {
               <Clock3 className="size-4" />
               Workspace interview
             </Link>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9e0e8] bg-white px-3 text-sm font-bold text-[#344054] transition hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={recruitmentRefreshing}
+              onClick={refreshRecruitmentData}
+              type="button"
+            >
+              <RefreshCw className={`size-4 ${recruitmentRefreshing ? 'animate-spin' : ''}`} />
+              Reimprospateaza
+            </button>
             <button
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9e0e8] bg-white px-3 text-sm font-bold text-[#344054] transition hover:bg-[#f8fafc]"
               onClick={() => setJsonUploadWizardOpen(true)}
@@ -2473,6 +2497,25 @@ function StatusBadge({ status }: { status: ManagedApplicationStatus }) {
 
 function MailStatusBadges({ application }: { application: ManagedApplication }) {
   const badges: ReactNode[] = []
+
+  if (
+    application.status === 'coordonator-review' ||
+    application.status === 'submission-rejected' ||
+    application.reviewMailSentAt
+  ) {
+    badges.push(
+      <span
+        className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${
+          application.reviewMailSentAt
+            ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+            : 'bg-slate-100 text-slate-600 ring-slate-200'
+        }`}
+        key="review-mail"
+      >
+        {application.reviewMailSentAt ? 'Review mail trimis' : 'Review mail netrimis'}
+      </span>,
+    )
+  }
 
   if (application.status === 'interview' || application.interviewMailSentAt) {
     badges.push(

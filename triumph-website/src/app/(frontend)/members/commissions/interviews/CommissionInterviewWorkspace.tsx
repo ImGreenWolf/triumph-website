@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   FileText,
   Plus,
+  RefreshCw,
   Save,
   Settings2,
   UserCheck,
@@ -16,7 +17,15 @@ import {
   X,
   XCircle,
 } from 'lucide-react'
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 
 import { GooglePlaceAutocomplete } from '@/components/GooglePlaceAutocomplete'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
@@ -99,6 +108,7 @@ export default function CommissionInterviewWorkspace(props: {
 }) {
   const router = useRouter()
   const { setHeaderTheme } = useHeaderTheme()
+  const [recruitmentRefreshing, startRecruitmentRefresh] = useTransition()
   const [applications, setApplications] = useState(props.applications)
   const [commissions, setCommissions] = useState(props.commissions)
   const [selectedCommissionID, setSelectedCommissionID] = useState(props.initialCommissionId)
@@ -110,6 +120,17 @@ export default function CommissionInterviewWorkspace(props: {
   useEffect(() => setHeaderTheme('light'), [setHeaderTheme])
   useEffect(() => setApplications(props.applications), [props.applications])
   useEffect(() => setCommissions(props.commissions), [props.commissions])
+
+  const refreshRecruitmentData = useCallback(() => {
+    startRecruitmentRefresh(() => {
+      router.refresh()
+    })
+  }, [router, startRecruitmentRefresh])
+
+  useEffect(() => {
+    const intervalID = window.setInterval(refreshRecruitmentData, 30_000)
+    return () => window.clearInterval(intervalID)
+  }, [refreshRecruitmentData])
 
   const commission = commissions.find((item) => item.id === selectedCommissionID) ?? commissions[0]
   const isReadOnly = !commission || !props.manageableCommissionIds.includes(commission.id)
@@ -224,23 +245,34 @@ export default function CommissionInterviewWorkspace(props: {
                 {unresolved.length} de rezolvat
               </p>
             </div>
-            <label className="grid w-full gap-2 text-xs font-black uppercase tracking-[0.1em] text-white/55 lg:w-72">
-              Comisie
-              <select
-                className="h-11 rounded-md border border-white/15 bg-white/[0.08] px-3 text-sm font-semibold text-white outline-none"
-                onChange={(event) => {
-                  setSelectedCommissionID(event.target.value)
-                  setSelectedApplicationID(null)
-                }}
-                value={commission.id}
+            <div className="grid w-full gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end lg:w-auto">
+              <label className="grid gap-2 text-xs font-black uppercase tracking-[0.1em] text-white/55 lg:w-72">
+                Comisie
+                <select
+                  className="h-11 rounded-md border border-white/15 bg-white/[0.08] px-3 text-sm font-semibold text-white outline-none"
+                  onChange={(event) => {
+                    setSelectedCommissionID(event.target.value)
+                    setSelectedApplicationID(null)
+                  }}
+                  value={commission.id}
+                >
+                  {commissions.map((item) => (
+                    <option className="bg-white text-[#152039]" key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.08] px-3 text-sm font-bold text-white transition hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-55"
+                disabled={recruitmentRefreshing}
+                onClick={refreshRecruitmentData}
+                type="button"
               >
-                {commissions.map((item) => (
-                  <option className="bg-white text-[#152039]" key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <RefreshCw className={`size-4 ${recruitmentRefreshing ? 'animate-spin' : ''}`} />
+                Reimprospateaza
+              </button>
+            </div>
           </div>
         </div>
       </header>

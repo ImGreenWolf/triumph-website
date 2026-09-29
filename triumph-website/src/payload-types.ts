@@ -2261,6 +2261,8 @@ export interface Application {
     interviewAttendance?: ('scheduled' | 'late' | 'absent' | 'completed') | null;
     interviewScheduleToken?: string | null;
     interviewScheduleTokenCreatedAt?: string | null;
+    reviewMailSentAt?: string | null;
+    reviewMailSentBy?: (string | null) | User;
     interviewMailSentAt?: string | null;
     interviewMailSentBy?: (string | null) | User;
     finalMailSentAt?: string | null;
@@ -3644,6 +3646,8 @@ export interface ApplicationsSelect<T extends boolean = true> {
         interviewAttendance?: T;
         interviewScheduleToken?: T;
         interviewScheduleTokenCreatedAt?: T;
+        reviewMailSentAt?: T;
+        reviewMailSentBy?: T;
         interviewMailSentAt?: T;
         interviewMailSentBy?: T;
         finalMailSentAt?: T;
@@ -4336,6 +4340,42 @@ export interface AspirementConfig {
       [k: string]: unknown;
     } | null;
     /**
+     * Email trimis dupa review-ul formularelor catre candidatii acceptati mai departe.
+     */
+    'form-review-accepted-message'?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+    /**
+     * Email trimis dupa review-ul formularelor catre candidatii respinsi la formular.
+     */
+    'form-review-rejected-message'?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+    /**
      * foloseste placeholdere precum {{firstName}}, {{scheduleLink}} sau {{commission}}
      */
     'interview-accepted-message'?: {
@@ -4538,6 +4578,8 @@ export interface AspirementConfigSelect<T extends boolean = true> {
         defaultInterviewDate?: T;
         'review-accepted-message'?: T;
         'review-rejected-message'?: T;
+        'form-review-accepted-message'?: T;
+        'form-review-rejected-message'?: T;
         'interview-accepted-message'?: T;
         'interview-rejected-message'?: T;
         interviewSchedulingDeadline?: T;

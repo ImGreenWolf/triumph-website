@@ -45,6 +45,8 @@ type ApplicationWithExtendedReview = Application & {
     finalMailSentBy?: string | User | null
     interviewMailSentAt?: string | null
     interviewMailSentBy?: string | User | null
+    reviewMailSentAt?: string | null
+    reviewMailSentBy?: string | User | null
     interviewScheduleToken?: string | null
     interviewScheduleTokenCreatedAt?: string | null
   }
@@ -228,6 +230,7 @@ function serializeApplication(application: ApplicationWithExtendedReview): Manag
       .filter(Boolean),
     name: application.name,
     notes: reviewProcess.notes ?? '',
+    reviewMailSentAt: normalizeDate(reviewProcess.reviewMailSentAt),
     status: reviewProcess.status ?? 'submitted',
   }
 }
@@ -240,7 +243,9 @@ function serializeRecruitmentPoolApplicant(
   return {
     id: application.id,
     instagram: getInstagram(getSubmissionAnswers(application.formSubmission)),
-    highschool: getSubmissionAnswers(application.formSubmission).find(val => val.field == 'highschool')?.value,
+    highschool: getSubmissionAnswers(application.formSubmission).find(
+      (val) => val.field == 'highschool',
+    )?.value,
     knownCoordinatorIds: (reviewProcess.coordonatorIncompatability ?? [])
       .map(getRelationshipID)
       .filter(Boolean),

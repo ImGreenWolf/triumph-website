@@ -26,6 +26,8 @@ export type RecruitmentApplication = Application & {
     interviewMailSentBy?: string | null
     interviewScheduleToken?: string | null
     interviewScheduleTokenCreatedAt?: string | null
+    reviewMailSentAt?: string | null
+    reviewMailSentBy?: string | null
   }
 }
 

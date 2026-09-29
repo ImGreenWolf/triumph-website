@@ -81,6 +81,7 @@ export type ManagedApplication = {
   knownCoordinatorIds: string[]
   name: string
   notes: string
+  reviewMailSentAt: string | null
   reviewedCoordinatorIds: string[]
   status: ManagedApplicationStatus
 }
@@ -115,6 +116,7 @@ type ApplicationPatch = Partial<
     | 'interviewMailSentAt'
     | 'knownCoordinatorIds'
     | 'notes'
+    | 'reviewMailSentAt'
     | 'reviewedCoordinatorIds'
     | 'status'
   >
@@ -1528,6 +1530,25 @@ function StatusBadge({ status }: { status: ManagedApplicationStatus }) {
 function MailStatusBadges({ application }: { application: ManagedApplication }) {
   const badges: ReactNode[] = []
 
+  if (
+    application.status === 'coordonator-review' ||
+    application.status === 'submission-rejected' ||
+    application.reviewMailSentAt
+  ) {
+    badges.push(
+      <span
+        className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${
+          application.reviewMailSentAt
+            ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+            : 'bg-slate-100 text-slate-600 ring-slate-200'
+        }`}
+        key="review-mail"
+      >
+        {application.reviewMailSentAt ? 'Review mail trimis' : 'Review mail netrimis'}
+      </span>,
+    )
+  }
+
   if (application.status === 'interview' || application.interviewMailSentAt) {
     badges.push(
       <span
@@ -1665,7 +1686,7 @@ export function filterApplications(
       application.formAnswers.find((val) => val.field == 'highschool')?.value,
       commission?.label ?? '',
       commission?.mandateLabel ?? '',
-    ].some((value) => value&&value.toLocaleLowerCase('ro').includes(normalizedQuery))
+    ].some((value) => value && value.toLocaleLowerCase('ro').includes(normalizedQuery))
   })
 }
 

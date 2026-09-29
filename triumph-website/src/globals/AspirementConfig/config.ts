@@ -6,7 +6,7 @@ import { revalidateAspirementConfig } from './hooks/revalidateAspirementConfig'
 export const AspirementConfig: GlobalConfig = {
   slug: 'aspirementConfig',
   admin: {
-    group: 'Recruitment'
+    group: 'Recruitment',
   },
   hooks: {
     afterChange: [revalidateAspirementConfig],
@@ -64,6 +64,22 @@ export const AspirementConfig: GlobalConfig = {
             {
               name: 'review-rejected-message',
               type: 'richText',
+            },
+            {
+              name: 'form-review-accepted-message',
+              type: 'richText',
+              admin: {
+                description:
+                  'Email trimis dupa review-ul formularelor catre candidatii acceptati mai departe.',
+              },
+            },
+            {
+              name: 'form-review-rejected-message',
+              type: 'richText',
+              admin: {
+                description:
+                  'Email trimis dupa review-ul formularelor catre candidatii respinsi la formular.',
+              },
             },
             {
               name: 'interview-accepted-message',

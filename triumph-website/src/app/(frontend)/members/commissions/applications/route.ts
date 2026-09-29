@@ -32,6 +32,8 @@ type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
   finalMailSentBy?: string | User | null
   interviewMailSentAt?: string | null
   interviewMailSentBy?: string | User | null
+  reviewMailSentAt?: string | null
+  reviewMailSentBy?: string | User | null
   interviewNotes?:
     | {
         author: string | User
@@ -87,6 +89,7 @@ const reviewStatuses = new Set<ApplicationStatus>([
 ])
 const finalMailStatuses = new Set<ApplicationStatus>(['interview-passed', 'interview-rejected'])
 const finalStatuses = new Set<ApplicationStatus>(['interview-passed', 'interview-rejected'])
+const reviewMailStatuses = new Set<ApplicationStatus>(['coordonator-review', 'submission-rejected'])
 
 type MailBatchResult = {
   failed: number
@@ -184,11 +187,15 @@ export async function PATCH(request: Request) {
     }
 
     if (action === 'send-interview-mails') {
-      return await sendInterviewMails({ payload, request, user })
+      return await sendInterviewMails({ body, payload, request, user })
+    }
+
+    if (action === 'send-review-mails') {
+      return await sendReviewMails({ body, payload, user })
     }
 
     if (action === 'send-final-mails') {
-      return await sendFinalMails({ payload, user })
+      return await sendFinalMails({ body, payload, user })
     }
 
     if (action === 'send-custom-mail') {
@@ -752,7 +759,12 @@ async function finalDecision(args: {
   })
 }
 
-async function sendInterviewMails(args: { payload: Payload; request: Request; user: User }) {
+async function sendInterviewMails(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  request: Request
+  user: User
+}) {
   requireBoard(args.user)
 
   const config = (await args.payload.findGlobal({
@@ -767,13 +779,16 @@ async function sendInterviewMails(args: { payload: Payload; request: Request; us
       { status: 409 },
     )
   }
+  const applicationId = normalizeOptionalText(args.body.applicationId)
   const applications = await findApplicationsForMailBatch(args.payload, {
+    applicationId,
     status: 'interview',
   })
   const pending = applications.filter(
     (application) => !application.reviewProcess?.interviewMailSentAt,
   )
   const result = createMailBatchResult(applications.length - pending.length)
+  const updatedApplications: ReturnType<typeof serializeApplicationUpdate>[] = []
 
   for (const application of pending) {
     try {
@@ -820,11 +835,12 @@ async function sendInterviewMails(args: { payload: Payload; request: Request; us
         to: prepared.email,
       })
 
-      await updateApplicationReview(args.payload, prepared, {
+      const updated = await updateApplicationReview(args.payload, prepared, {
         interviewMailSentAt: new Date().toISOString(),
         interviewMailSentBy: args.user.id,
       })
 
+      updatedApplications.push(serializeApplicationUpdate(updated))
       result.sent += 1
       addPlaceholderWarnings(result, prepared, message.unresolvedPlaceholders)
     } catch (error) {
@@ -848,23 +864,102 @@ async function sendInterviewMails(args: { payload: Payload; request: Request; us
     }
   }
 
-  return Response.json({ mailBatch: result })
+  return Response.json({ applications: updatedApplications, mailBatch: result })
 }
 
-async function sendFinalMails(args: { payload: Payload; user: User }) {
+async function sendReviewMails(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
   requireBoard(args.user)
-  await assertAllInterviewRoundsComplete(args.payload)
 
+  const applicationId = normalizeOptionalText(args.body.applicationId)
   const config = (await args.payload.findGlobal({
     slug: 'aspirementConfig',
     depth: 0,
     overrideAccess: true,
   })) as AspirementConfig
   const applications = await findApplicationsForMailBatch(args.payload, {
+    applicationId,
+    status: ['coordonator-review', 'submission-rejected'],
+  })
+  const pending = applications.filter((application) => !application.reviewProcess?.reviewMailSentAt)
+  const result = createMailBatchResult(applications.length - pending.length)
+  const updatedApplications: ReturnType<typeof serializeApplicationUpdate>[] = []
+
+  for (const application of pending) {
+    try {
+      const accepted = application.reviewProcess?.status === 'coordonator-review'
+      const message = renderRecruitmentMessage({
+        fallback: accepted
+          ? 'Felicitari, ai trecut mai departe dupa review-ul formularului. Coordonatorii vor continua verificarile pentru etapa urmatoare.'
+          : 'Iti multumim pentru aplicatie. Din pacate, nu ai fost acceptat mai departe dupa review-ul formularului.',
+        message: accepted
+          ? config.recruitment?.['form-review-accepted-message']
+          : config.recruitment?.['form-review-rejected-message'],
+        parameters: createApplicantParameters({
+          application,
+          commissionLabel: getCommissionLabel(application.reviewProcess?.comission),
+        }),
+      })
+
+      await args.payload.sendEmail({
+        html: buildRecruitmentEmailHTML({
+          messageHTML: message.html,
+          preheader: accepted
+            ? 'Ai trecut mai departe dupa review-ul formularului.'
+            : 'Rezultatul review-ului formularului tau este disponibil.',
+          title: 'Rezultat formular',
+        }),
+        subject: 'Rezultat formular | Interact Bucuresti Triumph',
+        text: message.text,
+        to: application.email,
+      })
+
+      const updated = await updateApplicationReview(args.payload, application, {
+        reviewMailSentAt: new Date().toISOString(),
+        reviewMailSentBy: args.user.id,
+      })
+
+      updatedApplications.push(serializeApplicationUpdate(updated))
+      result.sent += 1
+      addPlaceholderWarnings(result, application, message.unresolvedPlaceholders)
+    } catch (error) {
+      result.failed += 1
+      result.failures.push({
+        email: application.email,
+        id: application.id,
+        message: error instanceof Error ? error.message : 'Emailul nu a putut fi trimis.',
+        name: application.name,
+      })
+    }
+  }
+
+  return Response.json({ applications: updatedApplications, mailBatch: result })
+}
+
+async function sendFinalMails(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  requireBoard(args.user)
+  await assertAllInterviewRoundsComplete(args.payload)
+
+  const applicationId = normalizeOptionalText(args.body.applicationId)
+  const config = (await args.payload.findGlobal({
+    slug: 'aspirementConfig',
+    depth: 0,
+    overrideAccess: true,
+  })) as AspirementConfig
+  const applications = await findApplicationsForMailBatch(args.payload, {
+    applicationId,
     status: ['interview-passed', 'interview-rejected'],
   })
   const pending = applications.filter((application) => !application.reviewProcess?.finalMailSentAt)
   const result = createMailBatchResult(applications.length - pending.length)
+  const updatedApplications: ReturnType<typeof serializeApplicationUpdate>[] = []
 
   for (const application of pending) {
     try {
@@ -905,12 +1000,13 @@ async function sendFinalMails(args: { payload: Payload; user: User }) {
         aspirerUserId = aspirerUser.id
       }
 
-      await updateApplicationReview(args.payload, application, {
+      const updated = await updateApplicationReview(args.payload, application, {
         aspirerUser: aspirerUserId || undefined,
         finalMailSentAt: new Date().toISOString(),
         finalMailSentBy: args.user.id,
       })
 
+      updatedApplications.push(serializeApplicationUpdate(updated))
       result.sent += 1
       addPlaceholderWarnings(result, application, message.unresolvedPlaceholders)
     } catch (error) {
@@ -924,7 +1020,7 @@ async function sendFinalMails(args: { payload: Payload; user: User }) {
     }
   }
 
-  return Response.json({ mailBatch: result })
+  return Response.json({ applications: updatedApplications, mailBatch: result })
 }
 
 async function ensureAspirerUser(args: {
@@ -1078,8 +1174,17 @@ async function updateApplicationReview(
 
 async function findApplicationsForMailBatch(
   payload: Payload,
-  args: { status: ApplicationStatus | ApplicationStatus[] },
+  args: { applicationId?: string | null; status: ApplicationStatus | ApplicationStatus[] },
 ) {
+  const statusWhere = {
+    'reviewProcess.status': Array.isArray(args.status)
+      ? {
+          in: args.status,
+        }
+      : {
+          equals: args.status,
+        },
+  }
   const result = await payload.find({
     collection: 'applications',
     depth: 2,
@@ -1087,18 +1192,28 @@ async function findApplicationsForMailBatch(
     overrideAccess: true,
     pagination: false,
     sort: '-createdAt',
-    where: {
-      'reviewProcess.status': Array.isArray(args.status)
-        ? {
-            in: args.status,
-          }
-        : {
-            equals: args.status,
-          },
-    },
+    where: args.applicationId
+      ? {
+          and: [
+            {
+              id: {
+                equals: args.applicationId,
+              },
+            },
+            statusWhere,
+          ],
+        }
+      : statusWhere,
   })
 
-  return result.docs.filter(isRecruitmentApplication)
+  const applications = result.docs.filter(isRecruitmentApplication)
+  if (args.applicationId && applications.length === 0) {
+    throw Object.assign(new Error('Candidatul nu este eligibil pentru acest email.'), {
+      status: 404,
+    })
+  }
+
+  return applications
 }
 
 async function ensureApplicationScheduleToken(
@@ -1324,7 +1439,10 @@ function isFinalStatus(value: string): value is ApplicationStatus {
 
 function isRecruitmentApplication(application: Application): application is RecruitmentApplication {
   const status = application.reviewProcess?.status
-  return status === 'interview' || (status ? finalMailStatuses.has(status) : false)
+  return (
+    status === 'interview' ||
+    (status ? finalMailStatuses.has(status) || reviewMailStatuses.has(status) : false)
+  )
 }
 
 function serializeApplicationUpdate(application: ExtendedApplication) {
@@ -1345,6 +1463,7 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
     interviewDate: application.reviewProcess?.interviewDate ?? null,
     interviewAttendance: application.reviewProcess?.interviewAttendance ?? null,
     interviewMailSentAt: application.reviewProcess?.interviewMailSentAt ?? null,
+    reviewMailSentAt: application.reviewProcess?.reviewMailSentAt ?? null,
     formReviewComments: (application.reviewProcess?.formReviewComments ?? []).map((comment) => ({
       authorId: getRelationshipID(comment.author),
       comment: comment.comment,
