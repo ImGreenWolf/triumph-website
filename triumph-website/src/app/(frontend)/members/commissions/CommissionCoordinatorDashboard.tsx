@@ -2047,7 +2047,7 @@ function EmptyState({ userName }: { userName: string }) {
 function NoticeCard({ notice }: { notice: Notice }) {
   return (
     <div
-      className={`mb-5 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold ${
+      className={`mb-5 fixed bottom-10 left-10 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold ${
         notice.kind === 'success'
           ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
           : 'border-red-200 bg-red-50 text-red-800'
