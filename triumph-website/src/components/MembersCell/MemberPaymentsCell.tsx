@@ -14,7 +14,7 @@ export default async function MeetingAttendenceCell({
   payload,
   rowData,
 }: DefaultServerCellComponentProps) {
-  const summary = await getCachedDuesSummary(payload, rowData)
+  //const summary = await getCachedDuesSummary(payload, rowData)
 
-  return <MemberPaymentCell summary={summary} />
+  return <></>//<MemberPaymentCell summary={summary} />
 }

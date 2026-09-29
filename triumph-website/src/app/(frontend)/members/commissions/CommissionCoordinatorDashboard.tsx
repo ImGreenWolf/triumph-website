@@ -17,6 +17,7 @@ import {
   Search,
   Send,
   Sparkles,
+  Upload,
   UserCheck,
   UserRound,
   Users,
@@ -218,6 +219,7 @@ export default function CommissionCoordinatorDashboard(props: {
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [detailApplicationId, setDetailApplicationId] = useState<string | null>(null)
+  const [jsonUploadWizardOpen, setJsonUploadWizardOpen] = useState(false)
 
   useEffect(() => {
     setHeaderTheme('light')
@@ -436,6 +438,14 @@ export default function CommissionCoordinatorDashboard(props: {
               <Clock3 className="size-4" />
               Workspace interview
             </Link>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9e0e8] bg-white px-3 text-sm font-bold text-[#344054] transition hover:bg-[#f8fafc]"
+              onClick={() => setJsonUploadWizardOpen(true)}
+              type="button"
+            >
+              <Upload className="size-4" />
+              Upload JSON
+            </button>
           </div>
         </div>
       </header>
@@ -501,6 +511,122 @@ export default function CommissionCoordinatorDashboard(props: {
         application={detailApplication}
         onClose={() => setDetailApplicationId(null)}
       />
+      {jsonUploadWizardOpen && (
+        <CommissionJsonUploadWizard
+          commission={selectedCommission}
+          onClose={() => setJsonUploadWizardOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+async function handleCommissionJsonUpload(args: {
+  commission: ManagedCommission
+  file: File
+  json: unknown
+}) {
+  // Scaffold: add your custom JSON processing/import code here.
+  // You already have args.commission, args.file, and parsed args.json available.
+  console.info('Commission JSON upload scaffold', {
+    commissionId: args.commission.id,
+    fileName: args.file.name,
+    json: args.json,
+  })
+}
+
+function CommissionJsonUploadWizard(props: { commission: ManagedCommission; onClose: () => void }) {
+  const [fileName, setFileName] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function uploadJson(file: File | undefined) {
+    setError('')
+    setMessage('')
+    if (!file) return
+
+    if (!file.name.toLocaleLowerCase('ro').endsWith('.json')) {
+      setError('Selecteaza un fisier .json.')
+      return
+    }
+
+    setBusy(true)
+    setFileName(file.name)
+
+    try {
+      const json = JSON.parse(await file.text()) as unknown
+      await handleCommissionJsonUpload({
+        commission: props.commission,
+        file,
+        json,
+      })
+      setMessage('JSON incarcat. Adauga logica ta in handleCommissionJsonUpload().')
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'JSON-ul nu a putut fi citit.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#141e34]/45 px-4"
+      onMouseDown={props.onClose}
+      role="presentation"
+    >
+      <section
+        aria-modal="true"
+        className="w-full max-w-lg rounded-xl bg-white p-5 shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
+              Upload JSON
+            </p>
+            <h2 className="mt-1 text-xl font-bold text-[#152039]">{props.commission.label}</h2>
+            <p className="mt-1 text-sm text-[#526071]">
+              Incarca un fisier JSON pentru acest scaffold.
+            </p>
+          </div>
+          <button
+            aria-label="Inchide"
+            className="inline-flex size-9 items-center justify-center rounded-md border border-[#dfe5ec] hover:bg-[#f8fafc]"
+            onClick={props.onClose}
+            type="button"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <label className="mt-5 flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[#b9c4d2] bg-[#f8fafc] px-4 py-6 text-center transition hover:border-[#00a2e0] hover:bg-[#eefaff]">
+          <Upload className="size-7 text-[#007fb3]" />
+          <span className="text-sm font-bold text-[#152039]">
+            {busy ? 'Se citeste...' : fileName || 'Alege fisier JSON'}
+          </span>
+          <span className="text-xs font-medium text-[#748094]">accepta fisiere .json</span>
+          <input
+            accept="application/json,.json"
+            className="sr-only"
+            disabled={busy}
+            onChange={(event) => void uploadJson(event.target.files?.[0])}
+            type="file"
+          />
+        </label>
+
+        {message && (
+          <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+            {message}
+          </p>
+        )}
+        {error && (
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+            {error}
+          </p>
+        )}
+      </section>
     </div>
   )
 }
@@ -710,12 +836,18 @@ function KnownApplicantsTask(props: {
   setQuery: (query: string) => void
   user: ManagedUser
 }) {
+  const [hideReviewedApplicants, setHideReviewedApplicants] = useState(false)
   const normalizedQuery = props.query.trim().toLocaleLowerCase('ro')
-  const applicants = props.recruitmentPool.filter((applicant) =>
-    [applicant.name, applicant.phone, applicant.instagram].some((value) =>
-      value.toLocaleLowerCase('ro').includes(normalizedQuery),
-    ),
-  )
+  const applicants = props.recruitmentPool
+    .filter(
+      (applicant) =>
+        !hideReviewedApplicants || !applicant.reviewedCoordinatorIds.includes(props.user.id),
+    )
+    .filter((applicant) =>
+      [applicant.name, applicant.phone, applicant.instagram, applicant.highschool].some(
+        (value) => value && value.toLocaleLowerCase('ro').includes(normalizedQuery),
+      ),
+    )
   const remaining = props.recruitmentPool.filter(
     (applicant) => !applicant.reviewedCoordinatorIds.includes(props.user.id),
   ).length
@@ -764,7 +896,18 @@ function KnownApplicantsTask(props: {
             Marcheaza fiecare aplicant inainte de a confirma verificarea.
           </p>
         </div>
-        <SearchField query={props.query} setQuery={props.setQuery} />
+        <div className="grid gap-3 sm:justify-items-end">
+          <SearchField query={props.query} setQuery={props.setQuery} />
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-[#526071]">
+            <input
+              checked={hideReviewedApplicants}
+              className="size-4 rounded border-[#cfd7e3] text-[#00a2e0] focus:ring-[#00a2e0]"
+              onChange={(event) => setHideReviewedApplicants(event.target.checked)}
+              type="checkbox"
+            />
+            Ascunde candidatii deja verificati
+          </label>
+        </div>
       </div>
       <Panel className="overflow-hidden p-0" stagger={false}>
         <div className="flex flex-col gap-3 border-b border-[#e5e9ef] p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1107,23 +1250,28 @@ function Recruitment(props: {
   } = props
   const normalizedQuery = query.trim().toLocaleLowerCase('ro')
   const filteredPool = recruitmentPool.filter((applicant) =>
-    [applicant.name, applicant.phone, applicant.instagram, applicant.highschool].some((value) =>
-      
-      value && value.toLocaleLowerCase('ro').includes(normalizedQuery),
+    [applicant.name, applicant.phone, applicant.instagram, applicant.highschool].some(
+      (value) => value && value.toLocaleLowerCase('ro').includes(normalizedQuery),
     ),
   )
   const filteredApplications = selectedApplications.filter((application) =>
-    [application.name, application.email, application.status, application.formAnswers.find(val => val.field == 'highschool')!.value].some((value) =>
-      value.toLocaleLowerCase('ro').includes(normalizedQuery),
-    ),
+    [
+      application.name,
+      application.email,
+      application.status,
+      application.formAnswers.find((val) => val.field == 'highschool')?.value,
+    ].some((value) => value && value.toLocaleLowerCase('ro').includes(normalizedQuery)),
   )
   const activeAssignedApplications = filteredApplications.filter(
     (application) => !completedRecruitmentStatuses.has(application.status),
   )
   const filteredAllApplications = applications.filter((application) =>
-    [application.name, application.email, application.status, application.formAnswers.find(val => val.field == 'highschool')!.value].some((value) =>
-      value.toLocaleLowerCase('ro').includes(normalizedQuery),
-    ),
+    [
+      application.name,
+      application.email,
+      application.status,
+      application.formAnswers.find((val) => val.field == 'highschool')?.value,
+    ].some((value) => value && value.toLocaleLowerCase('ro').includes(normalizedQuery)),
   )
   const shouldShowCoordinatorPool = !isBoard && userCoordinatesCommission && !hasConfirmedReview
   const uncheckedApplicants = recruitmentPool.filter(
@@ -1284,7 +1432,12 @@ function ApplicantPoolList(props: {
                 <p className="break-words text-sm font-bold">{applicant.name}</p>
                 <p className="mt-0.5 break-words text-xs text-[#6b7688]">
                   {applicant.phone || 'Telefon indisponibil'} ·{' '}
-                  {applicant.instagram || 'Instagram indisponibil'} ·{' '}
+                  <a
+                    target="_blank"
+                    href={applicant.instagram && `https://instagram.com/${applicant.instagram}`}
+                  >
+                    {applicant.instagram || 'Instagram indisponibil'} ·{' '}
+                  </a>
                   {applicant.highschool || 'Liceu indisponibil'}
                 </p>
               </div>

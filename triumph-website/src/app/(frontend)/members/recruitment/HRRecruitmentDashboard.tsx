@@ -1648,7 +1648,7 @@ function getCommissionEligibility(application: ManagedApplication, commission: M
   }
 }
 
-function filterApplications(
+export function filterApplications(
   applications: ManagedApplication[],
   commissions: ManagedCommission[],
   query: string,
@@ -1662,10 +1662,10 @@ function filterApplications(
       application.name,
       application.email,
       application.status,
-      statusLabels[application.status],
+      application.formAnswers.find((val) => val.field == 'highschool')?.value,
       commission?.label ?? '',
       commission?.mandateLabel ?? '',
-    ].some((value) => value.toLocaleLowerCase('ro').includes(normalizedQuery))
+    ].some((value) => value&&value.toLocaleLowerCase('ro').includes(normalizedQuery))
   })
 }
 

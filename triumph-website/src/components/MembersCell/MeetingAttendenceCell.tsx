@@ -29,16 +29,16 @@ export default async function MeetingAttendenceCell({
   payload,
   rowData,
 }: DefaultServerCellComponentProps) {
-  const attendanceCount =
-    typeof cellData?.totalDocs === 'number'
-      ? cellData.totalDocs
-      : Array.isArray(cellData?.docs)
-        ? cellData.docs.length
-        : 0
-  const memberCount = await getActiveMemberCount(
-    payload,
-    rowData?.meetingDate as string | undefined,
-  )
+  // const attendanceCount =
+  //   typeof cellData?.totalDocs === 'number'
+  //     ? cellData.totalDocs
+  //     : Array.isArray(cellData?.docs)
+  //       ? cellData.docs.length
+  //       : 0
+  // const memberCount = await getActiveMemberCount(
+  //   payload,
+  //   rowData?.meetingDate as string | undefined,
+  // )
 
-  return <MeetingAttendenceCellClient attendanceCount={attendanceCount} memberCount={memberCount} />
+  return <></>//<MeetingAttendenceCellClient attendanceCount={attendanceCount} memberCount={memberCount} />
 }

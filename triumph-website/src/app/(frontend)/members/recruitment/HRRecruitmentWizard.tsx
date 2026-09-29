@@ -2268,8 +2268,9 @@ function filterApplications(
       application.email,
       application.phone,
       application.instagram,
+      application.formAnswers.find((val) => val.field == 'highschool')?.value,
       commission?.label || '',
-    ].some((item) => item.toLocaleLowerCase('ro').includes(value))
+    ].some((item) => item && item.toLocaleLowerCase('ro').includes(value))
   })
 }
 function getActionMessage(result: ActionResult) {
