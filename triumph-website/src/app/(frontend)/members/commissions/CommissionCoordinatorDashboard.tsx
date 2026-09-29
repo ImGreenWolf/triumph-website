@@ -105,6 +105,7 @@ export type ManagedRecruitmentPoolApplicant = {
   knownCoordinatorIds: string[]
   name: string
   phone: string
+  highschool?: string
   reviewedCoordinatorIds: string[]
 }
 
@@ -1106,12 +1107,13 @@ function Recruitment(props: {
   } = props
   const normalizedQuery = query.trim().toLocaleLowerCase('ro')
   const filteredPool = recruitmentPool.filter((applicant) =>
-    [applicant.name, applicant.phone, applicant.instagram].some((value) =>
-      value.toLocaleLowerCase('ro').includes(normalizedQuery),
+    [applicant.name, applicant.phone, applicant.instagram, applicant.highschool].some((value) =>
+      
+      value && value.toLocaleLowerCase('ro').includes(normalizedQuery),
     ),
   )
   const filteredApplications = selectedApplications.filter((application) =>
-    [application.name, application.email, application.status].some((value) =>
+    [application.name, application.email, application.status, application.formAnswers.find(val => val.field == 'highschool')!.value].some((value) =>
       value.toLocaleLowerCase('ro').includes(normalizedQuery),
     ),
   )
@@ -1119,7 +1121,7 @@ function Recruitment(props: {
     (application) => !completedRecruitmentStatuses.has(application.status),
   )
   const filteredAllApplications = applications.filter((application) =>
-    [application.name, application.email, application.status].some((value) =>
+    [application.name, application.email, application.status, application.formAnswers.find(val => val.field == 'highschool')!.value].some((value) =>
       value.toLocaleLowerCase('ro').includes(normalizedQuery),
     ),
   )
@@ -1282,7 +1284,8 @@ function ApplicantPoolList(props: {
                 <p className="break-words text-sm font-bold">{applicant.name}</p>
                 <p className="mt-0.5 break-words text-xs text-[#6b7688]">
                   {applicant.phone || 'Telefon indisponibil'} ·{' '}
-                  {applicant.instagram || 'Instagram indisponibil'}
+                  {applicant.instagram || 'Instagram indisponibil'} ·{' '}
+                  {applicant.highschool || 'Liceu indisponibil'}
                 </p>
               </div>
             </div>

@@ -240,6 +240,7 @@ function serializeRecruitmentPoolApplicant(
   return {
     id: application.id,
     instagram: getInstagram(getSubmissionAnswers(application.formSubmission)),
+    highschool: getSubmissionAnswers(application.formSubmission).find(val => val.field == 'highschool')?.value,
     knownCoordinatorIds: (reviewProcess.coordonatorIncompatability ?? [])
       .map(getRelationshipID)
       .filter(Boolean),
