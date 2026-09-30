@@ -223,6 +223,7 @@ function serializeApplication(application: ApplicationWithExtendedReview): Manag
     knownCoordinatorIds: (reviewProcess.coordonatorIncompatability ?? [])
       .map(getRelationshipID)
       .filter(Boolean),
+    onlineInterview: Boolean(reviewProcess.onlineInterview),
     reviewedCoordinatorIds: (reviewProcess.coordonatorReviewChecks ?? [])
       .map(getRelationshipID)
       .filter(Boolean),

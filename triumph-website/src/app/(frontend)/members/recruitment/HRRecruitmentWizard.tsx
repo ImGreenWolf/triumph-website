@@ -626,7 +626,12 @@ export default function HRRecruitmentWizard(props: {
             <InterviewStep applications={visibleApplications} commissions={commissions} />
           )}
           {activeStep === 'results' && (
-            <ResultStep commissions={commissions} applications={visibleApplications} busyKey={busyKey} onAction={runAction} />
+            <ResultStep
+              commissions={commissions}
+              applications={visibleApplications}
+              busyKey={busyKey}
+              onAction={runAction}
+            />
           )}
           {activeStep === 'debug' && (
             <DebugStep
@@ -1955,6 +1960,24 @@ function InvitationStep(props: {
   const unsent = invitations.filter((application) => !application.interviewMailSentAt)
   const accepted = invitations.filter((application) => application.status === 'interview')
   const rejected = invitations.filter((application) => application.status === 'submission-rejected')
+  const commissionSchedulingOverview = props.commissions.map((commission) => {
+    const assigned = props.applications.filter(
+      (application) =>
+        application.commissionId === commission.id && isAssignedInterviewCandidate(application),
+    )
+    const canceled = assigned.filter((application) => application.status === 'interview-withdrawn')
+    const scheduled = assigned.filter(
+      (application) =>
+        Boolean(application.interviewDate) && application.status !== 'interview-withdrawn',
+    )
+
+    return {
+      assigned: assigned.length,
+      canceled: canceled.length,
+      commission,
+      scheduled: scheduled.length,
+    }
+  })
   return (
     <div className="grid gap-5">
       <InfoPanel
@@ -1984,6 +2007,37 @@ function InvitationStep(props: {
             <Send className="size-4" />{' '}
             {props.busyKey === 'send-interview-mails' ? 'Se trimit...' : 'Trimite emailurile'}
           </button>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {commissionSchedulingOverview.map((item) => (
+            <article
+              className="rounded-md border border-[#e4e8ef] bg-[#f8fafc] p-3"
+              key={item.commission.id}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold">{item.commission.label}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#748094]">
+                    {item.scheduled}/{item.assigned} programati
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-2 py-1 text-xs font-bold ${
+                    item.canceled > 0
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}
+                >
+                  {item.canceled} retrasi
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <SmallMetric label="Asignati" value={String(item.assigned)} />
+                <SmallMetric label="Programati" value={String(item.scheduled)} />
+                <SmallMetric label="Retrasi" value={String(item.canceled)} />
+              </div>
+            </article>
+          ))}
         </div>
         <CandidateMailTable
           applications={invitations}
@@ -2261,7 +2315,10 @@ function CandidateMailTable(props: {
                   <p className="text-xs text-[#748094]">{application.email}</p>
                 </td>
                 <td>
-                  <p className="">{props.commissions.find(comission => comission.id == application.commissionId)?.label || ''}</p>
+                  <p className="">
+                    {props.commissions.find((comission) => comission.id == application.commissionId)
+                      ?.label || ''}
+                  </p>
                 </td>
                 <td className="px-3 py-3">
                   {props.kind === 'interview' && application.status === 'interview' ? (
@@ -3416,6 +3473,16 @@ function getEligibleCommissions(application: ManagedApplication, commissions: Ma
   return commissions.filter(
     (commission) => getCommissionEligibility(application, commission).eligible,
   )
+}
+function isAssignedInterviewCandidate(application: ManagedApplication) {
+  return [
+    'interview',
+    'interview-withdrawn',
+    'interviewed',
+    'absent',
+    'interview-passed',
+    'interview-rejected',
+  ].includes(application.status)
 }
 function serializeInterviewIntervals(intervals: ManagedInterval[]) {
   return JSON.stringify(

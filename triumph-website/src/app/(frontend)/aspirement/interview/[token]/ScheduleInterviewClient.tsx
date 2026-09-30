@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarClock, CheckCircle2, Clock3, Phone, Users, XCircle } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Clock3, MapPinIcon, Phone, Users, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useHeaderTheme } from '@/providers/HeaderTheme'
@@ -173,6 +173,9 @@ export default function ScheduleInterviewClient(props: {
               Poti modifica programarea pana la {formatDate(props.deadline)}.
             </p>
           )}
+          <p className=" max-w-2xl text-sm leading-6 text-white/65">
+            Dacă dorești să te retragi din proces, găsești mai jos butonul de retragere.
+          </p>
         </div>
 
         {props.unavailableMessage || withdrawn ? (
@@ -306,8 +309,11 @@ export default function ScheduleInterviewClient(props: {
                   {selected?.label || 'Selecteaza un interval'}
                 </p>
                 {selected?.location && (
-                  <p className="mt-1 text-sm font-medium text-[#748094]">{selected.location}</p>
-                )}
+                  <div className='flex flex-col mt-2'>
+                    <p className="mt-1 flex items-center gap-2 text-xs font-bold text-[#00a2e0] tracking-[0.08em] uppercase"><MapPinIcon size={16}/>Locația Interview-ului</p>
+                    <p className="flex items-center gap-2 text-md font-bold text-primary-text">{selected.location}</p>
+                  </div>
+           )}
                 {selected?.onlineInterview && (
                   <p className="mt-2 inline-flex rounded-full bg-[#eef9ff] px-2 py-1 text-xs font-black uppercase tracking-[0.08em] text-[#007fb3]">
                     Online interview

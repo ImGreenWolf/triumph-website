@@ -83,6 +83,7 @@ export type ManagedApplication = {
   knownCoordinatorIds: string[]
   name: string
   notes: string
+  onlineInterview: boolean
   reviewedCoordinatorIds: string[]
   status: ManagedApplicationStatus
 }
@@ -1179,7 +1180,10 @@ function DenseCandidateRow(props: {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge status={application.status} />
+        <StatusBadge
+          onlineInterview={application.onlineInterview}
+          status={application.status}
+        />
         <span className="rounded-md bg-[#f4f6f8] px-2 py-1 text-xs font-bold text-[#526071]">
           {candidateInterviewState(application)}
         </span>
@@ -1272,7 +1276,9 @@ function candidateInterviewState(application: ManagedApplication) {
   if (application.status === 'interviewed' || application.interviewAttendance === 'completed')
     return 'Finalizat'
   if (application.interviewAttendance === 'late') return 'Intarziat'
-  if (application.interviewDate) return formatDate(application.interviewDate)
+  if (application.interviewDate) 
+    if(true)
+      formatDate(application.interviewDate)
   return 'Neprogramat'
 }
 
@@ -1365,7 +1371,10 @@ function Overview(props: {
                   <p className="truncate text-sm font-bold">{application.name}</p>
                   <p className="mt-0.5 truncate text-xs opacity-55">{application.email}</p>
                 </div>
-                <StatusBadge status={application.status} />
+                <StatusBadge
+                  onlineInterview={application.onlineInterview}
+                  status={application.status}
+                />
               </div>
             ))}
             {recent.length === 0 && <InlineEmpty text="Nu exista aplicatii inca." />}
@@ -2138,7 +2147,10 @@ function ApplicationCard(props: {
               <p className="break-words text-sm font-bold">{application.name}</p>
               <p className="mt-0.5 break-words text-xs text-[#6b7688]">{application.email}</p>
             </div>
-            <StatusBadge status={application.status} />
+            <StatusBadge
+              onlineInterview={application.onlineInterview}
+              status={application.status}
+            />
             <MailStatusBadges application={application} />
           </div>
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[#748094]">
@@ -2228,7 +2240,10 @@ function ApplicationDetailDrawer(props: {
             </button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <StatusBadge status={application.status} />
+            <StatusBadge
+              onlineInterview={application.onlineInterview}
+              status={application.status}
+            />
             <span className="rounded-full bg-[#f7f9fc] px-2.5 py-1 text-[11px] font-bold text-[#536071]">
               {application.knownCoordinatorIds.length} marcaje coordonatori
             </span>
@@ -2455,34 +2470,49 @@ function Avatar({ name }: { name?: string | null }) {
   )
 }
 
-function StatusBadge({ status }: { status: ManagedApplicationStatus }) {
-  const config = {
-    absent: { className: 'bg-red-50 text-red-700 ring-red-100', label: 'Absent' },
-    'coordonator-review': {
-      className: 'bg-amber-50 text-amber-700 ring-amber-100',
-      label: 'Coordonatori',
-    },
-    interview: { className: 'bg-blue-50 text-blue-700 ring-blue-100', label: 'Interview' },
-    interviewed: { className: 'bg-violet-50 text-violet-700 ring-violet-100', label: 'Decizie' },
-    'interview-passed': {
-      className: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-      label: 'Acceptat',
-    },
-    'interview-rejected': { className: 'bg-red-50 text-red-700 ring-red-100', label: 'Respins' },
-    'submission-rejected': {
-      className: 'bg-slate-100 text-slate-500 ring-slate-200',
-      label: 'Respins',
-    },
-    'submission-waitlisted': {
-      className: 'bg-amber-50 text-amber-700 ring-amber-100',
-      label: 'Asteptare',
-    },
-    'interview-withdrawn': {
-      className: 'bg-slate-100 text-slate-500 ring-slate-200',
-      label: 'Retras',
-    },
-    submitted: { className: 'bg-slate-100 text-slate-700 ring-slate-200', label: 'Nou' },
-  }[status]
+function StatusBadge({
+  onlineInterview = false,
+  status,
+}: {
+  onlineInterview?: boolean
+  status: ManagedApplicationStatus
+}) {
+  const config =
+    status === 'interview' && onlineInterview
+      ? { className: 'bg-cyan-50 text-cyan-700 ring-cyan-100', label: 'Online' }
+      : {
+          absent: { className: 'bg-red-50 text-red-700 ring-red-100', label: 'Absent' },
+          'coordonator-review': {
+            className: 'bg-amber-50 text-amber-700 ring-amber-100',
+            label: 'Coordonatori',
+          },
+          interview: { className: 'bg-blue-50 text-blue-700 ring-blue-100', label: 'Interview' },
+          interviewed: {
+            className: 'bg-violet-50 text-violet-700 ring-violet-100',
+            label: 'Decizie',
+          },
+          'interview-passed': {
+            className: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+            label: 'Acceptat',
+          },
+          'interview-rejected': {
+            className: 'bg-red-50 text-red-700 ring-red-100',
+            label: 'Respins',
+          },
+          'submission-rejected': {
+            className: 'bg-slate-100 text-slate-500 ring-slate-200',
+            label: 'Respins',
+          },
+          'submission-waitlisted': {
+            className: 'bg-amber-50 text-amber-700 ring-amber-100',
+            label: 'Asteptare',
+          },
+          'interview-withdrawn': {
+            className: 'bg-slate-100 text-slate-500 ring-slate-200',
+            label: 'Retras',
+          },
+          submitted: { className: 'bg-slate-100 text-slate-700 ring-slate-200', label: 'Nou' },
+        }[status]
 
   return (
     <span
