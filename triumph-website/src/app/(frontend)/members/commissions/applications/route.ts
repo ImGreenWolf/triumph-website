@@ -13,6 +13,7 @@ import {
 import {
   buildRecruitmentEmailHTML,
   createApplicantParameters,
+  generateInterviewSlots,
   generateInterviewScheduleToken,
   getCommissionLabel,
   getInterviewScheduleURL,
@@ -879,6 +880,7 @@ async function sendInterviewMails(args: {
             },
           )
         }
+        await assertCommissionHasInterviewCapacity(args.payload, commission)
 
         prepared = await ensureApplicationScheduleToken(args.payload, application)
         const token = prepared.reviewProcess?.interviewScheduleToken
@@ -1427,6 +1429,36 @@ function assertCommissionReadyForApplicant(
     throw Object.assign(
       new Error(
         'Candidatul nu poate fi asignat la o comisie unde un coordonator l-a marcat cunoscut.',
+      ),
+      { status: 409 },
+    )
+  }
+}
+
+async function assertCommissionHasInterviewCapacity(
+  payload: Payload,
+  commission: ExtendedCommission,
+) {
+  const slotCount = generateInterviewSlots(commission.interviewIntervals).length
+  const assignedResult = await payload.find({
+    collection: 'applications',
+    depth: 0,
+    limit: 0,
+    overrideAccess: true,
+    pagination: false,
+    where: {
+      and: [
+        { 'reviewProcess.comission': { equals: commission.id } },
+        { 'reviewProcess.status': { equals: 'interview' } },
+      ],
+    },
+  })
+  const assignedCount = assignedResult.totalDocs ?? assignedResult.docs.length
+
+  if (slotCount < assignedCount) {
+    throw Object.assign(
+      new Error(
+        `${getCommissionLabel(commission)} are ${slotCount} sloturi pentru ${assignedCount} candidati.`,
       ),
       { status: 409 },
     )

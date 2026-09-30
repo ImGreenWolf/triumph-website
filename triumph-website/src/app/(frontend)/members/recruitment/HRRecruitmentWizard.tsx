@@ -56,6 +56,7 @@ import {
   type WorkflowApplicationStatus,
 } from '@/utilities/recruitmentWorkflow'
 import type { GooglePlaceLocation } from '@/utilities/googlePlace'
+import { generateInterviewSlots } from '@/utilities/interviewSchedule'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
 import { cn } from '@/utilities/ui'
 
@@ -1067,7 +1068,7 @@ function AssignmentAndScheduleStep(props: {
       const validIDs = new Set(assignmentCandidates.map((application) => application.id))
       return new Set([...current].filter((id) => validIDs.has(id)))
     })
-  }, [assignmentSnapshot, assignmentCandidates])
+  }, [assignmentSnapshot])
 
   const plannedChanges = assignmentCandidates.filter((application) => {
     const commissionID = assignmentDraft[application.id] ?? null
@@ -1208,6 +1209,7 @@ function AssignmentAndScheduleStep(props: {
         </div>
       </Panel>
       <ScheduleSetup
+        applications={assignmentCandidates}
         busyKey={props.busyKey}
         commissions={props.commissions}
         defaultInterviewDate={props.config.defaultInterviewDate}
@@ -1578,6 +1580,7 @@ function AssignmentPlannerCard(props: {
 }
 
 function ScheduleSetup(props: {
+  applications: ManagedApplication[]
   busyKey: string | null
   commissions: ManagedCommission[]
   defaultInterviewDate: string | null
@@ -1595,6 +1598,10 @@ function ScheduleSetup(props: {
       <div className="mt-5 grid gap-4">
         {props.commissions.map((commission) => (
           <CommissionScheduleEditor
+            assignedCount={
+              props.applications.filter((application) => application.commissionId === commission.id)
+                .length
+            }
             busy={props.busyKey === `schedule-${commission.id}`}
             commission={commission}
             defaultInterviewDate={props.defaultInterviewDate}
@@ -1617,16 +1624,21 @@ function ScheduleSetup(props: {
 }
 
 function CommissionScheduleEditor(props: {
+  assignedCount: number
   busy: boolean
   commission: ManagedCommission
   defaultInterviewDate: string | null
   onSave: (intervals: ManagedInterval[]) => Promise<ActionResult>
 }) {
-  const [intervals, setIntervals] = useState(props.commission.interviewIntervals)
-  useEffect(
-    () => setIntervals(props.commission.interviewIntervals),
-    [props.commission.interviewIntervals],
+  const serverIntervalsKey = useMemo(
+    () =>
+      `${props.commission.id}:${serializeInterviewIntervals(props.commission.interviewIntervals)}`,
+    [props.commission.id, props.commission.interviewIntervals],
   )
+  const [intervals, setIntervals] = useState(props.commission.interviewIntervals)
+  useEffect(() => setIntervals(props.commission.interviewIntervals), [serverIntervalsKey])
+  const totalCapacity = generateInterviewSlots(intervals).length
+  const capacityEnough = totalCapacity >= props.assignedCount
 
   function updateInterval(index: number, changes: Partial<ManagedInterval>) {
     setIntervals((current) =>
@@ -1643,8 +1655,16 @@ function CommissionScheduleEditor(props: {
         <div>
           <p className="font-bold">{props.commission.label}</p>
           <p className="mt-1 text-xs text-[#748094]">
-            {intervals.length} {intervals.length === 1 ? 'interval' : 'intervale'} configurate
+            {intervals.length} {intervals.length === 1 ? 'interval' : 'intervale'} configurate ·{' '}
+            {formatInterviewCapacity(totalCapacity)} · {props.assignedCount}{' '}
+            {props.assignedCount === 1 ? 'candidat asignat' : 'candidati asignati'}
           </p>
+          {!capacityEnough && (
+            <p className="mt-1 text-xs font-bold text-amber-700">
+              Mai trebuie cel putin {props.assignedCount - totalCapacity}{' '}
+              {props.assignedCount - totalCapacity === 1 ? 'slot' : 'sloturi'}.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -1665,113 +1685,128 @@ function CommissionScheduleEditor(props: {
         </div>
       </div>
       <div className="mt-4 grid gap-3">
-        {intervals.map((interval, index) => (
-          <div
-            className="rounded-md border border-[#dfe5ec] bg-white p-3"
-            key={`${index}-${interval.startDateTime || 'new'}`}
-          >
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_5.5rem_5.5rem_minmax(15rem,1.4fr)]">
-              <DateTimeInput
-                label="Incepe"
-                onChange={(value) => updateInterval(index, { startDateTime: value })}
-                value={interval.startDateTime}
-              />
-              <DateTimeInput
-                label="Se termina"
-                onChange={(value) => updateInterval(index, { endDateTime: value })}
-                value={interval.endDateTime}
-              />
-              <NumberInput
-                label="Durata (min)"
-                min={1}
-                onChange={(value) => updateInterval(index, { interviewDuration: value })}
-                value={interval.interviewDuration}
-              />
-              <NumberInput
-                label="Pauza (min)"
-                min={0}
-                onChange={(value) => updateInterval(index, { pauseBetween: value })}
-                value={interval.pauseBetween}
-              />
-              <PlaceLocationInput
-                label="Locatie"
-                onChange={(value) => updateInterval(index, { location: value })}
-                value={interval.location}
-              />
-            </div>
-            <div className="mt-3 border-t border-[#edf0f4] pt-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
-                  Pauze
-                </p>
-                <button
-                  className="text-xs font-bold text-[#007fb3] hover:underline"
-                  onClick={() =>
-                    updateInterval(index, {
-                      breaks: [...interval.breaks, { endTime: null, startTime: null }],
-                    })
-                  }
-                  type="button"
-                >
-                  Adauga pauza
-                </button>
-              </div>
-              <div className="mt-2 grid gap-2">
-                {interval.breaks.map((breakItem, breakIndex) => (
-                  <div
-                    className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
-                    key={breakIndex}
-                  >
-                    <TimeInput
-                      label="De la"
-                      onChange={(value) =>
-                        updateIntervalBreak(intervals, setIntervals, index, breakIndex, {
-                          startTime: value,
-                        })
-                      }
-                      value={breakItem.startTime}
-                    />
-                    <TimeInput
-                      label="Pana la"
-                      onChange={(value) =>
-                        updateIntervalBreak(intervals, setIntervals, index, breakIndex, {
-                          endTime: value,
-                        })
-                      }
-                      value={breakItem.endTime}
-                    />
-                    <button
-                      aria-label="Sterge pauza"
-                      className="inline-flex size-9 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 sm:mt-5"
-                      onClick={() =>
-                        updateInterval(index, {
-                          breaks: interval.breaks.filter(
-                            (_, itemIndex) => itemIndex !== breakIndex,
-                          ),
-                        })
-                      }
-                      type="button"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </div>
-                ))}
-                {interval.breaks.length === 0 && (
-                  <p className="text-xs text-[#748094]">Nu sunt pauze configurate.</p>
-                )}
-              </div>
-            </div>
-            <button
-              className="mt-3 text-xs font-bold text-red-600 hover:underline"
-              onClick={() =>
-                setIntervals((current) => current.filter((_, itemIndex) => itemIndex !== index))
-              }
-              type="button"
+        {intervals.map((interval, index) => {
+          const intervalCapacity = generateInterviewSlots([interval]).length
+          return (
+            <div
+              className="rounded-md border border-[#dfe5ec] bg-white p-3"
+              key={`${index}-${interval.startDateTime || 'new'}`}
             >
-              Sterge ziua
-            </button>
-          </div>
-        ))}
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
+                  Interval {index + 1}
+                </p>
+                <span
+                  className={`rounded-full px-2 py-1 text-xs font-bold ${
+                    intervalCapacity > 0 ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800'
+                  }`}
+                >
+                  {formatInterviewCapacity(intervalCapacity)}
+                </span>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_5.5rem_5.5rem_minmax(15rem,1.4fr)]">
+                <DateTimeInput
+                  label="Incepe"
+                  onChange={(value) => updateInterval(index, { startDateTime: value })}
+                  value={interval.startDateTime}
+                />
+                <DateTimeInput
+                  label="Se termina"
+                  onChange={(value) => updateInterval(index, { endDateTime: value })}
+                  value={interval.endDateTime}
+                />
+                <NumberInput
+                  label="Durata (min)"
+                  min={1}
+                  onChange={(value) => updateInterval(index, { interviewDuration: value })}
+                  value={interval.interviewDuration}
+                />
+                <NumberInput
+                  label="Pauza (min)"
+                  min={0}
+                  onChange={(value) => updateInterval(index, { pauseBetween: value })}
+                  value={interval.pauseBetween}
+                />
+                <PlaceLocationInput
+                  label="Locatie"
+                  onChange={(value) => updateInterval(index, { location: value })}
+                  value={interval.location}
+                />
+              </div>
+              <div className="mt-3 border-t border-[#edf0f4] pt-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
+                    Pauze
+                  </p>
+                  <button
+                    className="text-xs font-bold text-[#007fb3] hover:underline"
+                    onClick={() =>
+                      updateInterval(index, {
+                        breaks: [...interval.breaks, { endTime: null, startTime: null }],
+                      })
+                    }
+                    type="button"
+                  >
+                    Adauga pauza
+                  </button>
+                </div>
+                <div className="mt-2 grid gap-2">
+                  {interval.breaks.map((breakItem, breakIndex) => (
+                    <div
+                      className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                      key={breakIndex}
+                    >
+                      <TimeInput
+                        label="De la"
+                        onChange={(value) =>
+                          updateIntervalBreak(intervals, setIntervals, index, breakIndex, {
+                            startTime: value,
+                          })
+                        }
+                        value={breakItem.startTime}
+                      />
+                      <TimeInput
+                        label="Pana la"
+                        onChange={(value) =>
+                          updateIntervalBreak(intervals, setIntervals, index, breakIndex, {
+                            endTime: value,
+                          })
+                        }
+                        value={breakItem.endTime}
+                      />
+                      <button
+                        aria-label="Sterge pauza"
+                        className="inline-flex size-9 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 sm:mt-5"
+                        onClick={() =>
+                          updateInterval(index, {
+                            breaks: interval.breaks.filter(
+                              (_, itemIndex) => itemIndex !== breakIndex,
+                            ),
+                          })
+                        }
+                        type="button"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {interval.breaks.length === 0 && (
+                    <p className="text-xs text-[#748094]">Nu sunt pauze configurate.</p>
+                  )}
+                </div>
+              </div>
+              <button
+                className="mt-3 text-xs font-bold text-red-600 hover:underline"
+                onClick={() =>
+                  setIntervals((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                }
+                type="button"
+              >
+                Sterge ziua
+              </button>
+            </div>
+          )
+        })}
         {intervals.length === 0 && (
           <p className="py-3 text-sm text-[#748094]">
             Adauga cel putin un interval pentru a putea trimite invitatii.
@@ -3220,6 +3255,25 @@ function getEligibleCommissions(application: ManagedApplication, commissions: Ma
   return commissions.filter(
     (commission) => getCommissionEligibility(application, commission).eligible,
   )
+}
+function serializeInterviewIntervals(intervals: ManagedInterval[]) {
+  return JSON.stringify(
+    intervals.map((interval) => ({
+      breaks: interval.breaks.map((item) => ({
+        endTime: item.endTime ?? null,
+        startTime: item.startTime ?? null,
+      })),
+      endDateTime: interval.endDateTime ?? null,
+      interviewDuration: interval.interviewDuration ?? null,
+      location: interval.location ?? null,
+      pauseBetween: interval.pauseBetween ?? null,
+      startDateTime: interval.startDateTime ?? null,
+    })),
+  )
+}
+function formatInterviewCapacity(value: number) {
+  if (value === 1) return '1 candidat poate fi programat'
+  return `${value} candidati pot fi programati`
 }
 function shuffleWithRandom<T>(items: T[], random: () => number) {
   const copy = [...items]

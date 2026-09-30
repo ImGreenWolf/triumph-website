@@ -485,6 +485,72 @@ describe('review result and interview scheduling emails', () => {
     expect(result.applications[0]?.interviewMailSentAt).toEqual(expect.any(String))
   })
 
+  it('does not send interview mails when commission slots do not cover assigned candidates', async () => {
+    const candidates = [
+      makeApplication('accepted-1', 'interview', { comission: 'commission-1' }),
+      makeApplication('accepted-2', 'interview', { comission: 'commission-1' }),
+    ] as Application[]
+    const sendEmail = vi.fn().mockResolvedValue(undefined)
+    const findByID = vi.fn().mockResolvedValue(
+      createCommission({
+        interviewIntervals: [
+          {
+            breaks: [],
+            endDateTime: '2099-01-01T09:20:00.000Z',
+            interviewDuration: 20,
+            location: { name: 'Club HQ' },
+            pauseBetween: 5,
+            startDateTime: '2099-01-01T09:00:00.000Z',
+          },
+        ],
+      }),
+    )
+    const find = vi.fn().mockImplementation(async ({ where }) => {
+      const statusWhere =
+        where?.['reviewProcess.status'] ??
+        where?.and?.find((clause: Record<string, unknown>) => 'reviewProcess.status' in clause)?.[
+          'reviewProcess.status'
+        ]
+      const statuses = statusWhere?.in as string[] | undefined
+      const status = statusWhere?.equals as string | undefined
+      const docs = candidates.filter((candidate) => {
+        const candidateStatus = candidate.reviewProcess?.status
+        return statuses ? statuses.includes(candidateStatus ?? '') : candidateStatus === status
+      })
+      return { docs, totalDocs: docs.length }
+    })
+    const update = vi.fn()
+
+    getPayloadMock.mockResolvedValueOnce({
+      auth: vi.fn().mockResolvedValue({ user: boardUser }),
+      find,
+      findByID,
+      findGlobal: vi.fn().mockResolvedValue({
+        recruitment: { interviewSchedulingDeadline: '2099-01-01T00:00:00.000Z' },
+      }),
+      sendEmail,
+      update,
+    })
+
+    const response = (await PATCH(
+      new Request('http://localhost/members/recruitment/applications', {
+        body: JSON.stringify({ action: 'send-interview-mails' }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+      }),
+    )) as Response
+
+    expect(response.status).toBe(200)
+    expect(sendEmail).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
+
+    const result = (await response.json()) as {
+      mailBatch: { failed: number; sent: number; skipped: number; warnings: string[] }
+    }
+    expect(result.mailBatch).toMatchObject({ failed: 0, sent: 0, skipped: 2 })
+    expect(result.mailBatch.warnings[0]).toContain('1 sloturi pentru 2 candidati')
+  })
+
   it('resends one rejected review result email when an application id is provided', async () => {
     const candidates = [
       makeApplication('rejected-1', 'submission-rejected'),
@@ -702,7 +768,7 @@ describe('bulk assignment wizard route', () => {
   })
 })
 
-function createCommission() {
+function createCommission(overrides: Record<string, unknown> = {}) {
   return {
     commissionNumber: 1,
     coordinators: ['coordinator-1'],
@@ -723,6 +789,7 @@ function createCommission() {
         coordinator: 'coordinator-1',
       },
     ],
+    ...overrides,
   }
 }
 

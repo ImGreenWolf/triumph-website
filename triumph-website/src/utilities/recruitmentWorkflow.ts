@@ -1,4 +1,8 @@
-import { validateInterviewIntervals, type InterviewIntervalInput } from './interviewSchedule'
+import {
+  generateInterviewSlots,
+  validateInterviewIntervals,
+  type InterviewIntervalInput,
+} from './interviewSchedule'
 
 export const recruitmentSteps = [
   { key: 'forms', label: 'Review formulare', number: 1 },
@@ -141,6 +145,15 @@ export function getRecruitmentWorkflowState(args: {
     if (!validity.valid) {
       assignmentBlockers.push(
         `${getCommissionLabel(commission)}: ${validity.errors[0] || 'program invalid.'}`,
+      )
+    }
+    const assignedCount = assigned.filter(
+      (application) => application.commissionId === commission.id,
+    ).length
+    const slotCount = generateInterviewSlots(commission.interviewIntervals).length
+    if (slotCount < assignedCount) {
+      assignmentBlockers.push(
+        `${getCommissionLabel(commission)}: ${slotCount} sloturi pentru ${assignedCount} candidati.`,
       )
     }
   }
