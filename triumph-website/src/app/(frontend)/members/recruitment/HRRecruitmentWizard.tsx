@@ -1247,24 +1247,52 @@ function AssignmentRow(props: {
       <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {props.commissions.map((commission) => {
           const eligibility = getCommissionEligibility(props.application, commission)
+          const conflictCoordinators = getCommissionConflictCoordinators(
+            props.application,
+            commission,
+          )
           const key = `assign-${props.application.id}-${commission.id}`
           return (
             <div
-              className={`rounded-md border p-3 ${eligibility.eligible ? 'border-emerald-200 bg-white' : 'border-[#e4e8ef] bg-white/60'}`}
+              className={`rounded-md border p-3 ${
+                conflictCoordinators.length > 0
+                  ? 'border-amber-300 bg-amber-50/70'
+                  : eligibility.eligible
+                    ? 'border-emerald-200 bg-white'
+                    : 'border-[#e4e8ef] bg-white/60'
+              }`}
               key={commission.id}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-bold">{commission.label}</span>
-                {eligibility.eligible ? (
+                {conflictCoordinators.length > 0 ? (
+                  <AlertTriangle className="size-4 text-amber-600" />
+                ) : eligibility.eligible ? (
                   <CheckCircle2 className="size-4 text-emerald-600" />
                 ) : (
-                  <AlertTriangle className="size-4 text-amber-600" />
+                  <AlertTriangle className="size-4 text-[#748094]" />
                 )}
               </div>
+              <p className="mt-1 text-xs leading-4 text-[#526071]">
+                Coordonatori:{' '}
+                {commission.coordinators.length > 0
+                  ? commission.coordinators.map((coordinator) => coordinator.name).join(', ')
+                  : 'neconfigurati'}
+              </p>
               <p
-                className={`mt-2 min-h-8 text-xs leading-4 ${eligibility.eligible ? 'text-emerald-700' : 'text-[#748094]'}`}
+                className={`mt-2 min-h-8 text-xs font-semibold leading-4 ${
+                  conflictCoordinators.length > 0
+                    ? 'text-amber-700'
+                    : eligibility.eligible
+                      ? 'text-emerald-700'
+                      : 'text-[#748094]'
+                }`}
               >
-                {eligibility.eligible ? 'Eligibila pentru asignare.' : eligibility.reason}
+                {conflictCoordinators.length > 0
+                  ? `Conflict cu ${conflictCoordinators.map((coordinator) => coordinator.name).join(', ')}`
+                  : eligibility.eligible
+                    ? 'Eligibila pentru asignare.'
+                    : eligibility.reason}
               </p>
               <button
                 className="mt-3 inline-flex h-8 w-full items-center justify-center rounded-md bg-[#141e34] px-2 text-xs font-bold text-white transition hover:bg-[#243454] disabled:cursor-not-allowed disabled:opacity-45"
@@ -1305,6 +1333,13 @@ function AssignmentPlannerBoard(props: {
   const applicationsByID = new Map(
     props.applications.map((application) => [application.id, application]),
   )
+  const commissionColumns = props.commissions.reduce<[ManagedCommission[], ManagedCommission[]]>(
+    (columns, commission, index) => {
+      columns[index % 2].push(commission)
+      return columns
+    },
+    [[], []],
+  )
 
   function toggleCollapsed(sectionID: string) {
     setCollapsed((current) => ({ ...current, [sectionID]: !current[sectionID] }))
@@ -1339,64 +1374,78 @@ function AssignmentPlannerBoard(props: {
   }
 
   return (
-    <div className="mt-5 grid gap-3 xl:grid-cols-3">
-      {props.commissions.map((commission) => {
-        const applications = props.applications.filter(
-          (application) => props.draft[application.id] === commission.id,
-        )
-        const ready = applications.every(
-          (application) => getCommissionEligibility(application, commission).eligible,
-        )
-        return (
-          <AssignmentPlannerSection
-            collapsed={Boolean(collapsed[commission.id])}
-            count={applications.length}
-            emptyText="Fara candidati in plan."
-            key={commission.id}
-            onDragOver={handleDragOver}
-            onDrop={(event) => handleDrop(event, commission)}
-            onToggle={() => toggleCollapsed(commission.id)}
-            ready={ready}
-            title={commission.label}
-            tone="default"
-          >
-            {applications.map((application) => (
-              <AssignmentPlannerCard
-                application={application}
-                commissions={props.commissions}
-                currentCommissionId={commission.id}
-                fixed={props.fixedAssignmentIds.has(application.id)}
-                key={application.id}
-                onOpen={props.onOpen}
-                onToggleFixed={props.onToggleFixed}
-              />
-            ))}
-          </AssignmentPlannerSection>
-        )
-      })}
-      <AssignmentPlannerSection
-        collapsed={Boolean(collapsed.unassigned)}
-        count={unassigned.length}
-        emptyText="Toata lumea are o comisie in plan."
-        onDragOver={handleDragOver}
-        onDrop={(event) => handleDrop(event, null)}
-        onToggle={() => toggleCollapsed('unassigned')}
-        ready
-        title="Fara comisie"
-        tone="warning"
-      >
-        {unassigned.map((application) => (
-          <AssignmentPlannerCard
-            application={application}
-            commissions={props.commissions}
-            currentCommissionId={null}
-            fixed={props.fixedAssignmentIds.has(application.id)}
-            key={application.id}
-            onOpen={props.onOpen}
-            onToggleFixed={props.onToggleFixed}
-          />
+    <div className="mt-5 grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
+      <div className="flex min-w-0 flex-col gap-3 md:flex-row">
+        {commissionColumns.map((column, columnIndex) => (
+          <div className="flex min-w-0 flex-1 flex-col gap-3" key={columnIndex}>
+            {column.map((commission) => {
+              const applications = props.applications.filter(
+                (application) => props.draft[application.id] === commission.id,
+              )
+              const conflictCount = applications.filter(
+                (application) =>
+                  getCommissionConflictCoordinators(application, commission).length > 0,
+              ).length
+              const ready = applications.every(
+                (application) => getCommissionEligibility(application, commission).eligible,
+              )
+              return (
+                <AssignmentPlannerSection
+                  collapsed={Boolean(collapsed[commission.id])}
+                  conflictCount={conflictCount}
+                  coordinatorNames={commission.coordinators.map((coordinator) => coordinator.name)}
+                  count={applications.length}
+                  emptyText="Fara candidati in plan."
+                  key={commission.id}
+                  onDragOver={handleDragOver}
+                  onDrop={(event) => handleDrop(event, commission)}
+                  onToggle={() => toggleCollapsed(commission.id)}
+                  ready={ready}
+                  title={commission.label}
+                  tone="default"
+                >
+                  {applications.map((application) => (
+                    <AssignmentPlannerCard
+                      application={application}
+                      commissions={props.commissions}
+                      currentCommissionId={commission.id}
+                      fixed={props.fixedAssignmentIds.has(application.id)}
+                      key={application.id}
+                      onOpen={props.onOpen}
+                      onToggleFixed={props.onToggleFixed}
+                    />
+                  ))}
+                </AssignmentPlannerSection>
+              )
+            })}
+          </div>
         ))}
-      </AssignmentPlannerSection>
+      </div>
+      <div className="xl:sticky xl:top-24">
+        <AssignmentPlannerSection
+          collapsed={Boolean(collapsed.unassigned)}
+          count={unassigned.length}
+          emptyText="Toata lumea are o comisie in plan."
+          onDragOver={handleDragOver}
+          onDrop={(event) => handleDrop(event, null)}
+          onToggle={() => toggleCollapsed('unassigned')}
+          ready
+          title="Fara comisie"
+          tone="warning"
+        >
+          {unassigned.map((application) => (
+            <AssignmentPlannerCard
+              application={application}
+              commissions={props.commissions}
+              currentCommissionId={null}
+              fixed={props.fixedAssignmentIds.has(application.id)}
+              key={application.id}
+              onOpen={props.onOpen}
+              onToggleFixed={props.onToggleFixed}
+            />
+          ))}
+        </AssignmentPlannerSection>
+      </div>
     </div>
   )
 }
@@ -1446,6 +1495,8 @@ function AssignmentBalanceNotice(props: { summary: AssignmentBalanceSummary }) {
 function AssignmentPlannerSection(props: {
   children: ReactNode
   collapsed: boolean
+  conflictCount?: number
+  coordinatorNames?: string[]
   count: number
   emptyText: string
   onDragOver: (event: DragEvent<HTMLElement>) => void
@@ -1458,7 +1509,7 @@ function AssignmentPlannerSection(props: {
   const warning = props.tone === 'warning'
   return (
     <section
-      className={`min-h-48 rounded-md border p-3 ${
+      className={`min-h-48 min-w-0 overflow-hidden rounded-md border p-3 ${
         warning ? 'border-amber-200 bg-amber-50' : 'border-[#dfe5ec] bg-[#f8fafc]'
       }`}
       onDragOver={props.onDragOver}
@@ -1466,18 +1517,33 @@ function AssignmentPlannerSection(props: {
     >
       <div className="flex items-start justify-between gap-3">
         <button
-          className={`flex min-w-0 items-start gap-2 text-left ${warning ? 'text-amber-950' : 'text-[#152039]'}`}
+          className={`flex min-w-0 flex-1 items-start gap-2 text-left ${warning ? 'text-amber-950' : 'text-[#152039]'}`}
           onClick={props.onToggle}
           type="button"
         >
           <ChevronRight
             className={`mt-0.5 size-4 shrink-0 transition-transform ${props.collapsed ? '' : 'rotate-90'}`}
           />
-          <span className="min-w-0">
+          <span className="min-w-0 flex-1">
             <span className="block truncate font-bold">{props.title}</span>
             <span className={`mt-1 block text-xs ${warning ? 'text-amber-800' : 'text-[#748094]'}`}>
               {props.count} {props.count === 1 ? 'candidat' : 'candidati'}
             </span>
+            {props.coordinatorNames && (
+              <span
+                className={`mt-1 block text-xs leading-4 ${warning ? 'text-amber-800' : 'text-[#526071]'}`}
+              >
+                Coordonatori:{' '}
+                {props.coordinatorNames.length > 0
+                  ? props.coordinatorNames.join(', ')
+                  : 'neconfigurati'}
+              </span>
+            )}
+            {props.conflictCount ? (
+              <span className="mt-2 inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+                {props.conflictCount} conflict{props.conflictCount === 1 ? '' : 'e'} cu coordonatori
+              </span>
+            ) : null}
           </span>
         </button>
         {props.ready ? (
@@ -1524,11 +1590,16 @@ function AssignmentPlannerCard(props: {
   const currentEligibility = currentCommission
     ? getCommissionEligibility(props.application, currentCommission)
     : null
-  const hasCurrentConflict = currentEligibility ? !currentEligibility.eligible : false
+  const currentConflictCoordinators = currentCommission
+    ? getCommissionConflictCoordinators(props.application, currentCommission)
+    : []
+  const hasCurrentConflict = currentConflictCoordinators.length > 0
 
   return (
     <article
-      className={`rounded-md border bg-white p-3 ${hasCurrentConflict ? 'border-amber-300' : 'border-[#e4e8ef]'}`}
+      className={`min-w-0 overflow-hidden rounded-md border bg-white p-3 ${
+        hasCurrentConflict ? 'border-amber-300 bg-amber-50/70' : 'border-[#e4e8ef]'
+      }`}
       draggable={!props.fixed}
       onDragStart={(event) => {
         if (props.fixed) return
@@ -1537,8 +1608,8 @@ function AssignmentPlannerCard(props: {
         event.dataTransfer.setData('text/plain', props.application.id)
       }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 cursor-grab active:cursor-grabbing">
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <div className="min-w-0 flex-1 cursor-grab active:cursor-grabbing">
           <p className="truncate text-sm font-bold">{props.application.name}</p>
           <p className="mt-1 truncate text-xs text-[#748094]">{props.application.email}</p>
         </div>
@@ -1551,13 +1622,18 @@ function AssignmentPlannerCard(props: {
           <FileText className="size-4" />
         </button>
       </div>
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="mt-3 flex min-w-0 items-start justify-between gap-2">
         {hasCurrentConflict ? (
-          <p className="text-xs font-semibold leading-5 text-amber-700">
-            {currentEligibility?.reason}
+          <p className="min-w-0 flex-1 break-words text-xs font-semibold leading-5 text-amber-700">
+            Conflict cu{' '}
+            {currentConflictCoordinators.map((coordinator) => coordinator.name).join(', ')}
+          </p>
+        ) : currentEligibility && !currentEligibility.eligible ? (
+          <p className="min-w-0 flex-1 break-words text-xs font-semibold leading-5 text-amber-700">
+            {currentEligibility.reason}
           </p>
         ) : (
-          <p className="text-xs font-semibold text-[#748094]">
+          <p className="min-w-0 flex-1 text-xs font-semibold text-[#748094]">
             {eligibleCommissions.length} comisii eligibile
           </p>
         )}
@@ -2971,6 +3047,14 @@ function getCommissionEligibility(application: ManagedApplication, commission: M
   if (known.length)
     return { eligible: false, reason: `${known.length} coordonator(i) cunosc candidatul.` }
   return { eligible: true, reason: '' }
+}
+function getCommissionConflictCoordinators(
+  application: ManagedApplication,
+  commission: ManagedCommission,
+) {
+  return commission.coordinators.filter((coordinator) =>
+    application.knownCoordinatorIds.includes(coordinator.id),
+  )
 }
 type AssignmentBalanceSummary = {
   expectedMax: number
