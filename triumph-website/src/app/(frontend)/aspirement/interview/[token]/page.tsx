@@ -3,13 +3,16 @@ import type { Metadata } from 'next'
 import payloadConfig from '@payload-config'
 import { getPayload } from 'payload'
 
-import type { Application, AspirementConfig, Comission } from '@/payload-types'
+import type { Application, AspirementConfig, Comission, User } from '@/payload-types'
 import {
   generateInterviewSlots,
   type RecruitmentApplication,
 } from '@/utilities/aspirementRecruitment'
 
-import ScheduleInterviewClient, { type InterviewScheduleSlot } from './ScheduleInterviewClient'
+import ScheduleInterviewClient, {
+  type InterviewCoordinatorContact,
+  type InterviewScheduleSlot,
+} from './ScheduleInterviewClient'
 
 type Args = {
   params: Promise<{
@@ -38,6 +41,7 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
     return (
       <ScheduleInterviewClient
         candidateName="candidat"
+        coordinatorContacts={[]}
         currentInterviewDate={null}
         deadline={null}
         slots={[]}
@@ -59,10 +63,12 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
     application,
     commission,
   })
+  const coordinatorContacts = getCoordinatorContacts(commission)
 
   return (
     <ScheduleInterviewClient
       candidateName={application.name}
+      coordinatorContacts={coordinatorContacts}
       currentInterviewDate={normalizeDate(application.reviewProcess?.interviewDate)}
       deadline={deadline}
       slots={slots}
@@ -150,7 +156,7 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
     try {
       return await payload.findByID({
         collection: 'comissions',
-        depth: 0,
+        depth: 1,
         id,
         overrideAccess: true,
       })
@@ -158,6 +164,26 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
       return null
     }
   }
+}
+
+function getCoordinatorContacts(commission: Comission | null): InterviewCoordinatorContact[] {
+  if (!commission) return []
+
+  return (commission.coordinators ?? [])
+    .map((coordinator) => {
+      if (!coordinator || typeof coordinator !== 'object') return null
+
+      const user = coordinator as User
+      const name = user.name?.trim()
+      if (!name) return null
+
+      return {
+        id: user.id,
+        name,
+        phone: user.phone?.trim() || null,
+      }
+    })
+    .filter((contact): contact is InterviewCoordinatorContact => Boolean(contact))
 }
 
 function getUnavailableMessage(application: RecruitmentApplication, deadline: string | null) {

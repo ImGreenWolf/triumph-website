@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarClock, CheckCircle2, Clock3, XCircle } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Clock3, Phone, Users, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useHeaderTheme } from '@/providers/HeaderTheme'
@@ -15,6 +15,12 @@ export type InterviewScheduleSlot = {
   start: string
 }
 
+export type InterviewCoordinatorContact = {
+  id: string
+  name: string
+  phone: string | null
+}
+
 type DayGroup = {
   availableCount: number
   date: Date
@@ -26,6 +32,7 @@ type DayGroup = {
 
 export default function ScheduleInterviewClient(props: {
   candidateName: string
+  coordinatorContacts: InterviewCoordinatorContact[]
   currentInterviewDate: string | null
   deadline: string | null
   slots: InterviewScheduleSlot[]
@@ -289,6 +296,28 @@ export default function ScheduleInterviewClient(props: {
                   <p className="mt-1 text-sm font-medium text-[#748094]">{selected.location}</p>
                 )}
               </div>
+              {props.coordinatorContacts.length > 0 && (
+                <div className="mt-4 rounded-xl border border-[#e5e9ef] bg-white p-4">
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-[#748094]">
+                    <Users className="size-4" />
+                    Coordonatori comisie
+                  </p>
+                  <div className="mt-3 grid gap-2">
+                    {props.coordinatorContacts.map((coordinator) => (
+                      <div
+                        className="rounded-lg border border-[#edf0f4] bg-[#f7f9fc] px-3 py-2"
+                        key={coordinator.id}
+                      >
+                        <p className="text-sm font-bold text-[#152039]">{coordinator.name}</p>
+                        <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-[#748094]">
+                          <Phone className="size-3.5 shrink-0" />
+                          {coordinator.phone || 'Telefon indisponibil'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {notice && <StatusPanel kind={notice.kind} message={notice.message} />}
               <button
                 className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#00a2e0] px-4 text-sm font-bold text-white transition hover:bg-[#008fc7] disabled:cursor-not-allowed disabled:opacity-60"
