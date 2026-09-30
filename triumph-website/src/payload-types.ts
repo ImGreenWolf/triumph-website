@@ -2227,6 +2227,7 @@ export interface Comission {
           | number
           | boolean
           | null;
+        onlineInterview?: boolean | null;
         startDateTime?: string | null;
         endDateTime?: string | null;
         interviewDuration?: number | null;
@@ -3610,6 +3611,7 @@ export interface ComissionsSelect<T extends boolean = true> {
     | T
     | {
         location?: T;
+        onlineInterview?: T;
         startDateTime?: T;
         endDateTime?: T;
         interviewDuration?: T;

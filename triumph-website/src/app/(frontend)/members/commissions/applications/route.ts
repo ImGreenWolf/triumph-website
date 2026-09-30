@@ -1550,7 +1550,18 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
 function serializeCommissionUpdate(commission: ExtendedCommission) {
   return {
     id: commission.id,
-    interviewIntervals: commission.interviewIntervals ?? [],
+    interviewIntervals: (commission.interviewIntervals ?? []).map((interval) => ({
+      breaks: (interval.breaks ?? []).map((item) => ({
+        endTime: item.endTime ?? null,
+        startTime: item.startTime ?? null,
+      })),
+      endDateTime: interval.endDateTime ?? null,
+      interviewDuration: interval.interviewDuration ?? null,
+      location: interval.location ?? null,
+      onlineInterview: Boolean(interval.onlineInterview),
+      pauseBetween: interval.pauseBetween ?? null,
+      startDateTime: interval.startDateTime ?? null,
+    })),
     recruitmentReviews: (commission.recruitmentReviews ?? []).map((review) => ({
       confirmedAt: review.confirmedAt,
       coordinatorId: getRelationshipID(review.coordinator),
@@ -1633,6 +1644,7 @@ function normalizeInterviewIntervals(value: unknown) {
       endDateTime: normalizeOptionalText(interval.endDateTime) ?? null,
       interviewDuration: normalizeNumber(interval.interviewDuration),
       location: interval.location ?? null,
+      onlineInterview: interval.onlineInterview === true,
       pauseBetween: normalizeNumber(interval.pauseBetween) ?? 0,
       startDateTime: normalizeOptionalText(interval.startDateTime) ?? null,
     }

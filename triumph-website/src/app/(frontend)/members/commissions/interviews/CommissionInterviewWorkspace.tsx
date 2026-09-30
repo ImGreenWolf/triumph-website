@@ -39,9 +39,12 @@ export type InterviewWorkspaceInterval = {
   endDateTime: string | null
   interviewDuration: number | null
   location: GooglePlaceLocation | null
+  onlineInterview: boolean
   pauseBetween: number | null
   startDateTime: string | null
 }
+
+type GeneratedInterviewSlot = ReturnType<typeof generateInterviewSlots>[number]
 
 export type InterviewWorkspaceCommission = {
   coordinators: InterviewWorkspaceUser[]
@@ -156,6 +159,12 @@ export default function CommissionInterviewWorkspace(props: {
     scheduled[0] ??
     activeCandidates[0] ??
     null
+  const selectedInterviewSlot =
+    selectedApplication?.interviewDate && commission
+      ? (generateInterviewSlots(commission.interviewIntervals).find(
+          (slot) => slot.start === selectedApplication.interviewDate,
+        ) ?? null)
+      : null
 
   function updateApplication(patch: ApplicationPatch) {
     setApplications((current) =>
@@ -316,6 +325,7 @@ export default function CommissionInterviewWorkspace(props: {
               application={selectedApplication}
               busyKey={busyKey}
               deadline={props.schedulingDeadline}
+              interviewSlot={selectedInterviewSlot}
               isReadOnly={isReadOnly}
               onAction={runAction}
               onOpenDetails={() => setDetailsOpen(true)}
@@ -435,6 +445,7 @@ function CandidateWorkspace(props: {
   application: InterviewWorkspaceApplication
   busyKey: string | null
   deadline: string | null
+  interviewSlot: GeneratedInterviewSlot | null
   isReadOnly: boolean
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
   onOpenDetails: () => void
@@ -474,6 +485,11 @@ function CandidateWorkspace(props: {
                 ? formatDateTime(application.interviewDate)
                 : 'Neprogramat'}
             </p>
+            {props.interviewSlot?.onlineInterview && (
+              <p className="mt-1 text-xs font-black uppercase tracking-[0.08em] text-[#007fb3]">
+                Online interview
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -810,7 +826,7 @@ function ScheduleSettings(props: {
                       {formatInterviewCapacity(intervalCapacity)}
                     </span>
                   </div>
-                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_5.5rem_5.5rem_minmax(15rem,1.4fr)] gap-2">
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_5.5rem_5.5rem_minmax(15rem,1.4fr)_8rem]">
                     <DateTimeField
                       label="Incepe"
                       onChange={(value) => update(index, { startDateTime: value })}
@@ -835,6 +851,11 @@ function ScheduleSettings(props: {
                       label="Locație"
                       onChange={(value) => update(index, { location: value })}
                       value={interval.location}
+                    />
+                    <CheckboxField
+                      checked={interval.onlineInterview}
+                      label="Online interview"
+                      onChange={(value) => update(index, { onlineInterview: value })}
                     />
                   </div>
                   <div className="mt-3 border-t border-[#e4e8ef] pt-3">
@@ -962,9 +983,14 @@ function InterviewSlotsPreview(props: { slots: ReturnType<typeof generateIntervi
               key={slot.id}
             >
               <span className="text-sm font-bold text-[#152039]">{slot.label}</span>
-              {slot.location && (
-                <span className="text-xs font-semibold text-[#748094]">{slot.location}</span>
-              )}
+              <span className="flex flex-wrap gap-2 text-xs font-semibold text-[#748094]">
+                {slot.onlineInterview && (
+                  <span className="rounded-full bg-[#eef9ff] px-2 py-0.5 text-[#007fb3]">
+                    Online
+                  </span>
+                )}
+                {slot.location && <span>{slot.location}</span>}
+              </span>
             </div>
           ))
         ) : (
@@ -1062,6 +1088,23 @@ function NumberField(props: {
     </label>
   )
 }
+function CheckboxField(props: {
+  checked: boolean
+  label: string
+  onChange: (value: boolean) => void
+}) {
+  return (
+    <label className="flex min-h-9 items-center gap-2 rounded-md border border-[#dfe5ec] bg-white px-3 text-xs font-bold text-[#526071]">
+      <input
+        checked={props.checked}
+        className="size-4 rounded border-[#cdd5df]"
+        onChange={(event) => props.onChange(event.target.checked)}
+        type="checkbox"
+      />
+      <span>{props.label}</span>
+    </label>
+  )
+}
 function PlaceLocationField(props: {
   label: string
   onChange: (value: GooglePlaceLocation | null) => void
@@ -1119,6 +1162,7 @@ function createInterval(defaultDate: string | null): InterviewWorkspaceInterval 
     endDateTime: `${date}T17:00:00.000`,
     interviewDuration: 20,
     location: null,
+    onlineInterview: false,
     pauseBetween: 5,
     startDateTime: `${date}T09:00:00.000`,
   }
@@ -1133,6 +1177,7 @@ function serializeInterviewIntervals(intervals: InterviewWorkspaceInterval[]) {
       endDateTime: interval.endDateTime ?? null,
       interviewDuration: interval.interviewDuration ?? null,
       location: interval.location ?? null,
+      onlineInterview: interval.onlineInterview,
       pauseBetween: interval.pauseBetween ?? null,
       startDateTime: interval.startDateTime ?? null,
     })),

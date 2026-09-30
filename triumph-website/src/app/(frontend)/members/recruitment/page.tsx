@@ -98,6 +98,7 @@ function serializeCommission(commission: Comission): ManagedCommission {
       endDateTime: normalizeDate(interval.endDateTime),
       interviewDuration: interval.interviewDuration ?? null,
       location: normalizeGooglePlace(interval.location),
+      onlineInterview: Boolean(interval.onlineInterview),
       pauseBetween: interval.pauseBetween ?? null,
       startDateTime: normalizeDate(interval.startDateTime),
     })),

@@ -16,9 +16,9 @@ const canReadCommission: Access = ({ req }) => {
 
 export const Comissions: CollectionConfig = {
   slug: 'comissions',
-    labels: {
-    plural: "Comisii",
-    singular: "Comisie",
+  labels: {
+    plural: 'Comisii',
+    singular: 'Comisie',
   },
   access: {
     read: canReadCommission,
@@ -73,7 +73,7 @@ export const Comissions: CollectionConfig = {
           name: 'confirmedAt',
           type: 'date',
           required: true,
-          defaultValue: new Date()
+          defaultValue: new Date(),
         },
       ],
     },
@@ -85,24 +85,30 @@ export const Comissions: CollectionConfig = {
         description: 'Adauga o zi pentru a programa interview-uri cu aspirantii.',
       },
       fields: [
-        locationField({label: 'interviewLocation'}),
+        locationField({ label: 'interviewLocation' }),
+        {
+          name: 'onlineInterview',
+          label: 'Online interview',
+          type: 'checkbox',
+          defaultValue: false,
+        },
         {
           name: 'startDateTime',
           type: 'date',
           admin: {
             date: {
-              pickerAppearance: 'dayAndTime'
-            }
-          }
+              pickerAppearance: 'dayAndTime',
+            },
+          },
         },
         {
           name: 'endDateTime',
           type: 'date',
           admin: {
             date: {
-              pickerAppearance: 'dayAndTime'
-            }
-          }
+              pickerAppearance: 'dayAndTime',
+            },
+          },
         },
         {
           name: 'interviewDuration',
@@ -121,18 +127,18 @@ export const Comissions: CollectionConfig = {
               type: 'date',
               admin: {
                 date: {
-                  pickerAppearance: 'timeOnly'
-                }
-              }
+                  pickerAppearance: 'timeOnly',
+                },
+              },
             },
             {
               name: 'endTime',
               type: 'date',
               admin: {
                 date: {
-                  pickerAppearance: 'timeOnly'
-                }
-              }
+                  pickerAppearance: 'timeOnly',
+                },
+              },
             },
           ],
         },

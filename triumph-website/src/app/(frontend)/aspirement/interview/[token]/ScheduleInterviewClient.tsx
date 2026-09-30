@@ -12,6 +12,7 @@ export type InterviewScheduleSlot = {
   isCurrent: boolean
   label: string
   location?: string
+  onlineInterview: boolean
   start: string
 }
 
@@ -294,6 +295,11 @@ export default function ScheduleInterviewClient(props: {
                 </p>
                 {selected?.location && (
                   <p className="mt-1 text-sm font-medium text-[#748094]">{selected.location}</p>
+                )}
+                {selected?.onlineInterview && (
+                  <p className="mt-2 inline-flex rounded-full bg-[#eef9ff] px-2 py-1 text-xs font-black uppercase tracking-[0.08em] text-[#007fb3]">
+                    Online interview
+                  </p>
                 )}
               </div>
               {props.coordinatorContacts.length > 0 && (

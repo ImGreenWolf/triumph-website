@@ -36,6 +36,7 @@ export type InterviewSlot = {
   id: string
   label: string
   location?: string
+  onlineInterview: boolean
   start: string
 }
 
@@ -44,6 +45,7 @@ export type InterviewIntervalInput = {
   endDateTime?: string | null
   interviewDuration?: number | null
   location?: unknown
+  onlineInterview?: boolean | null
   pauseBetween?: number | null
   startDateTime?: string | null
 }
@@ -115,6 +117,7 @@ export function generateInterviewSlots(intervals: InterviewIntervalInput[] | nul
         id: isoStart,
         label: formatInterviewSlotLabel(start, end),
         location: getLocationLabel(interval.location),
+        onlineInterview: Boolean(interval.onlineInterview),
         start: isoStart,
       })
     }

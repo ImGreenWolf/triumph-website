@@ -109,6 +109,7 @@ export type ManagedInterval = {
   endDateTime: string | null
   interviewDuration: number | null
   location: GooglePlaceLocation | null
+  onlineInterview: boolean
   pauseBetween: number | null
   startDateTime: string | null
 }
@@ -1781,7 +1782,7 @@ function CommissionScheduleEditor(props: {
                   {formatInterviewCapacity(intervalCapacity)}
                 </span>
               </div>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_5.5rem_5.5rem_minmax(15rem,1.4fr)]">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_5.5rem_5.5rem_minmax(15rem,1.4fr)_8rem]">
                 <DateTimeInput
                   label="Incepe"
                   onChange={(value) => updateInterval(index, { startDateTime: value })}
@@ -1808,6 +1809,11 @@ function CommissionScheduleEditor(props: {
                   label="Locatie"
                   onChange={(value) => updateInterval(index, { location: value })}
                   value={interval.location}
+                />
+                <CheckboxField
+                  checked={interval.onlineInterview}
+                  label="Online interview"
+                  onChange={(value) => updateInterval(index, { onlineInterview: value })}
                 />
               </div>
               <div className="mt-3 border-t border-[#edf0f4] pt-3">
@@ -1914,9 +1920,14 @@ function InterviewSlotsPreview(props: { slots: ReturnType<typeof generateIntervi
               key={slot.id}
             >
               <span className="text-sm font-bold text-[#152039]">{slot.label}</span>
-              {slot.location && (
-                <span className="text-xs font-semibold text-[#748094]">{slot.location}</span>
-              )}
+              <span className="flex flex-wrap gap-2 text-xs font-semibold text-[#748094]">
+                {slot.onlineInterview && (
+                  <span className="rounded-full bg-[#eef9ff] px-2 py-0.5 text-[#007fb3]">
+                    Online
+                  </span>
+                )}
+                {slot.location && <span>{slot.location}</span>}
+              </span>
             </div>
           ))
         ) : (
@@ -3023,6 +3034,23 @@ function NumberInput(props: {
     </label>
   )
 }
+function CheckboxField(props: {
+  checked: boolean
+  label: string
+  onChange: (value: boolean) => void
+}) {
+  return (
+    <label className="flex min-h-9 items-center gap-2 rounded-md border border-[#dfe5ec] bg-white px-3 text-xs font-bold text-[#526071]">
+      <input
+        checked={props.checked}
+        className="size-4 rounded border-[#cdd5df]"
+        onChange={(event) => props.onChange(event.target.checked)}
+        type="checkbox"
+      />
+      <span>{props.label}</span>
+    </label>
+  )
+}
 function PlaceLocationInput(props: {
   label: string
   onChange: (value: GooglePlaceLocation | null) => void
@@ -3386,6 +3414,7 @@ function serializeInterviewIntervals(intervals: ManagedInterval[]) {
       endDateTime: interval.endDateTime ?? null,
       interviewDuration: interval.interviewDuration ?? null,
       location: interval.location ?? null,
+      onlineInterview: interval.onlineInterview,
       pauseBetween: interval.pauseBetween ?? null,
       startDateTime: interval.startDateTime ?? null,
     })),
@@ -3426,6 +3455,7 @@ function createInterval(defaultDate: string | null): ManagedInterval {
     endDateTime: `${day}T17:00:00.000`,
     interviewDuration: 20,
     location: null,
+    onlineInterview: false,
     pauseBetween: 5,
     startDateTime: `${day}T09:00:00.000`,
   }
