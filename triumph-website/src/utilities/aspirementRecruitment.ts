@@ -2,6 +2,8 @@ import { randomBytes } from 'node:crypto'
 
 import type { Application, Comission, FormSubmission } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
+import { getCachedGlobal } from './getGlobals'
+import { getMediaObjectUrl, getMediaUrl } from './getMediaUrl'
 
 type LexicalNode = {
   children?: LexicalNode[]
@@ -26,8 +28,6 @@ export type RecruitmentApplication = Application & {
     interviewMailSentBy?: string | null
     interviewScheduleToken?: string | null
     interviewScheduleTokenCreatedAt?: string | null
-    reviewMailSentAt?: string | null
-    reviewMailSentBy?: string | null
   }
 }
 
@@ -222,7 +222,7 @@ export function renderRecruitmentMessage(args: {
   }
 }
 
-export function buildRecruitmentEmailHTML(args: {
+export async function buildRecruitmentEmailHTML(args: {
   cta?: {
     href: string
     label: string
@@ -231,7 +231,8 @@ export function buildRecruitmentEmailHTML(args: {
   preheader: string
   title: string
 }) {
-  const logoURL = `${getServerSideURL().replace(/\/$/, '')}/logo_full.png`
+  const config = await getCachedGlobal('siteConfig')()
+  const logoURL = `${getMediaObjectUrl(config.darkModeLogo)}`
   const cta = args.cta
     ? `<tr>
               <td align="center" style="padding:8px 30px 34px;">

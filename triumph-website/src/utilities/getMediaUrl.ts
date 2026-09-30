@@ -1,3 +1,5 @@
+import { Media } from '@/payload-types'
+
 /**
  * Processes media resource URL to ensure proper formatting
  * @param url The original URL from the resource
@@ -16,4 +18,13 @@ export const getMediaUrl = (url: string | null | undefined, cacheTag?: string | 
   }
 
   return cacheTag ? `${url}?${cacheTag}` : url
+}
+
+export const getMediaObjectUrl = (
+  media: Media | string | null | undefined,
+  cacheTag?: string | null,
+): string => {
+  const url = typeof media == 'object' ? media?.url : media
+
+  return getMediaUrl(url)
 }

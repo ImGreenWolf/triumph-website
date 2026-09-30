@@ -18,6 +18,9 @@ import {
 const { getPayloadMock } = vi.hoisted(() => ({ getPayloadMock: vi.fn() }))
 
 vi.mock('@payload-config', () => ({ default: {} }))
+vi.mock('@/utilities/getGlobals', () => ({
+  getCachedGlobal: () => async () => ({ darkModeLogo: null }),
+}))
 vi.mock('payload', async (importOriginal) => ({
   ...(await importOriginal<typeof import('payload')>()),
   getPayload: getPayloadMock,
@@ -389,20 +392,24 @@ describe('form review comments', () => {
   })
 })
 
-describe('form review result emails', () => {
-  it('sends only pending accepted/rejected form review emails and marks them as sent', async () => {
+describe('review result and interview scheduling emails', () => {
+  it('sends accepted interview scheduling emails and rejected form review emails', async () => {
     const candidates = [
-      makeApplication('accepted-1', 'coordonator-review'),
+      makeApplication('accepted-1', 'interview', {
+        comission: 'commission-1',
+        interviewScheduleToken: 'token-1',
+      }),
       makeApplication('rejected-1', 'submission-rejected'),
-      makeApplication('already-sent-1', 'coordonator-review', {
-        reviewMailSentAt: '2026-09-15T09:00:00.000Z',
+      makeApplication('already-sent-1', 'submission-rejected', {
+        interviewMailSentAt: '2026-09-15T09:00:00.000Z',
       }),
       makeApplication('submitted-1', 'submitted'),
       makeApplication('waitlisted-1', 'submission-waitlisted'),
-      makeApplication('interview-1', 'interview'),
+      makeApplication('coordinator-1', 'coordonator-review'),
       makeApplication('final-1', 'interview-passed'),
     ] as Application[]
     const sendEmail = vi.fn().mockResolvedValue(undefined)
+    const findByID = vi.fn().mockResolvedValue(createCommission())
     const find = vi.fn().mockImplementation(async ({ where }) => {
       const statuses = where?.['reviewProcess.status']?.in as string[] | undefined
       const status = where?.['reviewProcess.status']?.equals as string | undefined
@@ -424,14 +431,17 @@ describe('form review result emails', () => {
     getPayloadMock.mockResolvedValueOnce({
       auth: vi.fn().mockResolvedValue({ user: boardUser }),
       find,
-      findGlobal: vi.fn().mockResolvedValue({ recruitment: {} }),
+      findByID,
+      findGlobal: vi.fn().mockResolvedValue({
+        recruitment: { interviewSchedulingDeadline: '2099-01-01T00:00:00.000Z' },
+      }),
       sendEmail,
       update,
     })
 
     const response = (await PATCH(
       new Request('http://localhost/members/recruitment/applications', {
-        body: JSON.stringify({ action: 'send-review-mails' }),
+        body: JSON.stringify({ action: 'send-interview-mails' }),
         headers: { 'Content-Type': 'application/json' },
         method: 'PATCH',
       }),
@@ -442,7 +452,7 @@ describe('form review result emails', () => {
       expect.objectContaining({
         where: {
           'reviewProcess.status': {
-            in: ['coordonator-review', 'submission-rejected'],
+            in: ['interview', 'submission-rejected'],
           },
         },
       }),
@@ -452,32 +462,35 @@ describe('form review result emails', () => {
       'accepted-1@example.com',
       'rejected-1@example.com',
     ])
-    expect(sendEmail.mock.calls[0]?.[0].text).toContain('trecut mai departe')
+    expect(sendEmail.mock.calls[0]?.[0].text).toContain('Programare:')
+    expect(sendEmail.mock.calls[0]?.[0].text).toContain('token-1')
     expect(sendEmail.mock.calls[1]?.[0].text).toContain('nu ai fost acceptat')
     expect(update).toHaveBeenCalledTimes(2)
     expect(update.mock.calls.map((call) => call[0].id).sort()).toEqual(['accepted-1', 'rejected-1'])
     for (const call of update.mock.calls) {
       expect(call[0].data.reviewProcess).toMatchObject({
-        reviewMailSentAt: expect.any(String),
-        reviewMailSentBy: boardUser.id,
+        interviewMailSentAt: expect.any(String),
+        interviewMailSentBy: boardUser.id,
       })
-      expect(call[0].data.reviewProcess).not.toHaveProperty('interviewMailSentAt')
+      expect(call[0].data.reviewProcess).not.toHaveProperty('reviewMailSentAt')
       expect(call[0].data.reviewProcess).not.toHaveProperty('finalMailSentAt')
     }
 
     const result = (await response.json()) as {
-      applications: Array<{ id: string; reviewMailSentAt: string }>
+      applications: Array<{ id: string; interviewMailSentAt: string }>
       mailBatch: { failed: number; sent: number; skipped: number }
     }
     expect(result.mailBatch).toMatchObject({ failed: 0, sent: 2, skipped: 1 })
     expect(result.applications).toHaveLength(2)
-    expect(result.applications[0]?.reviewMailSentAt).toEqual(expect.any(String))
+    expect(result.applications[0]?.interviewMailSentAt).toEqual(expect.any(String))
   })
 
-  it('sends one form review email when an application id is provided', async () => {
+  it('resends one rejected review result email when an application id is provided', async () => {
     const candidates = [
-      makeApplication('accepted-1', 'coordonator-review'),
-      makeApplication('accepted-2', 'coordonator-review'),
+      makeApplication('rejected-1', 'submission-rejected'),
+      makeApplication('rejected-2', 'submission-rejected', {
+        interviewMailSentAt: '2026-09-15T09:00:00.000Z',
+      }),
     ] as Application[]
     const sendEmail = vi.fn().mockResolvedValue(undefined)
     const find = vi.fn().mockImplementation(async ({ where }) => {
@@ -518,8 +531,8 @@ describe('form review result emails', () => {
     const response = (await PATCH(
       new Request('http://localhost/members/recruitment/applications', {
         body: JSON.stringify({
-          action: 'send-review-mails',
-          applicationId: 'accepted-2',
+          action: 'send-interview-mails',
+          applicationId: 'rejected-2',
         }),
         headers: { 'Content-Type': 'application/json' },
         method: 'PATCH',
@@ -529,28 +542,189 @@ describe('form review result emails', () => {
     expect(response.status).toBe(200)
     expect(sendEmail).toHaveBeenCalledTimes(1)
     expect(sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: 'accepted-2@example.com' }),
+      expect.objectContaining({ to: 'rejected-2@example.com' }),
     )
     expect(update).toHaveBeenCalledTimes(1)
     expect(update.mock.calls[0]?.[0]).toMatchObject({
-      id: 'accepted-2',
+      id: 'rejected-2',
       data: {
         reviewProcess: {
-          reviewMailSentAt: expect.any(String),
-          reviewMailSentBy: boardUser.id,
+          interviewMailSentAt: expect.any(String),
+          interviewMailSentBy: boardUser.id,
         },
       },
     })
 
     const result = (await response.json()) as {
-      applications: Array<{ id: string; reviewMailSentAt: string }>
+      applications: Array<{ id: string; interviewMailSentAt: string }>
       mailBatch: { failed: number; sent: number; skipped: number }
     }
     expect(result.mailBatch).toMatchObject({ failed: 0, sent: 1, skipped: 0 })
     expect(result.applications).toHaveLength(1)
-    expect(result.applications[0]?.id).toBe('accepted-2')
+    expect(result.applications[0]?.id).toBe('rejected-2')
+  })
+
+  it('lets PR directors send debug accepted review emails before assignment', async () => {
+    const candidates = [makeApplication('accepted-review-1', 'coordonator-review')] as Application[]
+    const sendEmail = vi.fn().mockResolvedValue(undefined)
+    const find = vi.fn().mockResolvedValue({ docs: candidates })
+    const update = vi.fn().mockImplementation(async ({ data, id }) => ({
+      ...candidates.find((candidate) => candidate.id === id),
+      reviewProcess: {
+        ...(candidates.find((candidate) => candidate.id === id)?.reviewProcess ?? {}),
+        ...data.reviewProcess,
+      },
+    }))
+
+    getPayloadMock.mockResolvedValueOnce({
+      auth: vi.fn().mockResolvedValue({ user: { ...boardUser, role: 'pr-director' } }),
+      find,
+      findGlobal: vi.fn().mockResolvedValue({ recruitment: {} }),
+      sendEmail,
+      update,
+    })
+
+    const response = (await PATCH(
+      new Request('http://localhost/members/recruitment/applications', {
+        body: JSON.stringify({
+          action: 'send-interview-mails',
+          applicationId: 'accepted-review-1',
+          debugIncludeAcceptedReviewCandidates: true,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+      }),
+    )) as Response
+
+    expect(response.status).toBe(200)
+    expect(find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          and: [
+            { id: { equals: 'accepted-review-1' } },
+            {
+              'reviewProcess.status': {
+                in: ['coordonator-review', 'interview', 'submission-rejected'],
+              },
+            },
+          ],
+        },
+      }),
+    )
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.not.stringContaining('Programare:'),
+        to: 'accepted-review-1@example.com',
+      }),
+    )
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          reviewProcess: expect.objectContaining({
+            interviewMailSentAt: expect.any(String),
+            interviewMailSentBy: boardUser.id,
+          }),
+        },
+      }),
+    )
   })
 })
+
+describe('bulk assignment wizard route', () => {
+  it('assigns eligible candidates and keeps conflicted candidates out', async () => {
+    const candidates = [
+      makeApplication('eligible-1', 'coordonator-review'),
+      makeApplication('conflicted-1', 'coordonator-review', {
+        coordonatorIncompatability: ['coordinator-1'],
+      }),
+    ] as Application[]
+    const commission = createCommission()
+    const findByID = vi.fn().mockImplementation(async ({ collection, id }) => {
+      if (collection === 'comissions') return commission
+      return candidates.find((candidate) => candidate.id === id)
+    })
+    const update = vi.fn().mockImplementation(async ({ data, id }) => ({
+      ...candidates.find((candidate) => candidate.id === id),
+      reviewProcess: {
+        ...(candidates.find((candidate) => candidate.id === id)?.reviewProcess ?? {}),
+        ...data.reviewProcess,
+      },
+    }))
+
+    getPayloadMock.mockResolvedValueOnce({
+      auth: vi.fn().mockResolvedValue({ user: boardUser }),
+      findByID,
+      update,
+    })
+
+    const response = (await PATCH(
+      new Request('http://localhost/members/recruitment/applications', {
+        body: JSON.stringify({
+          action: 'bulk-assign-candidates',
+          assignments: [
+            { applicationId: 'eligible-1', commissionId: 'commission-1' },
+            { applicationId: 'conflicted-1', commissionId: 'commission-1' },
+          ],
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+      }),
+    )) as Response
+
+    expect(response.status).toBe(200)
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          reviewProcess: expect.objectContaining({
+            comission: 'commission-1',
+            interviewDate: null,
+            status: 'interview',
+          }),
+        },
+        id: 'eligible-1',
+      }),
+    )
+
+    const result = (await response.json()) as {
+      applications: Array<{ commissionId: string; id: string; status: string }>
+      message: string
+    }
+    expect(result.applications).toEqual([
+      expect.objectContaining({
+        commissionId: 'commission-1',
+        id: 'eligible-1',
+        status: 'interview',
+      }),
+    ])
+    expect(result.message).toContain('1 esuate')
+  })
+})
+
+function createCommission() {
+  return {
+    commissionNumber: 1,
+    coordinators: ['coordinator-1'],
+    id: 'commission-1',
+    interviewIntervals: [
+      {
+        breaks: [],
+        endDateTime: '2099-01-01T11:00:00.000Z',
+        interviewDuration: 20,
+        location: { name: 'Club HQ' },
+        pauseBetween: 5,
+        startDateTime: '2099-01-01T09:00:00.000Z',
+      },
+    ],
+    recruitmentReviews: [
+      {
+        confirmedAt: '2026-09-15T09:00:00.000Z',
+        coordinator: 'coordinator-1',
+      },
+    ],
+  }
+}
 
 function makeApplication(
   id: string,

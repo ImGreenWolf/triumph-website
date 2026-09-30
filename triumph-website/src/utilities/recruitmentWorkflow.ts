@@ -2,12 +2,11 @@ import { validateInterviewIntervals, type InterviewIntervalInput } from './inter
 
 export const recruitmentSteps = [
   { key: 'forms', label: 'Review formulare', number: 1 },
-  { key: 'review-emails', label: 'Emailuri review formular', number: 2 },
-  { key: 'coordinator-review', label: 'Verificare coordonatori', number: 3 },
-  { key: 'assignment', label: 'Asignare si program', number: 4 },
-  { key: 'invitations', label: 'Invitatii interview', number: 5 },
-  { key: 'interviews', label: 'Interview-uri', number: 6 },
-  { key: 'results', label: 'Rezultate finale', number: 7 },
+  { key: 'coordinator-review', label: 'Verificare coordonatori', number: 2 },
+  { key: 'assignment', label: 'Asignare si program', number: 3 },
+  { key: 'invitations', label: 'Invitatii interview', number: 4 },
+  { key: 'interviews', label: 'Interview-uri', number: 5 },
+  { key: 'results', label: 'Rezultate finale', number: 6 },
 ] as const
 
 export type RecruitmentStepKey = (typeof recruitmentSteps)[number]['key']
@@ -31,7 +30,6 @@ export type WorkflowApplication = {
   interviewDate?: string | null
   interviewMailSentAt?: string | null
   knownCoordinatorIds?: string[]
-  reviewMailSentAt?: string | null
   reviewedCoordinatorIds?: string[]
   status: WorkflowApplicationStatus
 }
@@ -67,7 +65,6 @@ export type RecruitmentWorkflowState = {
     finalPending: number
     interviewsPending: number
     mailedInterviews: number
-    reviewMailsPending: number
     scheduled: number
     submitted: number
     waitlisted: number
@@ -92,16 +89,13 @@ export function getRecruitmentWorkflowState(args: {
   const coordinatorPool = applications.filter(
     (application) => application.status === 'coordonator-review',
   )
-  const reviewEmailApplications = applications.filter((application) =>
-    ['coordonator-review', 'submission-rejected'].includes(application.status),
-  )
   const assigned = applications.filter(
     (application) =>
       Boolean(application.commissionId) &&
       ['interview', 'interviewed', 'absent'].includes(application.status),
   )
-  const interviewApplications = applications.filter(
-    (application) => application.status === 'interview',
+  const invitationApplications = applications.filter((application) =>
+    ['interview', 'submission-rejected'].includes(application.status),
   )
   const unresolvedInterviews = assigned.filter((application) =>
     ['interview', 'interviewed', 'absent'].includes(application.status),
@@ -125,19 +119,6 @@ export function getRecruitmentWorkflowState(args: {
   if (submissionQueue.length > 0)
     formsBlockers.push(`${submissionQueue.length} formulare asteapta review.`)
   const forms = { blockers: formsBlockers, complete: formsBlockers.length === 0 }
-
-  const pendingReviewMails = reviewEmailApplications.filter(
-    (application) => !application.reviewMailSentAt,
-  )
-  const reviewMailBlockers: string[] = forms.complete
-    ? pendingReviewMails.length > 0
-      ? [`${pendingReviewMails.length} emailuri de review formular nu sunt trimise.`]
-      : []
-    : ['Finalizeaza review-ul formularelor.']
-  const reviewEmails = {
-    blockers: reviewMailBlockers,
-    complete: forms.complete && reviewMailBlockers.length === 0,
-  }
 
   const coordinatorBlockers = getCoordinatorReviewBlockers(coordinatorPool, commissions)
   const coordinatorReview = {
@@ -171,7 +152,7 @@ export function getRecruitmentWorkflowState(args: {
   const invitationBlockers: string[] = []
   if (!assignment.complete)
     invitationBlockers.push('Finalizeaza asignarea si programele comisiilor.')
-  const unsentInvites = interviewApplications.filter(
+  const unsentInvites = invitationApplications.filter(
     (application) => !application.interviewMailSentAt,
   )
   if (unsentInvites.length > 0)
@@ -215,11 +196,9 @@ export function getRecruitmentWorkflowState(args: {
     forms,
     interviews,
     invitations,
-    'review-emails': reviewEmails,
     results,
   }
-  const blockingSteps = recruitmentSteps.filter((step) => step.key !== 'review-emails')
-  const firstIncomplete = blockingSteps.find((step) => !gates[step.key].complete)
+  const firstIncomplete = recruitmentSteps.find((step) => !gates[step.key].complete)
 
   return {
     currentStep: firstIncomplete?.key ?? 'results',
@@ -234,11 +213,10 @@ export function getRecruitmentWorkflowState(args: {
       ).length,
       finalPending: pendingFinalMails.length,
       interviewsPending: unresolvedInterviews.length,
-      mailedInterviews: interviewApplications.filter(
+      mailedInterviews: invitationApplications.filter(
         (application) => application.interviewMailSentAt,
       ).length,
-      reviewMailsPending: pendingReviewMails.length,
-      scheduled: interviewApplications.filter((application) => application.interviewDate).length,
+      scheduled: invitationApplications.filter((application) => application.interviewDate).length,
       submitted: submissionQueue.length,
       waitlisted: applications.filter(
         (application) => application.status === 'submission-waitlisted',

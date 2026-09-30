@@ -155,7 +155,6 @@ function serializeApplication(application: Application): ManagedApplication {
     name: application.name,
     notes: review.notes ?? '',
     phone: findSubmissionValue(answers, ['phone', 'telefon', 'tel']),
-    reviewMailSentAt: normalizeDate(review.reviewMailSentAt),
     reviewedCoordinatorIds: (review.coordonatorReviewChecks ?? [])
       .map(getRelationshipID)
       .filter(Boolean),

@@ -83,7 +83,6 @@ export type ManagedApplication = {
   knownCoordinatorIds: string[]
   name: string
   notes: string
-  reviewMailSentAt: string | null
   reviewedCoordinatorIds: string[]
   status: ManagedApplicationStatus
 }
@@ -143,7 +142,6 @@ type ApplicationPatch = Partial<
     | 'interviewMailSentAt'
     | 'knownCoordinatorIds'
     | 'notes'
-    | 'reviewMailSentAt'
     | 'reviewedCoordinatorIds'
     | 'status'
   >
@@ -2499,25 +2497,10 @@ function MailStatusBadges({ application }: { application: ManagedApplication }) 
   const badges: ReactNode[] = []
 
   if (
-    application.status === 'coordonator-review' ||
+    application.status === 'interview' ||
     application.status === 'submission-rejected' ||
-    application.reviewMailSentAt
+    application.interviewMailSentAt
   ) {
-    badges.push(
-      <span
-        className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${
-          application.reviewMailSentAt
-            ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
-            : 'bg-slate-100 text-slate-600 ring-slate-200'
-        }`}
-        key="review-mail"
-      >
-        {application.reviewMailSentAt ? 'Review mail trimis' : 'Review mail netrimis'}
-      </span>,
-    )
-  }
-
-  if (application.status === 'interview' || application.interviewMailSentAt) {
     badges.push(
       <span
         className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ring-inset ${
@@ -2525,9 +2508,9 @@ function MailStatusBadges({ application }: { application: ManagedApplication }) 
             ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
             : 'bg-slate-100 text-slate-600 ring-slate-200'
         }`}
-        key="interview-mail"
+        key="review-result-mail"
       >
-        {application.interviewMailSentAt ? 'Interview mail trimis' : 'Interview mail netrimis'}
+        {application.interviewMailSentAt ? 'Review mail trimis' : 'Review mail netrimis'}
       </span>,
     )
   }

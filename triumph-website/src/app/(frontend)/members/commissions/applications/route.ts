@@ -32,8 +32,6 @@ type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
   finalMailSentBy?: string | User | null
   interviewMailSentAt?: string | null
   interviewMailSentBy?: string | User | null
-  reviewMailSentAt?: string | null
-  reviewMailSentBy?: string | User | null
   interviewNotes?:
     | {
         author: string | User
@@ -89,7 +87,11 @@ const reviewStatuses = new Set<ApplicationStatus>([
 ])
 const finalMailStatuses = new Set<ApplicationStatus>(['interview-passed', 'interview-rejected'])
 const finalStatuses = new Set<ApplicationStatus>(['interview-passed', 'interview-rejected'])
-const reviewMailStatuses = new Set<ApplicationStatus>(['coordonator-review', 'submission-rejected'])
+const invitationMailStatuses = new Set<ApplicationStatus>([
+  'coordonator-review',
+  'interview',
+  'submission-rejected',
+])
 
 type MailBatchResult = {
   failed: number
@@ -162,6 +164,10 @@ export async function PATCH(request: Request) {
       return await assignCandidate({ body, payload, user })
     }
 
+    if (action === 'bulk-assign-candidates') {
+      return await bulkAssignCandidates({ body, payload, user })
+    }
+
     if (action === 'update-commission-schedule') {
       return await updateCommissionSchedule({ body, payload, scope, user })
     }
@@ -188,10 +194,6 @@ export async function PATCH(request: Request) {
 
     if (action === 'send-interview-mails') {
       return await sendInterviewMails({ body, payload, request, user })
-    }
-
-    if (action === 'send-review-mails') {
-      return await sendReviewMails({ body, payload, user })
     }
 
     if (action === 'send-final-mails') {
@@ -301,7 +303,7 @@ export async function sendCustomCandidateMail(args: {
 
   await args.payload.sendEmail({
     from: getCustomMailFromHeader(args.user),
-    html: buildRecruitmentEmailHTML({
+    html: await buildRecruitmentEmailHTML({
       messageHTML: renderPlainTextEmailHTML(body),
       preheader: body.replace(/\s+/g, ' ').slice(0, 140),
       title: subject,
@@ -596,6 +598,63 @@ async function assignCandidate(args: {
   return Response.json({ application: serializeApplicationUpdate(updated) })
 }
 
+async function bulkAssignCandidates(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  requireBoard(args.user)
+
+  const assignments = normalizeAssignmentDraft(args.body.assignments)
+  if (assignments.length === 0) {
+    return Response.json({ message: 'Selecteaza cel putin o asignare.' }, { status: 400 })
+  }
+
+  const updatedApplications: ReturnType<typeof serializeApplicationUpdate>[] = []
+  const warnings: string[] = []
+  let skipped = 0
+
+  for (const assignment of assignments) {
+    try {
+      const application = await getApplication(args.payload, assignment.applicationId)
+      const commission = await getCommission(args.payload, assignment.commissionId)
+      const status = application.reviewProcess?.status
+
+      if (!['coordonator-review', 'interview'].includes(status ?? '')) {
+        throw Object.assign(
+          new Error('Candidatul trebuie sa fie acceptat la review sau in etapa de interview.'),
+          { status: 409 },
+        )
+      }
+
+      assertCommissionReadyForApplicant(commission, application)
+
+      const currentCommissionID = getRelationshipID(application.reviewProcess?.comission)
+      if (status === 'interview' && currentCommissionID === commission.id) {
+        skipped += 1
+        continue
+      }
+
+      const updated = await updateApplicationReview(args.payload, application, {
+        comission: commission.id,
+        interviewDate: null,
+        status: 'interview',
+      })
+
+      updatedApplications.push(serializeApplicationUpdate(updated))
+    } catch (error) {
+      warnings.push(
+        `${assignment.applicationId}: ${
+          error instanceof Error ? error.message : 'Candidatul nu a putut fi asignat.'
+        }`,
+      )
+    }
+  }
+
+  const message = `${updatedApplications.length} candidati asignati.${skipped ? ` ${skipped} fara schimbari.` : ''}${warnings.length ? ` ${warnings.length} esuate: ${warnings[0]}` : ''}`
+  return Response.json({ applications: updatedApplications, message })
+}
+
 async function addInterviewNote(args: {
   body: Record<string, unknown>
   payload: Payload
@@ -773,66 +832,110 @@ async function sendInterviewMails(args: {
     overrideAccess: true,
   })) as AspirementConfig
   const schedulingDeadline = config.recruitment?.interviewSchedulingDeadline
-  if (!schedulingDeadline || new Date(schedulingDeadline) <= new Date()) {
+  const applicationId = normalizeOptionalText(args.body.applicationId)
+  const includeAcceptedReviewCandidates =
+    args.body.debugIncludeAcceptedReviewCandidates === true && args.user.role === 'pr-director'
+  const applications = await findApplicationsForMailBatch(args.payload, {
+    applicationId,
+    status: includeAcceptedReviewCandidates
+      ? ['coordonator-review', 'interview', 'submission-rejected']
+      : ['interview', 'submission-rejected'],
+  })
+  const pending = applicationId
+    ? applications
+    : applications.filter((application) => !application.reviewProcess?.interviewMailSentAt)
+  const result = createMailBatchResult(applications.length - pending.length)
+  const updatedApplications: ReturnType<typeof serializeApplicationUpdate>[] = []
+  const hasInterviewInvite = pending.some(
+    (application) => application.reviewProcess?.status === 'interview',
+  )
+
+  if (hasInterviewInvite && (!schedulingDeadline || new Date(schedulingDeadline) <= new Date())) {
     return Response.json(
       { message: 'Configureaza un deadline viitor pentru programarea interview-urilor.' },
       { status: 409 },
     )
   }
-  const applicationId = normalizeOptionalText(args.body.applicationId)
-  const applications = await findApplicationsForMailBatch(args.payload, {
-    applicationId,
-    status: 'interview',
-  })
-  const pending = applications.filter(
-    (application) => !application.reviewProcess?.interviewMailSentAt,
-  )
-  const result = createMailBatchResult(applications.length - pending.length)
-  const updatedApplications: ReturnType<typeof serializeApplicationUpdate>[] = []
 
   for (const application of pending) {
     try {
-      const commission = await getApplicationCommission(args.payload, application)
-      assertCommissionReadyForApplicant(commission, application)
-      const scheduleValidation = validateInterviewIntervals(commission.interviewIntervals)
-      if (!scheduleValidation.valid) {
-        throw Object.assign(
-          new Error(scheduleValidation.errors[0] || 'Programul comisiei nu este valid.'),
-          {
-            status: 409,
-          },
-        )
+      const accepted = ['coordonator-review', 'interview'].includes(
+        application.reviewProcess?.status ?? '',
+      )
+      const schedulesInterview = application.reviewProcess?.status === 'interview'
+      let message: ReturnType<typeof renderRecruitmentMessage>
+      let prepared = application
+      let scheduleLink = ''
+
+      if (schedulesInterview) {
+        const commission = await getApplicationCommission(args.payload, application)
+        assertCommissionReadyForApplicant(commission, application)
+        const scheduleValidation = validateInterviewIntervals(commission.interviewIntervals)
+        if (!scheduleValidation.valid) {
+          throw Object.assign(
+            new Error(scheduleValidation.errors[0] || 'Programul comisiei nu este valid.'),
+            {
+              status: 409,
+            },
+          )
+        }
+
+        prepared = await ensureApplicationScheduleToken(args.payload, application)
+        const token = prepared.reviewProcess?.interviewScheduleToken
+        if (!token) throw new Error('Nu s-a putut genera linkul de programare.')
+
+        scheduleLink = getInterviewScheduleURL(token, args.request)
+        message = renderRecruitmentMessage({
+          fallback:
+            'Ai fost acceptat pentru etapa de interview. Te rugam sa iti alegi un interval pentru programare.',
+          message: config.recruitment?.['review-accepted-message'],
+          parameters: createApplicantParameters({
+            application: prepared,
+            commissionLabel: getCommissionLabel(commission),
+            scheduleLink,
+          }),
+        })
+      } else if (accepted) {
+        message = renderRecruitmentMessage({
+          fallback:
+            'Ai fost acceptat mai departe dupa review-ul formularului. Te vom contacta cu detalii despre urmatoarea etapa.',
+          message: config.recruitment?.['review-accepted-message'],
+          parameters: createApplicantParameters({
+            application,
+            commissionLabel: getCommissionLabel(application.reviewProcess?.comission),
+          }),
+        })
+      } else {
+        message = renderRecruitmentMessage({
+          fallback:
+            'Iti multumim pentru aplicatie. Din pacate, nu ai fost acceptat mai departe dupa review-ul formularului.',
+          message: config.recruitment?.['review-rejected-message'],
+          parameters: createApplicantParameters({
+            application,
+            commissionLabel: getCommissionLabel(application.reviewProcess?.comission),
+          }),
+        })
       }
 
-      const prepared = await ensureApplicationScheduleToken(args.payload, application)
-      const token = prepared.reviewProcess?.interviewScheduleToken
-      if (!token) throw new Error('Nu s-a putut genera linkul de programare.')
-
-      const scheduleLink = getInterviewScheduleURL(token, args.request)
-      const message = renderRecruitmentMessage({
-        fallback:
-          'Ai fost acceptat pentru etapa de interview. Te rugam sa iti alegi un interval pentru programare.',
-        message: config.recruitment?.['review-accepted-message'],
-        parameters: createApplicantParameters({
-          application: prepared,
-          commissionLabel: getCommissionLabel(commission),
-          scheduleLink,
-        }),
-      })
-
       await args.payload.sendEmail({
-        html: buildRecruitmentEmailHTML({
-          cta: {
-            href: scheduleLink,
-            label: 'Programeaza interview-ul',
-          },
+        html: await buildRecruitmentEmailHTML({
+          cta: schedulesInterview
+            ? {
+                href: scheduleLink,
+                label: 'Programează interview-ul',
+              }
+            : undefined,
           messageHTML: message.html,
-          preheader: 'Ai fost acceptat pentru etapa de interview.',
-          title: 'Invitatie la interview',
+          preheader: schedulesInterview
+            ? 'Programează-ți intervieul.'
+            : accepted
+              ? 'Ai trecut mai departe in procesul de selectie.'
+              : 'Avem un update despre aplicația ta.',
+          title: 'Update cu privire la aplicația ta pentru clubul Interact București Triumph',
         }),
-        subject: 'Invitatie la interview | Interact Bucuresti Triumph',
-        text: `${message.text}\n\nProgramare: ${scheduleLink}`,
-        to: prepared.email,
+        subject: 'Update cu privire la aplicația ta pentru clubul Interact București Triumph.',
+        text: schedulesInterview ? `${message.text}\n\nProgramare: ${scheduleLink}` : message.text,
+        to: application.email,
       })
 
       const updated = await updateApplicationReview(args.payload, prepared, {
@@ -867,78 +970,6 @@ async function sendInterviewMails(args: {
   return Response.json({ applications: updatedApplications, mailBatch: result })
 }
 
-async function sendReviewMails(args: {
-  body: Record<string, unknown>
-  payload: Payload
-  user: User
-}) {
-  requireBoard(args.user)
-
-  const applicationId = normalizeOptionalText(args.body.applicationId)
-  const config = (await args.payload.findGlobal({
-    slug: 'aspirementConfig',
-    depth: 0,
-    overrideAccess: true,
-  })) as AspirementConfig
-  const applications = await findApplicationsForMailBatch(args.payload, {
-    applicationId,
-    status: ['coordonator-review', 'submission-rejected'],
-  })
-  const pending = applications.filter((application) => !application.reviewProcess?.reviewMailSentAt)
-  const result = createMailBatchResult(applications.length - pending.length)
-  const updatedApplications: ReturnType<typeof serializeApplicationUpdate>[] = []
-
-  for (const application of pending) {
-    try {
-      const accepted = application.reviewProcess?.status === 'coordonator-review'
-      const message = renderRecruitmentMessage({
-        fallback: accepted
-          ? 'Felicitari, ai trecut mai departe dupa review-ul formularului. Coordonatorii vor continua verificarile pentru etapa urmatoare.'
-          : 'Iti multumim pentru aplicatie. Din pacate, nu ai fost acceptat mai departe dupa review-ul formularului.',
-        message: accepted
-          ? config.recruitment?.['form-review-accepted-message']
-          : config.recruitment?.['form-review-rejected-message'],
-        parameters: createApplicantParameters({
-          application,
-          commissionLabel: getCommissionLabel(application.reviewProcess?.comission),
-        }),
-      })
-
-      await args.payload.sendEmail({
-        html: buildRecruitmentEmailHTML({
-          messageHTML: message.html,
-          preheader: accepted
-            ? 'Ai trecut mai departe dupa review-ul formularului.'
-            : 'Rezultatul review-ului formularului tau este disponibil.',
-          title: 'Rezultat formular',
-        }),
-        subject: 'Rezultat formular | Interact Bucuresti Triumph',
-        text: message.text,
-        to: application.email,
-      })
-
-      const updated = await updateApplicationReview(args.payload, application, {
-        reviewMailSentAt: new Date().toISOString(),
-        reviewMailSentBy: args.user.id,
-      })
-
-      updatedApplications.push(serializeApplicationUpdate(updated))
-      result.sent += 1
-      addPlaceholderWarnings(result, application, message.unresolvedPlaceholders)
-    } catch (error) {
-      result.failed += 1
-      result.failures.push({
-        email: application.email,
-        id: application.id,
-        message: error instanceof Error ? error.message : 'Emailul nu a putut fi trimis.',
-        name: application.name,
-      })
-    }
-  }
-
-  return Response.json({ applications: updatedApplications, mailBatch: result })
-}
-
 async function sendFinalMails(args: {
   body: Record<string, unknown>
   payload: Payload
@@ -957,7 +988,9 @@ async function sendFinalMails(args: {
     applicationId,
     status: ['interview-passed', 'interview-rejected'],
   })
-  const pending = applications.filter((application) => !application.reviewProcess?.finalMailSentAt)
+  const pending = applicationId
+    ? applications
+    : applications.filter((application) => !application.reviewProcess?.finalMailSentAt)
   const result = createMailBatchResult(applications.length - pending.length)
   const updatedApplications: ReturnType<typeof serializeApplicationUpdate>[] = []
 
@@ -966,8 +999,8 @@ async function sendFinalMails(args: {
       const accepted = application.reviewProcess?.status === 'interview-passed'
       const message = renderRecruitmentMessage({
         fallback: accepted
-          ? 'Felicitari, ai fost acceptat ca aspirant.'
-          : 'Iti multumim pentru participarea la interview. Din pacate, nu ai fost acceptat mai departe.',
+          ? 'Update cu privire la aplicația ta pentru clubul Interact București Triumph.'
+          : 'Update cu privire la aplicația ta pentru clubul Interact București Triumph.',
         message: accepted
           ? config.recruitment?.['interview-accepted-message']
           : config.recruitment?.['interview-rejected-message'],
@@ -978,12 +1011,12 @@ async function sendFinalMails(args: {
       })
 
       await args.payload.sendEmail({
-        html: buildRecruitmentEmailHTML({
+        html: await buildRecruitmentEmailHTML({
           messageHTML: message.html,
-          preheader: 'Rezultatul interview-ului tau este disponibil.',
-          title: 'Rezultat interview',
+          preheader: 'Update cu privire la aplicația ta pentru clubul Interact București Triumph',
+          title: 'Update cu privire la aplicația ta pentru clubul Interact București Triumph',
         }),
-        subject: 'Rezultat interview | Interact Bucuresti Triumph',
+        subject: 'Update cu privire la aplicația ta pentru clubul Interact București Triumph',
         text: message.text,
         to: application.email,
       })
@@ -1441,7 +1474,7 @@ function isRecruitmentApplication(application: Application): application is Recr
   const status = application.reviewProcess?.status
   return (
     status === 'interview' ||
-    (status ? finalMailStatuses.has(status) || reviewMailStatuses.has(status) : false)
+    (status ? finalMailStatuses.has(status) || invitationMailStatuses.has(status) : false)
   )
 }
 
@@ -1463,7 +1496,6 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
     interviewDate: application.reviewProcess?.interviewDate ?? null,
     interviewAttendance: application.reviewProcess?.interviewAttendance ?? null,
     interviewMailSentAt: application.reviewProcess?.interviewMailSentAt ?? null,
-    reviewMailSentAt: application.reviewProcess?.reviewMailSentAt ?? null,
     formReviewComments: (application.reviewProcess?.formReviewComments ?? []).map((comment) => ({
       authorId: getRelationshipID(comment.author),
       comment: comment.comment,
@@ -1520,6 +1552,26 @@ function normalizeText(value: unknown) {
 function normalizeOptionalText(value: unknown) {
   const text = normalizeText(value)
   return text || undefined
+}
+
+function normalizeAssignmentDraft(value: unknown) {
+  if (!Array.isArray(value)) return []
+
+  const seen = new Set<string>()
+  const assignments: Array<{ applicationId: string; commissionId: string }> = []
+
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+
+    const applicationId = normalizeText((item as Record<string, unknown>).applicationId)
+    const commissionId = normalizeText((item as Record<string, unknown>).commissionId)
+    if (!applicationId || !commissionId || seen.has(applicationId)) continue
+
+    seen.add(applicationId)
+    assignments.push({ applicationId, commissionId })
+  }
+
+  return assignments.slice(0, 500)
 }
 
 function normalizeStringList(value: unknown) {

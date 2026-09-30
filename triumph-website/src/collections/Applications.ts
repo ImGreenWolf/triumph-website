@@ -91,21 +91,6 @@ export const Applications: CollectionConfig = {
           },
         },
         {
-          name: 'reviewMailSentAt',
-          type: 'date',
-          admin: {
-            readOnly: true,
-          },
-        },
-        {
-          name: 'reviewMailSentBy',
-          type: 'relationship',
-          relationTo: 'users',
-          admin: {
-            readOnly: true,
-          },
-        },
-        {
           name: 'interviewMailSentAt',
           type: 'date',
           admin: {

@@ -36,6 +36,7 @@ import {
   useRef,
   useState,
   type Dispatch,
+  type DragEvent,
   type ReactNode,
   type SetStateAction,
 } from 'react'
@@ -57,6 +58,8 @@ import {
 import type { GooglePlaceLocation } from '@/utilities/googlePlace'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
 import { cn } from '@/utilities/ui'
+
+type WizardStepKey = RecruitmentStepKey | 'debug'
 
 export type ManagedUser = {
   clubMail?: string | null
@@ -139,7 +142,6 @@ export type ManagedApplication = {
   knownCoordinatorIds: string[]
   name: string
   notes: string
-  reviewMailSentAt: string | null
   phone: string
   reviewedCoordinatorIds: string[]
   status: ManagedApplicationStatus
@@ -165,7 +167,6 @@ type ApplicationPatch = Partial<
     | 'interviewMailSentAt'
     | 'knownCoordinatorIds'
     | 'notes'
-    | 'reviewMailSentAt'
     | 'reviewedCoordinatorIds'
     | 'status'
   >
@@ -256,13 +257,12 @@ function Metrics({ workflow }: { workflow: RecruitmentWorkflowState }) {
         </>
       )
     case 'coordinator-review':
-    case 'review-emails':
       return (
         <>
           <HeaderStat label="Formulare" value={String(workflow.metrics.submitted)} />
           <HeaderStat label="Asignati" value={String(workflow.metrics.assigned)} />
-          <HeaderStat label="Emailuri review" value={String(workflow.metrics.reviewMailsPending)} />
           <HeaderStat label="Programati" value={String(workflow.metrics.scheduled)} />
+          <HeaderStat label="Decizii finale" value={String(workflow.metrics.finalPending)} />
         </>
       )
     case 'assignment':
@@ -288,6 +288,7 @@ export default function HRRecruitmentWizard(props: {
   const [applicationsRefreshing, setApplicationsRefreshing] = useState(false)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [detailID, setDetailID] = useState<string | null>(null)
+  const [debugUnlockSteps, setDebugUnlockSteps] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [query, setQuery] = useState('')
   const applicationsRefreshInFlightRef = useRef<Promise<void> | null>(null)
@@ -354,19 +355,34 @@ export default function HRRecruitmentWizard(props: {
       }),
     [applications, commissions, config],
   )
+  const canUseDebugStep = props.user.role === 'pr-director'
   const selectedStep = normalizeStep(searchParams.get('step'))
-  const maximumStepIndex = getMaximumOpenStepIndex(workflow.currentStep)
-  const requestedStepIndex = recruitmentSteps.findIndex((step) => step.key === selectedStep)
-  const activeStep = requestedStepIndex <= maximumStepIndex ? selectedStep : workflow.currentStep
+  const maximumStepIndex =
+    canUseDebugStep && debugUnlockSteps
+      ? recruitmentSteps.length - 1
+      : getMaximumOpenStepIndex(workflow.currentStep)
+  const requestedStepIndex =
+    selectedStep === 'debug' ? -1 : recruitmentSteps.findIndex((step) => step.key === selectedStep)
+  const activeStep: WizardStepKey =
+    selectedStep === 'debug' && canUseDebugStep
+      ? 'debug'
+      : selectedStep !== 'debug' && requestedStepIndex <= maximumStepIndex
+        ? selectedStep
+        : workflow.currentStep
+  const activeStepMeta = getStepMeta(activeStep)
   const detailApplication = applications.find((application) => application.id === detailID) ?? null
   const visibleApplications = useMemo(
     () => filterApplications(applications, commissions, query),
     [applications, commissions, query],
   )
 
-  function selectStep(step: RecruitmentStepKey) {
-    const index = recruitmentSteps.findIndex((item) => item.key === step)
-    if (index > maximumStepIndex) return
+  function selectStep(step: WizardStepKey) {
+    if (step === 'debug' && !canUseDebugStep) return
+
+    if (step !== 'debug') {
+      const index = recruitmentSteps.findIndex((item) => item.key === step)
+      if (index > maximumStepIndex) return
+    }
 
     const params = new URLSearchParams(searchParams.toString())
     params.set('step', step)
@@ -536,6 +552,7 @@ export default function HRRecruitmentWizard(props: {
       <div className="mx-auto grid max-w-[1440px] gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[250px_minmax(0,1fr)] lg:px-8">
         <WizardSidebar
           activeStep={activeStep}
+          canUseDebugStep={canUseDebugStep}
           maximumStepIndex={maximumStepIndex}
           onSelect={selectStep}
           workflow={workflow}
@@ -546,11 +563,9 @@ export default function HRRecruitmentWizard(props: {
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.12em] text-[#748094]">
-                Pasul {recruitmentSteps.find((step) => step.key === activeStep)?.number}
+                {activeStep === 'debug' ? 'Debug' : `Pasul ${activeStepMeta.number}`}
               </p>
-              <h2 className="mt-1 text-2xl font-bold">
-                {recruitmentSteps.find((step) => step.key === activeStep)?.label}
-              </h2>
+              <h2 className="mt-1 text-2xl font-bold">{activeStepMeta.label}</h2>
             </div>
             <div className="relative w-full sm:w-80">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#748094]" />
@@ -563,12 +578,14 @@ export default function HRRecruitmentWizard(props: {
               />
             </div>
           </div>
-          <StepFooter
-            activeStep={activeStep}
-            maximumStepIndex={maximumStepIndex}
-            onSelect={selectStep}
-            workflow={workflow}
-          />
+          {activeStep !== 'debug' && (
+            <StepFooter
+              activeStep={activeStep}
+              maximumStepIndex={maximumStepIndex}
+              onSelect={selectStep}
+              workflow={workflow}
+            />
+          )}
           {activeStep === 'forms' && (
             <ApplicationReviewStep
               applications={visibleApplications}
@@ -582,13 +599,6 @@ export default function HRRecruitmentWizard(props: {
           )}
           {activeStep === 'coordinator-review' && (
             <CoordinatorReviewStep applications={visibleApplications} commissions={commissions} />
-          )}
-          {activeStep === 'review-emails' && (
-            <ReviewEmailStep
-              applications={visibleApplications}
-              busyKey={busyKey}
-              onAction={runAction}
-            />
           )}
           {activeStep === 'assignment' && (
             <AssignmentAndScheduleStep
@@ -614,6 +624,18 @@ export default function HRRecruitmentWizard(props: {
           {activeStep === 'results' && (
             <ResultStep applications={visibleApplications} busyKey={busyKey} onAction={runAction} />
           )}
+          {activeStep === 'debug' && (
+            <DebugStep
+              applications={visibleApplications}
+              busyKey={busyKey}
+              commissions={commissions}
+              config={config}
+              unlockSteps={debugUnlockSteps}
+              onUnlockStepsChange={setDebugUnlockSteps}
+              onAction={runAction}
+              workflow={workflow}
+            />
+          )}
         </section>
       </div>
 
@@ -629,9 +651,10 @@ export default function HRRecruitmentWizard(props: {
 }
 
 function WizardSidebar(props: {
-  activeStep: RecruitmentStepKey
+  activeStep: WizardStepKey
+  canUseDebugStep: boolean
   maximumStepIndex: number
-  onSelect: (step: RecruitmentStepKey) => void
+  onSelect: (step: WizardStepKey) => void
   workflow: ReturnType<typeof getRecruitmentWorkflowState>
 }) {
   return (
@@ -691,6 +714,40 @@ function WizardSidebar(props: {
             </button>
           )
         })}
+        {props.canUseDebugStep && (
+          <button
+            className={`flex min-h-12 min-w-52 shrink-0 items-center gap-3 rounded-md px-3 py-2 text-left transition lg:w-full lg:min-w-0 ${
+              props.activeStep === 'debug'
+                ? 'bg-[#141e34] text-white'
+                : 'text-[#344054] hover:bg-[#f4f6f8]'
+            }`}
+            onClick={() => props.onSelect('debug')}
+            type="button"
+          >
+            <span
+              className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                props.activeStep === 'debug'
+                  ? 'bg-[#00a2e0] text-white'
+                  : 'bg-amber-100 text-amber-800'
+              }`}
+            >
+              <Settings2 className="size-3.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block break-words text-sm font-bold leading-tight">
+                Debug manual
+              </span>
+              <span
+                className={`mt-0.5 block break-words text-xs leading-4 ${
+                  props.activeStep === 'debug' ? 'text-white/60' : 'text-[#748094]'
+                }`}
+              >
+                Teste disponibile oricand
+              </span>
+            </span>
+            <ChevronRight className="size-4 opacity-55" />
+          </button>
+        )}
       </nav>
     </aside>
   )
@@ -984,33 +1041,170 @@ function AssignmentAndScheduleStep(props: {
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
   onOpen: (id: string) => void
 }) {
-  const pool = props.applications.filter(
-    (application) => application.status === 'coordonator-review',
+  const assignmentCandidates = useMemo(
+    () =>
+      props.applications.filter((application) =>
+        ['coordonator-review', 'interview'].includes(application.status),
+      ),
+    [props.applications],
   )
+  const assignmentSnapshot = useMemo(
+    () =>
+      assignmentCandidates
+        .map((application) => `${application.id}:${application.status}:${application.commissionId}`)
+        .join('|'),
+    [assignmentCandidates],
+  )
+  const [assignmentSeed, setAssignmentSeed] = useState('triumph')
+  const [assignmentDraft, setAssignmentDraft] = useState<Record<string, string | null>>(() =>
+    createAssignmentDraft(assignmentCandidates),
+  )
+  const [fixedAssignmentIds, setFixedAssignmentIds] = useState<Set<string>>(() => new Set())
+
+  useEffect(() => {
+    setAssignmentDraft(createAssignmentDraft(assignmentCandidates))
+    setFixedAssignmentIds((current) => {
+      const validIDs = new Set(assignmentCandidates.map((application) => application.id))
+      return new Set([...current].filter((id) => validIDs.has(id)))
+    })
+  }, [assignmentSnapshot, assignmentCandidates])
+
+  const plannedChanges = assignmentCandidates.filter((application) => {
+    const commissionID = assignmentDraft[application.id] ?? null
+    return (
+      commissionID &&
+      (application.commissionId !== commissionID || application.status !== 'interview')
+    )
+  })
+  const unresolvedCandidates = assignmentCandidates.filter(
+    (application) => !assignmentDraft[application.id],
+  )
+  const balanceSummary = getAssignmentBalanceSummary(
+    assignmentCandidates,
+    props.commissions,
+    assignmentDraft,
+    fixedAssignmentIds,
+  )
+
+  function generatePlan() {
+    setAssignmentDraft(
+      createAutoAssignmentDraft(
+        assignmentCandidates,
+        props.commissions,
+        assignmentSeed,
+        fixedAssignmentIds,
+        assignmentDraft,
+      ),
+    )
+  }
+
+  function moveApplication(applicationID: string, commissionID: string | null) {
+    setAssignmentDraft((current) => ({ ...current, [applicationID]: commissionID }))
+  }
+
+  function toggleFixedAssignment(applicationID: string) {
+    setFixedAssignmentIds((current) => {
+      const next = new Set(current)
+      if (next.has(applicationID)) next.delete(applicationID)
+      else if (assignmentDraft[applicationID]) next.add(applicationID)
+      return next
+    })
+  }
+
+  function applyPlan() {
+    const assignments = plannedChanges
+      .map((application) => ({
+        applicationId: application.id,
+        commissionId: assignmentDraft[application.id],
+      }))
+      .filter((assignment): assignment is { applicationId: string; commissionId: string } =>
+        Boolean(assignment.commissionId),
+      )
+
+    if (!assignments.length) return
+    void props.onAction({ action: 'bulk-assign-candidates', assignments }, 'bulk-assign-candidates')
+  }
+
   return (
     <div className="grid gap-5">
       <Panel>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <h3 className="text-lg font-bold">Asignare candidati</h3>
+            <p className="mt-1 text-sm text-[#748094]">
+              Alege automat comisiile pentru recrutii care au trecut de formular in functie de
+              conflictele cu coordonatorii.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto_auto] xl:min-w-[34rem]">
+            <label className="grid gap-1 text-xs font-bold text-[#526071]">
+              Seed randomizare
+              <input
+                className="h-10 rounded-md border border-[#dfe5ec] bg-white px-3 text-sm font-semibold outline-none focus:border-[#00a2e0]"
+                onChange={(event) => setAssignmentSeed(event.target.value)}
+                value={assignmentSeed}
+              />
+            </label>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-[#cdd5df] bg-white px-3 text-sm font-bold text-[#152039] hover:border-[#00a2e0]"
+              onClick={generatePlan}
+              type="button"
+            >
+              <RefreshCw className="size-4" /> Genereaza
+            </button>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md bg-[#141e34] px-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
+              disabled={plannedChanges.length === 0 || props.busyKey === 'bulk-assign-candidates'}
+              onClick={applyPlan}
+              type="button"
+            >
+              <UserCheck className="size-4" />{' '}
+              {props.busyKey === 'bulk-assign-candidates'
+                ? 'Se aplica...'
+                : `Aplica ${plannedChanges.length}`}
+            </button>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <SmallMetric label="Candidati in wizard" value={String(assignmentCandidates.length)} />
+          <SmallMetric label="Neasignati in plan" value={String(unresolvedCandidates.length)} />
+          <SmallMetric label="Fixati manual" value={String(fixedAssignmentIds.size)} />
+        </div>
+        <AssignmentBalanceNotice summary={balanceSummary} />
+        <AssignmentPlannerBoard
+          applications={assignmentCandidates}
+          commissions={props.commissions}
+          draft={assignmentDraft}
+          fixedAssignmentIds={fixedAssignmentIds}
+          onMove={moveApplication}
+          onOpen={props.onOpen}
+          onToggleFixed={toggleFixedAssignment}
+        />
+        {assignmentCandidates.length === 0 && (
+          <EmptyState text="Toti candidatii acceptati au fost asignati mai departe sau nu exista inca pool-ul de review." />
+        )}
+      </Panel>
+      <Panel>
         <div>
-          <h3 className="text-lg font-bold">Asignare candidati</h3>
+          <h3 className="text-lg font-bold">Asignare individuala</h3>
           <p className="mt-1 text-sm text-[#748094]">
             O comisie este disponibila doar dupa confirmarea tuturor coordonatorilor si fara
             conflict declarat.
           </p>
         </div>
         <div className="mt-5 grid gap-4">
-          {pool.map((application) => (
-            <AssignmentRow
-              application={application}
-              busyKey={props.busyKey}
-              commissions={props.commissions}
-              key={application.id}
-              onAction={props.onAction}
-              onOpen={props.onOpen}
-            />
-          ))}
-          {pool.length === 0 && (
-            <EmptyState text="Toti candidatii acceptati au fost asignati sau nu exista inca pool-ul de review." />
-          )}
+          {assignmentCandidates
+            .filter((application) => application.status === 'coordonator-review')
+            .map((application) => (
+              <AssignmentRow
+                application={application}
+                busyKey={props.busyKey}
+                commissions={props.commissions}
+                key={application.id}
+                onAction={props.onAction}
+                onOpen={props.onOpen}
+              />
+            ))}
         </div>
       </Panel>
       <ScheduleSetup
@@ -1090,6 +1284,294 @@ function AssignmentRow(props: {
             </div>
           )
         })}
+      </div>
+    </article>
+  )
+}
+
+function AssignmentPlannerBoard(props: {
+  applications: ManagedApplication[]
+  commissions: ManagedCommission[]
+  draft: Record<string, string | null>
+  fixedAssignmentIds: Set<string>
+  onMove: (applicationID: string, commissionID: string | null) => void
+  onOpen: (id: string) => void
+  onToggleFixed: (applicationID: string) => void
+}) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const unassigned = props.applications.filter((application) => !props.draft[application.id])
+  const applicationsByID = new Map(
+    props.applications.map((application) => [application.id, application]),
+  )
+
+  function toggleCollapsed(sectionID: string) {
+    setCollapsed((current) => ({ ...current, [sectionID]: !current[sectionID] }))
+  }
+
+  function getDraggedApplication(event: DragEvent) {
+    const applicationID =
+      event.dataTransfer.getData('application/x-triumph-application-id') ||
+      event.dataTransfer.getData('text/plain')
+    return applicationsByID.get(applicationID) ?? null
+  }
+
+  function canDrop(event: DragEvent, commission: ManagedCommission | null) {
+    const application = getDraggedApplication(event)
+    if (!application) return false
+    if (props.fixedAssignmentIds.has(application.id)) return false
+    if (!commission) return true
+    return getCommissionEligibility(application, commission).eligible
+  }
+
+  function handleDragOver(event: DragEvent) {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+  }
+
+  function handleDrop(event: DragEvent, commission: ManagedCommission | null) {
+    if (!canDrop(event, commission)) return
+    event.preventDefault()
+    const application = getDraggedApplication(event)
+    if (!application) return
+    props.onMove(application.id, commission?.id ?? null)
+  }
+
+  return (
+    <div className="mt-5 grid gap-3 xl:grid-cols-3">
+      {props.commissions.map((commission) => {
+        const applications = props.applications.filter(
+          (application) => props.draft[application.id] === commission.id,
+        )
+        const ready = applications.every(
+          (application) => getCommissionEligibility(application, commission).eligible,
+        )
+        return (
+          <AssignmentPlannerSection
+            collapsed={Boolean(collapsed[commission.id])}
+            count={applications.length}
+            emptyText="Fara candidati in plan."
+            key={commission.id}
+            onDragOver={handleDragOver}
+            onDrop={(event) => handleDrop(event, commission)}
+            onToggle={() => toggleCollapsed(commission.id)}
+            ready={ready}
+            title={commission.label}
+            tone="default"
+          >
+            {applications.map((application) => (
+              <AssignmentPlannerCard
+                application={application}
+                commissions={props.commissions}
+                currentCommissionId={commission.id}
+                fixed={props.fixedAssignmentIds.has(application.id)}
+                key={application.id}
+                onOpen={props.onOpen}
+                onToggleFixed={props.onToggleFixed}
+              />
+            ))}
+          </AssignmentPlannerSection>
+        )
+      })}
+      <AssignmentPlannerSection
+        collapsed={Boolean(collapsed.unassigned)}
+        count={unassigned.length}
+        emptyText="Toata lumea are o comisie in plan."
+        onDragOver={handleDragOver}
+        onDrop={(event) => handleDrop(event, null)}
+        onToggle={() => toggleCollapsed('unassigned')}
+        ready
+        title="Fara comisie"
+        tone="warning"
+      >
+        {unassigned.map((application) => (
+          <AssignmentPlannerCard
+            application={application}
+            commissions={props.commissions}
+            currentCommissionId={null}
+            fixed={props.fixedAssignmentIds.has(application.id)}
+            key={application.id}
+            onOpen={props.onOpen}
+            onToggleFixed={props.onToggleFixed}
+          />
+        ))}
+      </AssignmentPlannerSection>
+    </div>
+  )
+}
+
+function AssignmentBalanceNotice(props: { summary: AssignmentBalanceSummary }) {
+  const hasProblems = props.summary.problems.length > 0
+  return (
+    <div
+      className={`mt-4 rounded-md border p-3 text-sm ${
+        hasProblems
+          ? 'border-amber-200 bg-amber-50 text-amber-900'
+          : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        {hasProblems ? (
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+        ) : (
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+        )}
+        <div>
+          <p className="font-bold">
+            {hasProblems
+              ? 'Probleme in planul de asignare'
+              : 'Planul este impartit egal intre comisii'}
+          </p>
+          <p className="mt-1 leading-5">
+            Tinta curenta este {props.summary.expectedMin}
+            {props.summary.expectedMax !== props.summary.expectedMin
+              ? `-${props.summary.expectedMax}`
+              : ''}{' '}
+            candidati per comisie.
+          </p>
+          {hasProblems && (
+            <ul className="mt-2 grid gap-1">
+              {props.summary.problems.map((problem) => (
+                <li key={problem}>- {problem}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AssignmentPlannerSection(props: {
+  children: ReactNode
+  collapsed: boolean
+  count: number
+  emptyText: string
+  onDragOver: (event: DragEvent<HTMLElement>) => void
+  onDrop: (event: DragEvent<HTMLElement>) => void
+  onToggle: () => void
+  ready: boolean
+  title: string
+  tone: 'default' | 'warning'
+}) {
+  const warning = props.tone === 'warning'
+  return (
+    <section
+      className={`min-h-48 rounded-md border p-3 ${
+        warning ? 'border-amber-200 bg-amber-50' : 'border-[#dfe5ec] bg-[#f8fafc]'
+      }`}
+      onDragOver={props.onDragOver}
+      onDrop={props.onDrop}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <button
+          className={`flex min-w-0 items-start gap-2 text-left ${warning ? 'text-amber-950' : 'text-[#152039]'}`}
+          onClick={props.onToggle}
+          type="button"
+        >
+          <ChevronRight
+            className={`mt-0.5 size-4 shrink-0 transition-transform ${props.collapsed ? '' : 'rotate-90'}`}
+          />
+          <span className="min-w-0">
+            <span className="block truncate font-bold">{props.title}</span>
+            <span className={`mt-1 block text-xs ${warning ? 'text-amber-800' : 'text-[#748094]'}`}>
+              {props.count} {props.count === 1 ? 'candidat' : 'candidati'}
+            </span>
+          </span>
+        </button>
+        {props.ready ? (
+          <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+        ) : (
+          <AlertTriangle className="size-4 shrink-0 text-amber-600" />
+        )}
+      </div>
+      {!props.collapsed && (
+        <div className="mt-3 grid gap-2">
+          {props.count > 0 ? (
+            props.children
+          ) : (
+            <p
+              className={`rounded-md border border-dashed px-3 py-6 text-center text-xs font-semibold ${
+                warning
+                  ? 'border-amber-200 bg-white/70 text-amber-800'
+                  : 'border-[#d6dde7] bg-white text-[#748094]'
+              }`}
+            >
+              {props.emptyText}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function AssignmentPlannerCard(props: {
+  application: ManagedApplication
+  commissions: ManagedCommission[]
+  currentCommissionId: string | null
+  fixed: boolean
+  onOpen: (id: string) => void
+  onToggleFixed: (applicationID: string) => void
+}) {
+  const eligibleCommissions = props.commissions.filter(
+    (commission) => getCommissionEligibility(props.application, commission).eligible,
+  )
+  const currentCommission = props.commissions.find(
+    (commission) => commission.id === props.currentCommissionId,
+  )
+  const currentEligibility = currentCommission
+    ? getCommissionEligibility(props.application, currentCommission)
+    : null
+  const hasCurrentConflict = currentEligibility ? !currentEligibility.eligible : false
+
+  return (
+    <article
+      className={`rounded-md border bg-white p-3 ${hasCurrentConflict ? 'border-amber-300' : 'border-[#e4e8ef]'}`}
+      draggable={!props.fixed}
+      onDragStart={(event) => {
+        if (props.fixed) return
+        event.dataTransfer.effectAllowed = 'move'
+        event.dataTransfer.setData('application/x-triumph-application-id', props.application.id)
+        event.dataTransfer.setData('text/plain', props.application.id)
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 cursor-grab active:cursor-grabbing">
+          <p className="truncate text-sm font-bold">{props.application.name}</p>
+          <p className="mt-1 truncate text-xs text-[#748094]">{props.application.email}</p>
+        </div>
+        <button
+          aria-label={`Deschide ${props.application.name}`}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-[#dfe5ec] text-[#526071] hover:border-[#00a2e0] hover:text-[#007fb3]"
+          onClick={() => props.onOpen(props.application.id)}
+          type="button"
+        >
+          <FileText className="size-4" />
+        </button>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        {hasCurrentConflict ? (
+          <p className="text-xs font-semibold leading-5 text-amber-700">
+            {currentEligibility?.reason}
+          </p>
+        ) : (
+          <p className="text-xs font-semibold text-[#748094]">
+            {eligibleCommissions.length} comisii eligibile
+          </p>
+        )}
+        <button
+          aria-label={props.fixed ? 'Deblocheaza candidatul' : 'Fixeaza candidatul in comisie'}
+          className={`inline-flex size-8 shrink-0 items-center justify-center rounded-md border text-xs font-bold ${
+            props.fixed
+              ? 'border-[#141e34] bg-[#141e34] text-white'
+              : 'border-[#dfe5ec] text-[#526071] hover:border-[#00a2e0] hover:text-[#007fb3]'
+          } disabled:cursor-not-allowed disabled:opacity-45`}
+          disabled={!props.currentCommissionId || hasCurrentConflict}
+          onClick={() => props.onToggleFixed(props.application.id)}
+          type="button"
+        >
+          <LockKeyhole className="size-4" />
+        </button>
       </div>
     </article>
   )
@@ -1300,77 +1782,32 @@ function CommissionScheduleEditor(props: {
   )
 }
 
-function ReviewEmailStep(props: {
-  applications: ManagedApplication[]
-  busyKey: string | null
-  onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
-}) {
-  const reviewed = props.applications.filter((application) =>
-    ['coordonator-review', 'submission-rejected'].includes(application.status),
-  )
-  const unsent = reviewed.filter((application) => !application.reviewMailSentAt)
-  const accepted = reviewed.filter((application) => application.status === 'coordonator-review')
-  const rejected = reviewed.filter((application) => application.status === 'submission-rejected')
-
-  return (
-    <div className="grid gap-5">
-      <InfoPanel
-        icon={MailCheck}
-        text="Acest batch anunta rezultatul review-ului de formular pentru candidatii acceptati mai departe si cei respinsi. Verificarile coordonatorilor pot continua in paralel, iar invitatiile la interview raman in etapa separata."
-        title="Rezultat review formular"
-      />
-      <Panel>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-lg font-bold">Emailuri dupa formular</h3>
-            <p className="mt-1 text-sm text-[#748094]">
-              {unsent.length} netrimise · {accepted.length} acceptati · {rejected.length} respinsi
-            </p>
-          </div>
-          <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
-            disabled={unsent.length === 0 || isMailActionBusy(props.busyKey, 'send-review-mails')}
-            onClick={() =>
-              void props.onAction({ action: 'send-review-mails' }, 'send-review-mails')
-            }
-            type="button"
-          >
-            <Send className="size-4" />{' '}
-            {props.busyKey === 'send-review-mails' ? 'Se trimit...' : 'Trimite emailurile'}
-          </button>
-        </div>
-        <CandidateMailTable
-          applications={reviewed}
-          busyKey={props.busyKey}
-          kind="review"
-          onAction={props.onAction}
-        />
-      </Panel>
-    </div>
-  )
-}
-
 function InvitationStep(props: {
   applications: ManagedApplication[]
   busyKey: string | null
   deadline: string | null
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
 }) {
-  const interviews = props.applications.filter((application) => application.status === 'interview')
-  const unsent = interviews.filter((application) => !application.interviewMailSentAt)
+  const invitations = props.applications.filter((application) =>
+    ['interview', 'submission-rejected'].includes(application.status),
+  )
+  const unsent = invitations.filter((application) => !application.interviewMailSentAt)
+  const accepted = invitations.filter((application) => application.status === 'interview')
+  const rejected = invitations.filter((application) => application.status === 'submission-rejected')
   return (
     <div className="grid gap-5">
       <InfoPanel
         icon={Mail}
-        text="Emailurile se trimit o singura data pentru candidatii eligibili care nu au deja un email de invitatie. Candidatii aleg apoi ziua si caramida de timp din pagina publica de programare."
-        title="Invitatii si booking"
+        text="Emailurile anunta rezultatul review-ului: candidatii acceptati primesc linkul de programare, iar candidatii respinsi primesc mesajul de respingere."
+        title="Rezultat review si booking"
       />
       <Panel>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-bold">Invitatii la interview</h3>
+            <h3 className="text-lg font-bold">Rezultat review si programare</h3>
             <p className="mt-1 text-sm text-[#748094]">
-              {unsent.length} netrimise · deadline: {formatDate(props.deadline)}
+              {unsent.length} netrimise · {accepted.length} acceptati · {rejected.length} respinsi ·
+              deadline: {formatDate(props.deadline)}
             </p>
           </div>
           <button
@@ -1388,9 +1825,142 @@ function InvitationStep(props: {
           </button>
         </div>
         <CandidateMailTable
-          applications={interviews}
+          applications={invitations}
           busyKey={props.busyKey}
           kind="interview"
+          onAction={props.onAction}
+        />
+      </Panel>
+    </div>
+  )
+}
+
+function DebugStep(props: {
+  applications: ManagedApplication[]
+  busyKey: string | null
+  commissions: ManagedCommission[]
+  config: ManagedRecruitmentConfig
+  onUnlockStepsChange: (value: boolean) => void
+  onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
+  unlockSteps: boolean
+  workflow: RecruitmentWorkflowState
+}) {
+  const invitationCandidates = props.applications.filter((application) =>
+    ['coordonator-review', 'interview', 'submission-rejected'].includes(application.status),
+  )
+  const finalCandidates = props.applications.filter((application) =>
+    ['interview-passed', 'interview-rejected'].includes(application.status),
+  )
+  const unsentInvitations = invitationCandidates.filter(
+    (application) => !application.interviewMailSentAt,
+  ).length
+  const unsentFinal = finalCandidates.filter((application) => !application.finalMailSentAt).length
+  const readySchedules = props.commissions.filter(
+    (commission) => commission.interviewIntervals.length > 0,
+  ).length
+
+  return (
+    <div className="grid gap-5">
+      <InfoPanel
+        icon={AlertTriangle}
+        text="Acest spatiu este pentru testare manuala. Nu schimba regulile etapelor si ramane accesibil chiar daca perioada de inscrieri este inca deschisa."
+        title="Debug recruitment"
+      />
+      <Panel>
+        <label className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <input
+            checked={props.unlockSteps}
+            className="mt-1 size-4 rounded border-amber-300"
+            onChange={(event) => props.onUnlockStepsChange(event.target.checked)}
+            type="checkbox"
+          />
+          <span>
+            <span className="block font-bold">Deblocheaza toti pasii pentru sesiunea curenta</span>
+            <span className="mt-1 block leading-5">
+              Afecteaza doar navigarea din browserul tau. Actiunile serverului isi pastreaza
+              validarile.
+            </span>
+          </span>
+        </label>
+      </Panel>
+      <Panel>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SmallMetric
+            label="Etapa workflow"
+            value={getStepMeta(props.workflow.currentStep).label}
+          />
+          <SmallMetric label="Aplicatii filtrate" value={String(props.applications.length)} />
+          <SmallMetric
+            label="Comisii cu program"
+            value={`${readySchedules}/${props.commissions.length}`}
+          />
+          <SmallMetric
+            label="Deadline programare"
+            value={formatDate(props.config.interviewSchedulingDeadline)}
+          />
+        </div>
+      </Panel>
+      <Panel>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-bold">Manual: review si programare</h3>
+            <p className="mt-1 text-sm text-[#748094]">
+              {unsentInvitations} netrimise din {invitationCandidates.length} candidati eligibili.
+            </p>
+          </div>
+          <button
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={
+              invitationCandidates.length === 0 ||
+              isMailActionBusy(props.busyKey, 'send-interview-mails')
+            }
+            onClick={() =>
+              void props.onAction(
+                {
+                  action: 'send-interview-mails',
+                  debugIncludeAcceptedReviewCandidates: true,
+                },
+                'send-interview-mails',
+              )
+            }
+            type="button"
+          >
+            <Send className="size-4" />{' '}
+            {props.busyKey === 'send-interview-mails' ? 'Se trimit...' : 'Trimite batch'}
+          </button>
+        </div>
+        <CandidateMailTable
+          applications={invitationCandidates}
+          busyKey={props.busyKey}
+          extraActionBody={{ debugIncludeAcceptedReviewCandidates: true }}
+          kind="interview"
+          onAction={props.onAction}
+        />
+      </Panel>
+      <Panel>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-bold">Manual: rezultate finale</h3>
+            <p className="mt-1 text-sm text-[#748094]">
+              {unsentFinal} netrimise din {finalCandidates.length} decizii finale.
+            </p>
+          </div>
+          <button
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={
+              finalCandidates.length === 0 || isMailActionBusy(props.busyKey, 'send-final-mails')
+            }
+            onClick={() => void props.onAction({ action: 'send-final-mails' }, 'send-final-mails')}
+            type="button"
+          >
+            <Send className="size-4" />{' '}
+            {props.busyKey === 'send-final-mails' ? 'Se trimit...' : 'Trimite batch final'}
+          </button>
+        </div>
+        <CandidateMailTable
+          applications={finalCandidates}
+          busyKey={props.busyKey}
+          kind="final"
           onAction={props.onAction}
         />
       </Panel>
@@ -1493,7 +2063,8 @@ function ResultStep(props: {
 function CandidateMailTable(props: {
   applications: ManagedApplication[]
   busyKey: string | null
-  kind: 'final' | 'interview' | 'review'
+  extraActionBody?: Record<string, unknown>
+  kind: 'final' | 'interview'
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
 }) {
   const action = getMailAction(props.kind)
@@ -1512,9 +2083,7 @@ function CandidateMailTable(props: {
             const sentAt =
               props.kind === 'interview'
                 ? application.interviewMailSentAt
-                : props.kind === 'final'
-                  ? application.finalMailSentAt
-                  : application.reviewMailSentAt
+                : application.finalMailSentAt
             const sendKey = `${action}:${application.id}`
             const rowBusy = props.busyKey === sendKey
             return (
@@ -1524,14 +2093,12 @@ function CandidateMailTable(props: {
                   <p className="text-xs text-[#748094]">{application.email}</p>
                 </td>
                 <td className="px-3 py-3">
-                  {props.kind === 'interview' ? (
+                  {props.kind === 'interview' && application.status === 'interview' ? (
                     application.interviewDate ? (
                       formatDateTime(application.interviewDate)
                     ) : (
                       'Neprogramat'
                     )
-                  ) : props.kind === 'review' ? (
-                    <StatusBadge status={application.status} />
                   ) : (
                     <StatusBadge status={application.status} />
                   )}
@@ -1543,21 +2110,26 @@ function CandidateMailTable(props: {
                         <CheckCircle2 className="size-4" /> Trimis {formatDate(sentAt)}
                       </span>
                     ) : (
-                      <>
-                        <span className="text-xs font-bold text-amber-700">Netimis</span>
-                        <button
-                          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-[#dfe5ec] bg-white px-2.5 text-xs font-bold text-[#152039] transition hover:border-[#00a2e0] hover:text-[#007fb3] disabled:cursor-not-allowed disabled:opacity-55"
-                          disabled={Boolean(props.busyKey)}
-                          onClick={() =>
-                            void props.onAction({ action, applicationId: application.id }, sendKey)
-                          }
-                          type="button"
-                        >
-                          <Send className="size-3.5" />
-                          {rowBusy ? 'Se trimite...' : 'Trimite'}
-                        </button>
-                      </>
+                      <span className="text-xs font-bold text-amber-700">Netimis</span>
                     )}
+                    <button
+                      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-[#dfe5ec] bg-white px-2.5 text-xs font-bold text-[#152039] transition hover:border-[#00a2e0] hover:text-[#007fb3] disabled:cursor-not-allowed disabled:opacity-55"
+                      disabled={Boolean(props.busyKey)}
+                      onClick={() =>
+                        void props.onAction(
+                          {
+                            action,
+                            applicationId: application.id,
+                            ...(props.extraActionBody ?? {}),
+                          },
+                          sendKey,
+                        )
+                      }
+                      type="button"
+                    >
+                      <Send className="size-3.5" />
+                      {rowBusy ? 'Se trimite...' : sentAt ? 'Retrimite' : 'Trimite'}
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -2108,15 +2680,11 @@ function StepFooter(props: {
   const previous = recruitmentSteps[currentIndex - 1]
   const nextUnlocked = next && currentIndex + 1 <= props.maximumStepIndex
   const blockers = props.workflow.gates[props.activeStep].blockers
-  const blockerPrefix =
-    props.activeStep === 'review-emails' ? 'De rezolvat' : 'Pentru pasul urmator'
   return (
     <footer className="mt-5 flex flex-col gap-3 rounded-md border border-[#dfe5ec] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         {blockers.length > 0 ? (
-          <p className="text-sm text-[#748094]">
-            {blockerPrefix}: {blockers[0]}
-          </p>
+          <p className="text-sm text-[#748094]">Pentru pasul urmator: {blockers[0]}</p>
         ) : (
           <p className="text-sm font-semibold text-emerald-700">Etapa este completa.</p>
         )}
@@ -2333,6 +2901,350 @@ function getCommissionEligibility(application: ManagedApplication, commission: M
     return { eligible: false, reason: `${known.length} coordonator(i) cunosc candidatul.` }
   return { eligible: true, reason: '' }
 }
+type AssignmentBalanceSummary = {
+  expectedMax: number
+  expectedMin: number
+  problems: string[]
+}
+function createAssignmentDraft(applications: ManagedApplication[]) {
+  return applications.reduce<Record<string, string | null>>((draft, application) => {
+    draft[application.id] = application.commissionId || null
+    return draft
+  }, {})
+}
+function createAutoAssignmentDraft(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+  seed: string,
+  fixedAssignmentIds: Set<string> = new Set(),
+  currentDraft: Record<string, string | null> = {},
+) {
+  const random = createSeededRandom(seed || 'triumph')
+  const exactDraft = createExactBalancedAssignmentDraft(
+    applications,
+    commissions,
+    random,
+    fixedAssignmentIds,
+    currentDraft,
+  )
+  if (exactDraft) return exactDraft
+
+  const draft: Record<string, string | null> = {}
+  const counts = new Map(commissions.map((commission) => [commission.id, 0]))
+  applications.forEach((application) => {
+    if (!fixedAssignmentIds.has(application.id)) return
+    const commissionID = currentDraft[application.id] ?? null
+    draft[application.id] = commissionID
+    if (commissionID && counts.has(commissionID)) {
+      counts.set(commissionID, (counts.get(commissionID) ?? 0) + 1)
+    }
+  })
+
+  const orderedApplications = shuffleWithRandom(
+    applications.filter((application) => !fixedAssignmentIds.has(application.id)),
+    random,
+  ).sort(
+    (first, second) =>
+      getEligibleCommissions(first, commissions).length -
+      getEligibleCommissions(second, commissions).length,
+  )
+
+  for (const application of orderedApplications) {
+    const eligible = shuffleWithRandom(getEligibleCommissions(application, commissions), random)
+
+    if (eligible.length === 0) {
+      draft[application.id] = null
+      continue
+    }
+
+    const target = eligible.reduce((best, commission) =>
+      (counts.get(commission.id) ?? 0) < (counts.get(best.id) ?? 0) ? commission : best,
+    )
+    draft[application.id] = target.id
+    counts.set(target.id, (counts.get(target.id) ?? 0) + 1)
+  }
+
+  return draft
+}
+function createExactBalancedAssignmentDraft(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+  random: () => number,
+  fixedAssignmentIds: Set<string>,
+  currentDraft: Record<string, string | null>,
+) {
+  if (commissions.length === 0) return null
+
+  const assignable = applications.filter(
+    (application) =>
+      fixedAssignmentIds.has(application.id) ||
+      getEligibleCommissions(application, commissions).length > 0,
+  )
+  const base = Math.floor(assignable.length / commissions.length)
+  const extra = assignable.length % commissions.length
+  const targetPlans = createBalancedTargetPlans(shuffleWithRandom(commissions, random), base, extra)
+  const fixedAssignments = getFixedAssignmentMap(
+    assignable,
+    commissions,
+    fixedAssignmentIds,
+    currentDraft,
+  )
+
+  for (const targets of targetPlans) {
+    const assignment = solveAssignmentWithTargets(
+      assignable,
+      commissions,
+      targets,
+      random,
+      fixedAssignments,
+    )
+    if (!assignment) continue
+
+    const draft: Record<string, string | null> = {}
+    applications.forEach((application) => {
+      draft[application.id] = assignment[application.id] ?? null
+    })
+    return draft
+  }
+
+  return null
+}
+function createBalancedTargetPlans(commissions: ManagedCommission[], base: number, extra: number) {
+  if (extra === 0) return [new Map(commissions.map((commission) => [commission.id, base]))]
+
+  const combinations: ManagedCommission[][] = []
+
+  function collect(startIndex: number, selected: ManagedCommission[]) {
+    if (selected.length === extra) {
+      combinations.push(selected)
+      return
+    }
+
+    for (let index = startIndex; index < commissions.length; index += 1) {
+      const commission = commissions[index]
+      if (!commission) continue
+      collect(index + 1, [...selected, commission])
+    }
+  }
+
+  collect(0, [])
+
+  return combinations.slice(0, 200).map((extraCommissions) => {
+    const targets = new Map(commissions.map((commission) => [commission.id, base]))
+    extraCommissions.forEach((commission) => targets.set(commission.id, base + 1))
+    return targets
+  })
+}
+function solveAssignmentWithTargets(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+  targets: Map<string, number>,
+  random: () => number,
+  fixedAssignments: Map<string, string>,
+) {
+  const slots = commissions.flatMap((commission) =>
+    Array.from({ length: targets.get(commission.id) ?? 0 }, (_, index) => ({
+      commissionId: commission.id,
+      id: `${commission.id}:${index}`,
+    })),
+  )
+  const slotAssignments = new Map<string, ManagedApplication>()
+  const openSlots = new Set(slots.map((slot) => slot.id))
+
+  for (const application of applications) {
+    const fixedCommissionID = fixedAssignments.get(application.id)
+    if (!fixedCommissionID) continue
+
+    const commission = commissions.find((item) => item.id === fixedCommissionID)
+    if (!commission || !getCommissionEligibility(application, commission).eligible) return null
+
+    const slot = slots.find(
+      (item) => item.commissionId === fixedCommissionID && openSlots.has(item.id),
+    )
+    if (!slot) return null
+
+    slotAssignments.set(slot.id, application)
+    openSlots.delete(slot.id)
+  }
+
+  const orderedApplications = shuffleWithRandom(
+    applications.filter((application) => !fixedAssignments.has(application.id)),
+    random,
+  ).sort(
+    (first, second) =>
+      getEligibleCommissions(first, commissions).length -
+      getEligibleCommissions(second, commissions).length,
+  )
+
+  function assign(application: ManagedApplication, visitedSlots: Set<string>): boolean {
+    const eligibleSlots = shuffleWithRandom(
+      slots.filter((slot) => {
+        if (!openSlots.has(slot.id) && !slotAssignments.has(slot.id)) return false
+        const commission = commissions.find((item) => item.id === slot.commissionId)
+        return commission ? getCommissionEligibility(application, commission).eligible : false
+      }),
+      random,
+    )
+
+    for (const slot of eligibleSlots) {
+      if (visitedSlots.has(slot.id)) continue
+      visitedSlots.add(slot.id)
+
+      const current = slotAssignments.get(slot.id)
+      if (current && fixedAssignments.has(current.id)) continue
+      if (!current || assign(current, visitedSlots)) {
+        slotAssignments.set(slot.id, application)
+        return true
+      }
+    }
+
+    return false
+  }
+
+  for (const application of orderedApplications) {
+    if (!assign(application, new Set())) return null
+  }
+
+  const assignment: Record<string, string> = {}
+  slotAssignments.forEach((application, slotID) => {
+    assignment[application.id] = slotID.split(':')[0] ?? ''
+  })
+  return assignment
+}
+function getAssignmentBalanceSummary(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+  draft: Record<string, string | null>,
+  fixedAssignmentIds: Set<string> = new Set(),
+): AssignmentBalanceSummary {
+  const assigned = applications.filter((application) => draft[application.id])
+  const expectedMin = commissions.length ? Math.floor(assigned.length / commissions.length) : 0
+  const expectedMax = commissions.length ? Math.ceil(assigned.length / commissions.length) : 0
+  const problems: string[] = []
+
+  if (applications.length > 0 && commissions.length === 0) {
+    problems.push('Nu exista comisii configurate.')
+  }
+
+  const unassigned = applications.filter((application) => !draft[application.id])
+  if (unassigned.length > 0) {
+    problems.push(`${unassigned.length} candidati nu au comisie in plan.`)
+  }
+
+  const withoutEligibleCommission = applications.filter(
+    (application) => getEligibleCommissions(application, commissions).length === 0,
+  )
+  if (withoutEligibleCommission.length > 0) {
+    problems.push(`${withoutEligibleCommission.length} candidati nu au nicio comisie eligibila.`)
+  }
+
+  const fixedWithoutCommission = applications.filter(
+    (application) => fixedAssignmentIds.has(application.id) && !draft[application.id],
+  )
+  if (fixedWithoutCommission.length > 0) {
+    problems.push(`${fixedWithoutCommission.length} candidati fixati nu au comisie.`)
+  }
+
+  const invalidAssignments = applications.filter((application) => {
+    const commissionID = draft[application.id]
+    if (!commissionID) return false
+    const commission = commissions.find((item) => item.id === commissionID)
+    return !commission || !getCommissionEligibility(application, commission).eligible
+  })
+  if (invalidAssignments.length > 0) {
+    problems.push(`${invalidAssignments.length} candidati sunt pusi in comisii cu conflict.`)
+  }
+
+  const invalidFixedAssignments = invalidAssignments.filter((application) =>
+    fixedAssignmentIds.has(application.id),
+  )
+  if (invalidFixedAssignments.length > 0) {
+    problems.push(
+      `${invalidFixedAssignments.length} candidati fixati au conflict in comisia aleasa.`,
+    )
+  }
+
+  if (commissions.length > 0) {
+    const counts = commissions.map(
+      (commission) =>
+        applications.filter((application) => draft[application.id] === commission.id).length,
+    )
+    const min = Math.min(...counts)
+    const max = Math.max(...counts)
+
+    if (max - min > 1) {
+      problems.push(`Distributia nu este egala: comisiile au intre ${min} si ${max} candidati.`)
+    } else if (
+      unassigned.length === 0 &&
+      invalidAssignments.length === 0 &&
+      counts.some((count) => count < expectedMin || count > expectedMax)
+    ) {
+      problems.push('Distributia nu respecta tinta egala calculata pentru numarul de candidati.')
+    }
+
+    const fixedOverTarget = commissions.filter(
+      (commission) =>
+        applications.filter(
+          (application) =>
+            fixedAssignmentIds.has(application.id) && draft[application.id] === commission.id,
+        ).length > expectedMax,
+    )
+    if (fixedOverTarget.length > 0) {
+      problems.push(
+        `${fixedOverTarget.length} comisii au deja prea multi candidati fixati pentru o impartire egala.`,
+      )
+    }
+  }
+
+  return { expectedMax, expectedMin, problems }
+}
+function getFixedAssignmentMap(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+  fixedAssignmentIds: Set<string>,
+  draft: Record<string, string | null>,
+) {
+  const commissionIDs = new Set(commissions.map((commission) => commission.id))
+  const fixedAssignments = new Map<string, string>()
+
+  applications.forEach((application) => {
+    if (!fixedAssignmentIds.has(application.id)) return
+    const commissionID = draft[application.id]
+    if (!commissionID || !commissionIDs.has(commissionID)) return
+    fixedAssignments.set(application.id, commissionID)
+  })
+
+  return fixedAssignments
+}
+function getEligibleCommissions(application: ManagedApplication, commissions: ManagedCommission[]) {
+  return commissions.filter(
+    (commission) => getCommissionEligibility(application, commission).eligible,
+  )
+}
+function shuffleWithRandom<T>(items: T[], random: () => number) {
+  const copy = [...items]
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1))
+    const current = copy[index]
+    copy[index] = copy[swapIndex] as T
+    copy[swapIndex] = current as T
+  }
+  return copy
+}
+function createSeededRandom(seed: string) {
+  let value = 2166136261
+  for (let index = 0; index < seed.length; index += 1) {
+    value ^= seed.charCodeAt(index)
+    value = Math.imul(value, 16777619)
+  }
+  return () => {
+    value += 0x6d2b79f5
+    let next = value
+    next = Math.imul(next ^ (next >>> 15), next | 1)
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61)
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296
+  }
+}
 function createInterval(defaultDate: string | null): ManagedInterval {
   const day = toDateInput(defaultDate) || toDateInput(new Date().toISOString())
   return {
@@ -2370,15 +3282,19 @@ function getMaximumOpenStepIndex(currentStep: RecruitmentStepKey) {
     recruitmentSteps.findIndex((step) => step.key === currentStep),
   )
 }
-function normalizeStep(value: string | null): RecruitmentStepKey {
+function normalizeStep(value: string | null): WizardStepKey {
+  if (value === 'debug') return 'debug'
   return recruitmentSteps.some((step) => step.key === value)
     ? (value as RecruitmentStepKey)
     : 'forms'
 }
-function getMailAction(kind: 'final' | 'interview' | 'review') {
+function getStepMeta(step: WizardStepKey) {
+  if (step === 'debug') return { key: 'debug', label: 'Debug manual', number: 'Debug' } as const
+  return recruitmentSteps.find((item) => item.key === step) ?? recruitmentSteps[0]
+}
+function getMailAction(kind: 'final' | 'interview') {
   if (kind === 'interview') return 'send-interview-mails'
-  if (kind === 'final') return 'send-final-mails'
-  return 'send-review-mails'
+  return 'send-final-mails'
 }
 function isMailActionBusy(busyKey: string | null, action: string) {
   return Boolean(busyKey === action || busyKey?.startsWith(`${action}:`))
@@ -2492,7 +3408,6 @@ function buildRecruitmentApplicationsCSV(
     'Trimis la',
     'Data interview',
     'Prezenta interview',
-    'Email review formular trimis la',
     'Email interview trimis la',
     'Email final trimis la',
     'Coordonatori cunoscuti',
@@ -2519,7 +3434,6 @@ function buildRecruitmentApplicationsCSV(
         formatExportDateTime(application.createdAt),
         formatExportDateTime(application.interviewDate),
         application.interviewAttendance || '',
-        formatExportDateTime(application.reviewMailSentAt),
         formatExportDateTime(application.interviewMailSentAt),
         formatExportDateTime(application.finalMailSentAt),
         getCSVUserNames(application.knownCoordinatorIds, commissions),
