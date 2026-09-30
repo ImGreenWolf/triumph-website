@@ -2899,7 +2899,7 @@ function DateTimeInput(props: {
       <input
         className="h-9 rounded-md border border-[#dfe5ec] px-2 text-sm font-semibold outline-none focus:border-[#00a2e0]"
         onChange={(event) =>
-          props.onChange(event.target.value ? new Date(event.target.value).toISOString() : null)
+          props.onChange(event.target.value ? toLocalDateTimeStorage(event.target.value) : null)
         }
         type="datetime-local"
         value={toDateTimeInput(props.value)}
@@ -3339,11 +3339,11 @@ function createInterval(defaultDate: string | null): ManagedInterval {
   const day = toDateInput(defaultDate) || toDateInput(new Date().toISOString())
   return {
     breaks: [],
-    endDateTime: new Date(`${day}T17:00`).toISOString(),
+    endDateTime: `${day}T17:00:00.000`,
     interviewDuration: 20,
     location: null,
     pauseBetween: 5,
-    startDateTime: new Date(`${day}T09:00`).toISOString(),
+    startDateTime: `${day}T09:00:00.000`,
   }
 }
 function updateIntervalBreak(
@@ -3427,17 +3427,25 @@ function toDateInput(value: string | null) {
 }
 function toDateTimeInput(value: string | null) {
   if (!value) return ''
+  if (!hasExplicitTimezone(value)) return value.slice(0, 16)
   const date = new Date(value)
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16)
 }
 function toTimeInput(value: string | null) {
   if (!value) return ''
+  if (!hasExplicitTimezone(value)) return value.slice(11, 16)
   const date = new Date(value)
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 function toTimeDate(value: string) {
-  return `1970-01-01T${value}:00.000Z`
+  return `1970-01-01T${value}:00.000`
+}
+function toLocalDateTimeStorage(value: string) {
+  return `${value}:00.000`
+}
+function hasExplicitTimezone(value: string) {
+  return /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
 }
 function formatDate(value: string | null | undefined) {
   if (!value) return 'Neconfigurat'

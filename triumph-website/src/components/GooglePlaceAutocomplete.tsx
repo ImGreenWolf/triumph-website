@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react'
 
 import type { GooglePlaceLocation } from '@/utilities/googlePlace'
 
-const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.split('#')[0]?.trim() || ''
 
 export function GooglePlaceAutocomplete(props: {
   disabled?: boolean
@@ -46,14 +46,21 @@ function PlaceAutocompleteControl(props: {
     const autocomplete = new google.maps.places.PlaceAutocompleteElement({
       value: props.value?.name || '',
     })
+    ;(
+      autocomplete as google.maps.places.PlaceAutocompleteElement & {
+        includedRegionCodes?: string[]
+      }
+    ).includedRegionCodes = ['ro']
     autocomplete.name = 'interview-location-search'
     autocomplete.placeholder = 'Cauta pe Google Maps'
+    autocomplete.setAttribute('aria-label', 'Cauta locatie')
     autocomplete.style.display = 'block'
     autocomplete.style.height = '100%'
     autocomplete.style.minWidth = '0'
     autocomplete.style.width = '100%'
     autocompleteRef.current = autocomplete
-    containerRef.current.replaceChildren(autocomplete)
+    containerRef.current.innerHTML = ''
+    containerRef.current.appendChild(autocomplete)
 
     const listener: EventListener = async (event) => {
       const place = (
@@ -90,6 +97,7 @@ function PlaceAutocompleteControl(props: {
     return () => {
       autocomplete.removeEventListener('gmp-select', listener)
       autocompleteRef.current = null
+      autocomplete.remove()
     }
   }, [places])
 
@@ -103,7 +111,7 @@ function PlaceAutocompleteControl(props: {
     <div className="relative z-20 min-w-0">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-3.5 -translate-y-1/2 text-[#748094]" />
       <div
-        className="google-place-autocomplete h-9 w-full min-w-0 rounded-md border border-[#dfe5ec] bg-white pl-8"
+        className="google-place-autocomplete h-9 w-full min-w-0 rounded-md border border-[#dfe5ec] bg-white pl-8 [&_gmp-place-autocomplete]:h-full [&_gmp-place-autocomplete]:w-full"
         ref={containerRef}
       />
     </div>

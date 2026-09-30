@@ -810,7 +810,7 @@ function ScheduleSettings(props: {
                       {formatInterviewCapacity(intervalCapacity)}
                     </span>
                   </div>
-                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_5.5rem_5.5rem_minmax(15rem,1.4fr)]">
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_5.5rem_5.5rem_minmax(15rem,1.4fr)] gap-2">
                     <DateTimeField
                       label="Incepe"
                       onChange={(value) => update(index, { startDateTime: value })}
@@ -822,17 +822,17 @@ function ScheduleSettings(props: {
                       value={interval.endDateTime}
                     />
                     <NumberField
-                      label="Durata"
+                      label="Durata Interview"
                       onChange={(value) => update(index, { interviewDuration: value })}
                       value={interval.interviewDuration}
                     />
                     <NumberField
-                      label="Pauza"
+                      label="Pauza Între Interviewuri"
                       onChange={(value) => update(index, { pauseBetween: value })}
                       value={interval.pauseBetween}
                     />
                     <PlaceLocationField
-                      label="Locatie"
+                      label="Locație"
                       onChange={(value) => update(index, { location: value })}
                       value={interval.location}
                     />
@@ -1036,7 +1036,7 @@ function DateTimeField(props: {
       <input
         className="h-9 rounded-md border border-[#dfe5ec] px-2 text-sm"
         onChange={(event) =>
-          props.onChange(event.target.value ? new Date(event.target.value).toISOString() : null)
+          props.onChange(event.target.value ? toLocalDateTimeStorage(event.target.value) : null)
         }
         type="datetime-local"
         value={toDateTimeInput(props.value)}
@@ -1050,10 +1050,10 @@ function NumberField(props: {
   value: number | null
 }) {
   return (
-    <label className="grid gap-1 text-xs font-bold text-[#526071]">
+    <label className="grid gap-1 text-xs font-bold text-[#526071] truncate text-wrap box-border">
       {props.label}
       <input
-        className="h-9 rounded-md border border-[#dfe5ec] px-2 text-sm"
+        className="h-9 rounded-md border border-[#dfe5ec] text-primary-text px-2 text-sm"
         min={0}
         onChange={(event) => props.onChange(event.target.value ? Number(event.target.value) : null)}
         type="number"
@@ -1085,7 +1085,7 @@ function TimeField(props: {
       <input
         className="h-9 rounded-md border border-[#dfe5ec] px-2 text-sm"
         onChange={(event) =>
-          props.onChange(event.target.value ? `1970-01-01T${event.target.value}:00.000Z` : null)
+          props.onChange(event.target.value ? `1970-01-01T${event.target.value}:00.000` : null)
         }
         type="time"
         value={toTimeInput(props.value)}
@@ -1116,11 +1116,11 @@ function createInterval(defaultDate: string | null): InterviewWorkspaceInterval 
   const date = defaultDate?.slice(0, 10) || new Date().toISOString().slice(0, 10)
   return {
     breaks: [],
-    endDateTime: new Date(`${date}T17:00`).toISOString(),
+    endDateTime: `${date}T17:00:00.000`,
     interviewDuration: 20,
     location: null,
     pauseBetween: 5,
-    startDateTime: new Date(`${date}T09:00`).toISOString(),
+    startDateTime: `${date}T09:00:00.000`,
   }
 }
 function serializeInterviewIntervals(intervals: InterviewWorkspaceInterval[]) {
@@ -1144,13 +1144,21 @@ function formatInterviewCapacity(value: number) {
 }
 function toDateTimeInput(value: string | null) {
   if (!value) return ''
+  if (!hasExplicitTimezone(value)) return value.slice(0, 16)
   const date = new Date(value)
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 }
 function toTimeInput(value: string | null) {
   if (!value) return ''
+  if (!hasExplicitTimezone(value)) return value.slice(11, 16)
   const date = new Date(value)
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+function toLocalDateTimeStorage(value: string) {
+  return `${value}:00.000`
+}
+function hasExplicitTimezone(value: string) {
+  return /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
 }
 function isDeadlinePassed(value: string | null) {
   return Boolean(value && new Date(value) < new Date())
