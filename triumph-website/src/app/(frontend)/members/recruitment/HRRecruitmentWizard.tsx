@@ -1637,7 +1637,8 @@ function CommissionScheduleEditor(props: {
   )
   const [intervals, setIntervals] = useState(props.commission.interviewIntervals)
   useEffect(() => setIntervals(props.commission.interviewIntervals), [serverIntervalsKey])
-  const totalCapacity = generateInterviewSlots(intervals).length
+  const previewSlots = generateInterviewSlots(intervals)
+  const totalCapacity = previewSlots.length
   const capacityEnough = totalCapacity >= props.assignedCount
 
   function updateInterval(index: number, changes: Partial<ManagedInterval>) {
@@ -1813,7 +1814,42 @@ function CommissionScheduleEditor(props: {
           </p>
         )}
       </div>
+      <InterviewSlotsPreview slots={previewSlots} />
     </article>
+  )
+}
+
+function InterviewSlotsPreview(props: { slots: ReturnType<typeof generateInterviewSlots> }) {
+  return (
+    <div className="mt-4 rounded-md border border-[#dfe5ec] bg-white p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
+          Preview sloturi
+        </p>
+        <span className="rounded-full bg-[#eef9ff] px-2 py-1 text-xs font-bold text-[#007fb3]">
+          {props.slots.length} {props.slots.length === 1 ? 'slot' : 'sloturi'}
+        </span>
+      </div>
+      <div className="mt-3 max-h-72 overflow-auto rounded-md border border-[#edf0f4]">
+        {props.slots.length > 0 ? (
+          props.slots.map((slot) => (
+            <div
+              className="flex flex-col gap-1 border-b border-[#edf0f4] px-3 py-2 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+              key={slot.id}
+            >
+              <span className="text-sm font-bold text-[#152039]">{slot.label}</span>
+              {slot.location && (
+                <span className="text-xs font-semibold text-[#748094]">{slot.location}</span>
+              )}
+            </div>
+          ))
+        ) : (
+          <p className="px-3 py-4 text-sm font-semibold text-amber-700">
+            Programul curent nu genereaza niciun slot.
+          </p>
+        )}
+      </div>
+    </div>
   )
 }
 

@@ -755,7 +755,8 @@ function ScheduleSettings(props: {
   )
   const [intervals, setIntervals] = useState(props.commission.interviewIntervals)
   useEffect(() => setIntervals(props.commission.interviewIntervals), [serverIntervalsKey])
-  const totalCapacity = generateInterviewSlots(intervals).length
+  const previewSlots = generateInterviewSlots(intervals)
+  const totalCapacity = previewSlots.length
   const capacityEnough = totalCapacity >= props.assignedCount
   function update(index: number, changes: Partial<InterviewWorkspaceInterval>) {
     setIntervals((current) =>
@@ -904,6 +905,7 @@ function ScheduleSettings(props: {
               )
             })}
           </div>
+          <InterviewSlotsPreview slots={previewSlots} />
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               className="inline-flex h-9 items-center gap-2 rounded-md border border-[#cdd5df] px-3 text-xs font-bold"
@@ -938,6 +940,40 @@ function ScheduleSettings(props: {
         </div>
       )}
     </section>
+  )
+}
+
+function InterviewSlotsPreview(props: { slots: ReturnType<typeof generateInterviewSlots> }) {
+  return (
+    <div className="mt-4 rounded-md border border-[#dfe5ec] bg-[#f8fafc] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-black uppercase tracking-[0.1em] text-[#748094]">
+          Preview sloturi
+        </p>
+        <span className="rounded-full bg-[#eef9ff] px-2 py-1 text-xs font-bold text-[#007fb3]">
+          {props.slots.length} {props.slots.length === 1 ? 'slot' : 'sloturi'}
+        </span>
+      </div>
+      <div className="mt-3 max-h-72 overflow-auto rounded-md border border-[#edf0f4] bg-white">
+        {props.slots.length > 0 ? (
+          props.slots.map((slot) => (
+            <div
+              className="flex flex-col gap-1 border-b border-[#edf0f4] px-3 py-2 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+              key={slot.id}
+            >
+              <span className="text-sm font-bold text-[#152039]">{slot.label}</span>
+              {slot.location && (
+                <span className="text-xs font-semibold text-[#748094]">{slot.location}</span>
+              )}
+            </div>
+          ))
+        ) : (
+          <p className="px-3 py-4 text-sm font-semibold text-amber-700">
+            Programul curent nu genereaza niciun slot.
+          </p>
+        )}
+      </div>
+    </div>
   )
 }
 
