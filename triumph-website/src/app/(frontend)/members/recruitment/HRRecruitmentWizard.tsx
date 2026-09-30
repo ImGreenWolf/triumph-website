@@ -59,6 +59,7 @@ import type { GooglePlaceLocation } from '@/utilities/googlePlace'
 import { generateInterviewSlots } from '@/utilities/interviewSchedule'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
 import { cn } from '@/utilities/ui'
+import { getCommissionLabel } from '@/utilities/aspirementRecruitment'
 
 type WizardStepKey = RecruitmentStepKey | 'debug'
 
@@ -614,6 +615,7 @@ export default function HRRecruitmentWizard(props: {
           )}
           {activeStep === 'invitations' && (
             <InvitationStep
+              commissions={commissions}
               applications={visibleApplications}
               busyKey={busyKey}
               deadline={config.interviewSchedulingDeadline}
@@ -624,7 +626,7 @@ export default function HRRecruitmentWizard(props: {
             <InterviewStep applications={visibleApplications} commissions={commissions} />
           )}
           {activeStep === 'results' && (
-            <ResultStep applications={visibleApplications} busyKey={busyKey} onAction={runAction} />
+            <ResultStep commissions={commissions} applications={visibleApplications} busyKey={busyKey} onAction={runAction} />
           )}
           {activeStep === 'debug' && (
             <DebugStep
@@ -1942,6 +1944,7 @@ function InterviewSlotsPreview(props: { slots: ReturnType<typeof generateIntervi
 
 function InvitationStep(props: {
   applications: ManagedApplication[]
+  commissions: ManagedCommission[]
   busyKey: string | null
   deadline: string | null
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
@@ -1984,6 +1987,7 @@ function InvitationStep(props: {
         </div>
         <CandidateMailTable
           applications={invitations}
+          commissions={props.commissions}
           busyKey={props.busyKey}
           kind="interview"
           onAction={props.onAction}
@@ -2089,6 +2093,7 @@ function DebugStep(props: {
         </div>
         <CandidateMailTable
           applications={invitationCandidates}
+          commissions={props.commissions}
           busyKey={props.busyKey}
           extraActionBody={{ debugIncludeAcceptedReviewCandidates: true }}
           kind="interview"
@@ -2117,6 +2122,7 @@ function DebugStep(props: {
         </div>
         <CandidateMailTable
           applications={finalCandidates}
+          commissions={props.commissions}
           busyKey={props.busyKey}
           kind="final"
           onAction={props.onAction}
@@ -2177,6 +2183,7 @@ function InterviewStep(props: {
 
 function ResultStep(props: {
   applications: ManagedApplication[]
+  commissions: ManagedCommission[]
   busyKey: string | null
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
 }) {
@@ -2209,6 +2216,7 @@ function ResultStep(props: {
         </div>
         <CandidateMailTable
           applications={final}
+          commissions={props.commissions}
           busyKey={props.busyKey}
           kind="final"
           onAction={props.onAction}
@@ -2220,6 +2228,7 @@ function ResultStep(props: {
 
 function CandidateMailTable(props: {
   applications: ManagedApplication[]
+  commissions: ManagedCommission[]
   busyKey: string | null
   extraActionBody?: Record<string, unknown>
   kind: 'final' | 'interview'
@@ -2232,6 +2241,7 @@ function CandidateMailTable(props: {
         <thead className="border-y border-[#edf0f4] text-[11px] font-black uppercase tracking-[0.1em] text-[#748094]">
           <tr>
             <th className="px-3 py-3">Candidat</th>
+            <th className="px-3 py-3">Comisie</th>
             <th className="px-3 py-3">Programare / rezultat</th>
             <th className="px-3 py-3">Email</th>
           </tr>
@@ -2249,6 +2259,9 @@ function CandidateMailTable(props: {
                 <td className="px-3 py-3">
                   <p className="font-bold">{application.name}</p>
                   <p className="text-xs text-[#748094]">{application.email}</p>
+                </td>
+                <td>
+                  <p className="">{props.commissions.find(comission => comission.id == application.commissionId)?.label || ''}</p>
                 </td>
                 <td className="px-3 py-3">
                   {props.kind === 'interview' && application.status === 'interview' ? (

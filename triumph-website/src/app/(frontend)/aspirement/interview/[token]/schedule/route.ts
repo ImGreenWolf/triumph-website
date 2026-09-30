@@ -39,6 +39,7 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
     typeof (body as Record<string, unknown>).slot === 'string'
       ? ((body as Record<string, unknown>).slot as string).trim()
       : ''
+  const onlineInterview = (body as Record<string, unknown>).onlineInterview === true
 
   if (!slotStart) {
     return Response.json({ message: 'Selecteaza un interval.' }, { status: 400 })
@@ -97,6 +98,7 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
         ...(application.reviewProcess ?? {}),
         interviewAttendance: 'scheduled',
         interviewDate: selectedSlot.start,
+        onlineInterview,
       },
     },
     id: application.id,
@@ -110,6 +112,7 @@ export async function POST(request: Request, { params: paramsPromise }: Args) {
 
   return Response.json({
     interviewDate: updated.reviewProcess?.interviewDate ?? selectedSlot.start,
+    onlineInterview: Boolean(updated.reviewProcess?.onlineInterview),
     slots: slots.map((slot) => ({
       ...slot,
       available: !updatedTaken.has(slot.start) || slot.start === selectedSlot.start,

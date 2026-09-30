@@ -69,6 +69,7 @@ export type InterviewWorkspaceApplication = {
   }>
   name: string
   notes: string
+  onlineInterview: boolean
   phone: string
   status:
     | 'submitted'
@@ -84,7 +85,10 @@ export type InterviewWorkspaceApplication = {
 }
 
 type ApplicationPatch = Partial<
-  Pick<InterviewWorkspaceApplication, 'interviewAttendance' | 'interviewDate' | 'status'>
+  Pick<
+    InterviewWorkspaceApplication,
+    'interviewAttendance' | 'interviewDate' | 'onlineInterview' | 'status'
+  >
 > & {
   id: string
   interviewNotes?: Array<
@@ -485,9 +489,14 @@ function CandidateWorkspace(props: {
                 ? formatDateTime(application.interviewDate)
                 : 'Neprogramat'}
             </p>
+            {application.onlineInterview && (
+              <p className="mt-1 text-xs font-black uppercase tracking-[0.08em] text-[#007fb3]">
+                Candidat: online
+              </p>
+            )}
             {props.interviewSlot?.onlineInterview && (
               <p className="mt-1 text-xs font-black uppercase tracking-[0.08em] text-[#007fb3]">
-                Online interview
+                Slot online
               </p>
             )}
           </div>

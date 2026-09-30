@@ -141,6 +141,7 @@ function serializeApplication(application: Application): InterviewWorkspaceAppli
     })),
     name: application.name,
     notes: review.notes ?? '',
+    onlineInterview: Boolean(review.onlineInterview),
     phone: findAnswer(answers, ['phone', 'telefon', 'tel']),
     status: review.status ?? 'submitted',
   }

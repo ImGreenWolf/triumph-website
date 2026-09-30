@@ -43,6 +43,7 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
         candidateName="candidat"
         coordinatorContacts={[]}
         currentInterviewDate={null}
+        currentOnlineInterview={false}
         deadline={null}
         slots={[]}
         token={token}
@@ -70,6 +71,7 @@ export default async function InterviewSchedulingPage({ params: paramsPromise }:
       candidateName={application.name}
       coordinatorContacts={coordinatorContacts}
       currentInterviewDate={normalizeDate(application.reviewProcess?.interviewDate)}
+      currentOnlineInterview={Boolean(application.reviewProcess?.onlineInterview)}
       deadline={deadline}
       slots={slots}
       token={token}

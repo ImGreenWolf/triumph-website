@@ -66,6 +66,12 @@ export const Applications: CollectionConfig = {
           type: 'date',
         },
         {
+          name: 'onlineInterview',
+          label: 'Candidatul doreste interview online',
+          type: 'checkbox',
+          defaultValue: false,
+        },
+        {
           name: 'interviewAttendance',
           type: 'select',
           options: [

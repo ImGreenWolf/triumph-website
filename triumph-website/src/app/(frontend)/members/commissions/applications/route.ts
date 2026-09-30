@@ -1542,6 +1542,7 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
     })),
     knownCoordinatorIds: getKnownCoordinatorIDs(application),
     notes: application.reviewProcess?.notes ?? '',
+    onlineInterview: Boolean(application.reviewProcess?.onlineInterview),
     reviewedCoordinatorIds: getReviewedCoordinatorIDs(application),
     status: application.reviewProcess?.status ?? 'submitted',
   }

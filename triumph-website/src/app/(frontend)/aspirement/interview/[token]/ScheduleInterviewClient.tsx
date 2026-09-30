@@ -35,6 +35,7 @@ export default function ScheduleInterviewClient(props: {
   candidateName: string
   coordinatorContacts: InterviewCoordinatorContact[]
   currentInterviewDate: string | null
+  currentOnlineInterview: boolean
   deadline: string | null
   slots: InterviewScheduleSlot[]
   token: string
@@ -47,6 +48,12 @@ export default function ScheduleInterviewClient(props: {
     () => props.currentInterviewDate || props.slots.find((slot) => slot.available)?.start || '',
   )
   const [busy, setBusy] = useState(false)
+  const [onlineInterview, setOnlineInterview] = useState(() =>
+    Boolean(props.currentOnlineInterview),
+  )
+  const [currentOnlineInterview, setCurrentOnlineInterview] = useState(() =>
+    Boolean(props.currentOnlineInterview),
+  )
   const [withdrawn, setWithdrawn] = useState(false)
   const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null)
   const selected = useMemo(
@@ -86,7 +93,7 @@ export default function ScheduleInterviewClient(props: {
       const response = await fetch(
         `/aspirement/interview/${encodeURIComponent(props.token)}/schedule`,
         {
-          body: JSON.stringify({ slot: selectedSlot }),
+          body: JSON.stringify({ onlineInterview, slot: selectedSlot }),
           headers: { 'Content-Type': 'application/json' },
           method: 'POST',
         },
@@ -94,6 +101,7 @@ export default function ScheduleInterviewClient(props: {
       const result = (await response.json()) as {
         interviewDate?: string
         message?: string
+        onlineInterview?: boolean
         slots?: InterviewScheduleSlot[]
       }
 
@@ -104,6 +112,10 @@ export default function ScheduleInterviewClient(props: {
       if (result.interviewDate) {
         setCurrentInterviewDate(result.interviewDate)
         setSelectedSlot(result.interviewDate)
+      }
+      if (typeof result.onlineInterview === 'boolean') {
+        setOnlineInterview(result.onlineInterview)
+        setCurrentOnlineInterview(result.onlineInterview)
       }
       if (result.slots) setSlots(result.slots)
 
@@ -301,6 +313,15 @@ export default function ScheduleInterviewClient(props: {
                     Online interview
                   </p>
                 )}
+                <label className="mt-4 flex items-start gap-2 rounded-lg border border-[#dfe5ec] bg-white px-3 py-2 text-sm font-semibold text-[#344054]">
+                  <input
+                    checked={Boolean(onlineInterview)}
+                    className="mt-0.5 size-4 rounded border-[#cdd5df]"
+                    onChange={(event) => setOnlineInterview(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>Doresc interview online.</span>
+                </label>
               </div>
               {props.coordinatorContacts.length > 0 && (
                 <div className="mt-4 rounded-xl border border-[#e5e9ef] bg-white p-4">
@@ -327,7 +348,12 @@ export default function ScheduleInterviewClient(props: {
               {notice && <StatusPanel kind={notice.kind} message={notice.message} />}
               <button
                 className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#00a2e0] px-4 text-sm font-bold text-white transition hover:bg-[#008fc7] disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={busy || !selectedSlot || selectedSlot === currentInterviewDate}
+                disabled={
+                  busy ||
+                  !selectedSlot ||
+                  (selectedSlot === currentInterviewDate &&
+                    onlineInterview === currentOnlineInterview)
+                }
                 onClick={() => void saveSlot()}
                 type="button"
               >

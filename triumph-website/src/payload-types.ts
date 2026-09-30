@@ -2259,6 +2259,7 @@ export interface Application {
     notes?: string | null;
     comission?: (string | null) | Comission;
     interviewDate?: string | null;
+    onlineInterview?: boolean | null;
     interviewAttendance?: ('scheduled' | 'late' | 'absent' | 'completed') | null;
     interviewScheduleToken?: string | null;
     interviewScheduleTokenCreatedAt?: string | null;
@@ -3643,6 +3644,7 @@ export interface ApplicationsSelect<T extends boolean = true> {
         notes?: T;
         comission?: T;
         interviewDate?: T;
+        onlineInterview?: T;
         interviewAttendance?: T;
         interviewScheduleToken?: T;
         interviewScheduleTokenCreatedAt?: T;
