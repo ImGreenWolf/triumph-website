@@ -9,8 +9,10 @@ import type {
   AspirementConfig,
   Comission,
   FormSubmission,
+  Media,
   User,
 } from '@/payload-types'
+import { getMediaUrl } from '@/utilities/getMediaUrl'
 import { normalizeInstagramUsername } from '@/utilities/instagram'
 import { normalizeGooglePlace } from '@/utilities/googlePlace'
 import { isBoardMember } from '@/utilities/membersAccess'
@@ -19,6 +21,7 @@ import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 import CommissionInterviewWorkspace, {
   type InterviewWorkspaceApplication,
   type InterviewWorkspaceCommission,
+  type InterviewScores,
   type InterviewWorkspaceUser,
 } from './CommissionInterviewWorkspace'
 
@@ -29,6 +32,18 @@ export const metadata: Metadata = {
 
 type Args = {
   searchParams: Promise<{ commission?: string }>
+}
+
+type ApplicationWithInterviewScores = Application & {
+  reviewProcess?: Application['reviewProcess'] & {
+    interviewScores?: Partial<InterviewScores> | null
+  }
+}
+
+type AspirementConfigWithInterview = AspirementConfig & {
+  interview?: {
+    interviewQuestionsPDF?: (string | null) | Media
+  }
 }
 
 export default async function CommissionInterviewsPage({ searchParams }: Args) {
@@ -79,9 +94,9 @@ export default async function CommissionInterviewsPage({ searchParams }: Args) {
     : { docs: [] }
   const config = (await payload.findGlobal({
     slug: 'aspirementConfig',
-    depth: 0,
+    depth: 1,
     overrideAccess: true,
-  })) as AspirementConfig
+  })) as AspirementConfigWithInterview
   const params = await searchParams
   const selectedID = commissions.some((commission) => commission.id === params.commission)
     ? (params.commission ?? '')
@@ -89,10 +104,13 @@ export default async function CommissionInterviewsPage({ searchParams }: Args) {
 
   return (
     <CommissionInterviewWorkspace
-      applications={(applicationResult.docs as Application[]).map(serializeApplication)}
+      applications={(applicationResult.docs as ApplicationWithInterviewScores[]).map(
+        serializeApplication,
+      )}
       commissions={commissions.map(serializeCommission)}
       defaultInterviewDate={normalizeDate(config.recruitment?.defaultInterviewDate)}
       initialCommissionId={selectedID}
+      interviewQuestionsURL={getUploadURL(config.interview?.interviewQuestionsPDF)}
       manageableCommissionIds={manageableCommissionIds}
       schedulingDeadline={normalizeDate(config.recruitment?.interviewSchedulingDeadline)}
       user={serializeUser(user)}
@@ -120,7 +138,9 @@ function serializeCommission(commission: Comission): InterviewWorkspaceCommissio
   }
 }
 
-function serializeApplication(application: Application): InterviewWorkspaceApplication {
+function serializeApplication(
+  application: ApplicationWithInterviewScores,
+): InterviewWorkspaceApplication {
   const review = application.reviewProcess ?? {}
   const submission =
     typeof application.formSubmission === 'string' ? null : application.formSubmission
@@ -139,6 +159,7 @@ function serializeApplication(application: Application): InterviewWorkspaceAppli
       id: note.id ?? `${getRelationshipID(note.author)}-${note.createdAt}`,
       note: note.note,
     })),
+    interviewScores: normalizeInterviewScores(review.interviewScores),
     name: application.name,
     notes: review.notes ?? '',
     onlineInterview: Boolean(review.onlineInterview),
@@ -197,4 +218,29 @@ function normalizeDate(value?: string | null) {
   if (!value) return null
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+function normalizeInterviewScores(value?: Partial<InterviewScores> | null): InterviewScores {
+  return {
+    comunicare: normalizeScore(value?.comunicare),
+    interact: normalizeScore(value?.interact),
+    leadership: normalizeScore(value?.leadership),
+    situatii: normalizeScore(value?.situatii),
+    teamPlayer: normalizeScore(value?.teamPlayer),
+  }
+}
+
+function normalizeScore(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+
+  const score = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(score)) return null
+
+  return Math.min(10, Math.max(0, score))
+}
+
+function getUploadURL(value: Media | string | null | undefined) {
+  if (!value || typeof value === 'string') return null
+
+  return getMediaUrl(value.url, value.updatedAt) || null
 }

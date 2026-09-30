@@ -270,7 +270,20 @@ function Metrics({ workflow }: { workflow: RecruitmentWorkflowState }) {
       )
     case 'assignment':
     case 'invitations':
+      return (
+        <>
+          <HeaderStat label="Programate" value={String(workflow.metrics.scheduled)} />
+          <HeaderStat label="Mailuri" value={String(workflow.metrics.mailedInterviews)} />
+          <HeaderStat label="Rămași" value={String(workflow.metrics.mailedInterviews - workflow.metrics.scheduled)} />
+        </>
+      )
     case 'interviews':
+      return (
+        <>
+          <HeaderStat label="Programate" value={String(workflow.metrics.scheduled)} />
+          <HeaderStat label="Acceptate" value={String(workflow.metrics.accepted)} />
+        </>
+      )
     case 'results':
   }
 }

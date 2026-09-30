@@ -84,6 +84,22 @@ export const AspirementConfig: GlobalConfig = {
             },
           ],
         },
+        {
+          name: 'interview',
+          label: 'Interview',
+          fields: [
+            {
+              name: 'interviewQuestionsPDF',
+              type: 'upload',
+              relationTo: 'media',
+              label: 'PDF intrebari interview',
+              admin: {
+                description:
+                  'Documentul deschis din workspace-ul de interview prin butonul Intrebari Interview.',
+              },
+            },
+          ],
+        },
       ],
     },
   ],

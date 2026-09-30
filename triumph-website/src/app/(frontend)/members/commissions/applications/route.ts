@@ -31,6 +31,7 @@ type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
   coordonatorReviewChecks?: (string | User)[] | null
   finalMailSentAt?: string | null
   finalMailSentBy?: string | User | null
+  interviewScores?: InterviewScores | null
   interviewMailSentAt?: string | null
   interviewMailSentBy?: string | User | null
   interviewNotes?:
@@ -109,10 +110,27 @@ type MailBatchResult = {
 
 type RouteScope = 'commissions' | 'recruitment'
 
+type InterviewScores = {
+  comunicare?: number | null
+  interact?: number | null
+  leadership?: number | null
+  situatii?: number | null
+  teamPlayer?: number | null
+}
+
+const interviewScoreKeys = [
+  'interact',
+  'teamPlayer',
+  'situatii',
+  'comunicare',
+  'leadership',
+] as const
+
 const coordinatorActions = new Set([
   'add-note',
   'confirm-review',
   'final-decision',
+  'save-interview-scores',
   'set-interview-attendance',
   'toggle-known',
   'update-commission-schedule',
@@ -183,6 +201,10 @@ export async function PATCH(request: Request) {
 
     if (action === 'add-note') {
       return await addInterviewNote({ body, payload, user })
+    }
+
+    if (action === 'save-interview-scores') {
+      return await saveInterviewScores({ body, payload, user })
     }
 
     if (action === 'set-interview-attendance') {
@@ -688,6 +710,29 @@ async function addInterviewNote(args: {
         note,
       },
     ],
+  })
+
+  return Response.json({ application: serializeApplicationUpdate(updated) })
+}
+
+async function saveInterviewScores(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+  const commission = await getApplicationCommission(args.payload, application)
+
+  if (!(await canManageAssignedApplication(args.payload, commission, args.user))) {
+    return Response.json(
+      { message: 'Nu ai permisiunea de a nota acest candidat.' },
+      { status: 403 },
+    )
+  }
+
+  const scores = normalizeInterviewScores(args.body.scores)
+  const updated = await updateApplicationReview(args.payload, application, {
+    interviewScores: scores,
   })
 
   return Response.json({ application: serializeApplicationUpdate(updated) })
@@ -1540,6 +1585,7 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
       id: note.id ?? `${getRelationshipID(note.author)}-${note.createdAt}`,
       note: note.note,
     })),
+    interviewScores: serializeInterviewScores(application.reviewProcess?.interviewScores),
     knownCoordinatorIds: getKnownCoordinatorIDs(application),
     notes: application.reviewProcess?.notes ?? '',
     onlineInterview: Boolean(application.reviewProcess?.onlineInterview),
@@ -1568,6 +1614,10 @@ function serializeCommissionUpdate(commission: ExtendedCommission) {
       coordinatorId: getRelationshipID(review.coordinator),
     })),
   }
+}
+
+function serializeInterviewScores(value?: InterviewScores | null): InterviewScores {
+  return normalizeInterviewScores(value)
 }
 
 function getKnownCoordinatorIDs(application: ExtendedApplication) {
@@ -1650,6 +1700,22 @@ function normalizeInterviewIntervals(value: unknown) {
       startDateTime: normalizeOptionalText(interval.startDateTime) ?? null,
     }
   })
+}
+
+function normalizeInterviewScores(value: unknown): InterviewScores {
+  const input = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  return Object.fromEntries(
+    interviewScoreKeys.map((key) => [key, normalizeInterviewScore(input[key])]),
+  ) as InterviewScores
+}
+
+function normalizeInterviewScore(value: unknown) {
+  if (value === null || value === '') return null
+
+  const score = normalizeNumber(value)
+  if (score === null) return null
+
+  return Math.min(10, Math.max(0, score))
 }
 
 function normalizeNumber(value: unknown) {

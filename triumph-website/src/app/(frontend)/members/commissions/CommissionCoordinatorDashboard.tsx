@@ -1120,7 +1120,7 @@ function AssignedCandidateList(props: {
         value.toLocaleLowerCase('ro').includes(normalizedQuery),
       ),
     )
-    .sort((left, right) => Number(isCompletedCandidate(left)) - Number(isCompletedCandidate(right)))
+    .sort(compareAssignedCandidates)
 
   return (
     <div className="grid gap-5">
@@ -1264,22 +1264,42 @@ function SearchField(props: { query: string; setQuery: (query: string) => void }
   )
 }
 
-function isCompletedCandidate(application: ManagedApplication) {
-  return ['interview-passed', 'interview-rejected', 'interview-withdrawn'].includes(
-    application.status,
-  )
-}
-
 function candidateInterviewState(application: ManagedApplication) {
   if (application.status === 'absent' || application.interviewAttendance === 'absent')
     return 'Absent'
   if (application.status === 'interviewed' || application.interviewAttendance === 'completed')
     return 'Finalizat'
   if (application.interviewAttendance === 'late') return 'Intarziat'
-  if (application.interviewDate) 
-    if(true)
-      formatDate(application.interviewDate)
+  if (application.interviewDate) return formatDate(application.interviewDate)
   return 'Neprogramat'
+}
+
+function compareAssignedCandidates(left: ManagedApplication, right: ManagedApplication) {
+  const leftInterviewTime = getInterviewTime(left.interviewDate)
+  const rightInterviewTime = getInterviewTime(right.interviewDate)
+
+  if (leftInterviewTime !== null && rightInterviewTime !== null) {
+    return leftInterviewTime - rightInterviewTime || compareCandidateNames(left, right)
+  }
+
+  if (leftInterviewTime !== null) return -1
+  if (rightInterviewTime !== null) return 1
+
+  return compareCandidateNames(left, right)
+}
+
+function getInterviewTime(value: string | null) {
+  if (!value) return null
+
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? null : time
+}
+
+function compareCandidateNames(left: ManagedApplication, right: ManagedApplication) {
+  return (
+    left.name.localeCompare(right.name, 'ro', { sensitivity: 'base' }) ||
+    left.email.localeCompare(right.email, 'ro', { sensitivity: 'base' })
+  )
 }
 
 function Overview(props: {

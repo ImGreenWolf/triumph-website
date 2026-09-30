@@ -218,6 +218,42 @@ export const Applications: CollectionConfig = {
           ],
         },
         {
+          name: 'interviewScores',
+          type: 'group',
+          fields: [
+            {
+              name: 'interact',
+              type: 'number',
+              min: 0,
+              max: 10,
+            },
+            {
+              name: 'teamPlayer',
+              type: 'number',
+              min: 0,
+              max: 10,
+            },
+            {
+              name: 'situatii',
+              type: 'number',
+              min: 0,
+              max: 10,
+            },
+            {
+              name: 'comunicare',
+              type: 'number',
+              min: 0,
+              max: 10,
+            },
+            {
+              name: 'leadership',
+              type: 'number',
+              min: 0,
+              max: 10,
+            },
+          ],
+        },
+        {
           name: 'coordonatorIncompatability',
           type: 'relationship',
           relationTo: 'users',

@@ -2294,6 +2294,13 @@ export interface Application {
           id?: string | null;
         }[]
       | null;
+    interviewScores?: {
+      interact?: number | null;
+      teamPlayer?: number | null;
+      situatii?: number | null;
+      comunicare?: number | null;
+      leadership?: number | null;
+    };
     coordonatorIncompatability?: (string | User)[] | null;
     coordonatorReviewChecks?: (string | User)[] | null;
     aspirerUser?: (string | null) | User;
@@ -3679,6 +3686,15 @@ export interface ApplicationsSelect<T extends boolean = true> {
               createdAt?: T;
               id?: T;
             };
+        interviewScores?:
+          | T
+          | {
+              interact?: T;
+              teamPlayer?: T;
+              situatii?: T;
+              comunicare?: T;
+              leadership?: T;
+            };
         coordonatorIncompatability?: T;
         coordonatorReviewChecks?: T;
         aspirerUser?: T;
@@ -4374,6 +4390,12 @@ export interface AspirementConfig {
     } | null;
     interviewSchedulingDeadline?: string | null;
   };
+  interview?: {
+    /**
+     * Documentul deschis din workspace-ul de interview prin butonul Intrebari Interview.
+     */
+    interviewQuestionsPDF?: (string | null) | Media;
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4545,6 +4567,11 @@ export interface AspirementConfigSelect<T extends boolean = true> {
         'interview-accepted-message'?: T;
         'interview-rejected-message'?: T;
         interviewSchedulingDeadline?: T;
+      };
+  interview?:
+    | T
+    | {
+        interviewQuestionsPDF?: T;
       };
   updatedAt?: T;
   createdAt?: T;

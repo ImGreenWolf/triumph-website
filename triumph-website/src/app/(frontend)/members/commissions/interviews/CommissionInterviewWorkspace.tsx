@@ -32,6 +32,18 @@ import { useHeaderTheme } from '@/providers/HeaderTheme'
 import type { GooglePlaceLocation } from '@/utilities/googlePlace'
 import { generateInterviewSlots } from '@/utilities/interviewSchedule'
 
+const interviewScoreCategories = [
+  { key: 'interact', label: 'Interact' },
+  { key: 'teamPlayer', label: 'Team Player' },
+  { key: 'situatii', label: 'Situatii' },
+  { key: 'comunicare', label: 'Comunicare' },
+  { key: 'leadership', label: 'Leadership' },
+] as const
+
+type InterviewScoreKey = (typeof interviewScoreCategories)[number]['key']
+
+export type InterviewScores = Record<InterviewScoreKey, number | null>
+
 export type InterviewWorkspaceUser = { email: string; id: string; name: string }
 
 export type InterviewWorkspaceInterval = {
@@ -67,6 +79,7 @@ export type InterviewWorkspaceApplication = {
     id: string
     note: string
   }>
+  interviewScores: InterviewScores
   name: string
   notes: string
   onlineInterview: boolean
@@ -91,6 +104,7 @@ type ApplicationPatch = Partial<
   >
 > & {
   id: string
+  interviewScores?: InterviewScores
   interviewNotes?: Array<
     | { author: InterviewWorkspaceUser | null; createdAt: string; id: string; note: string }
     | { authorId: string; createdAt: string; id: string; note: string }
@@ -110,6 +124,7 @@ export default function CommissionInterviewWorkspace(props: {
   commissions: InterviewWorkspaceCommission[]
   defaultInterviewDate: string | null
   initialCommissionId: string
+  interviewQuestionsURL: string | null
   manageableCommissionIds: string[]
   schedulingDeadline: string | null
   user: InterviewWorkspaceUser
@@ -329,6 +344,7 @@ export default function CommissionInterviewWorkspace(props: {
               application={selectedApplication}
               busyKey={busyKey}
               deadline={props.schedulingDeadline}
+              interviewQuestionsURL={props.interviewQuestionsURL}
               interviewSlot={selectedInterviewSlot}
               isReadOnly={isReadOnly}
               onAction={runAction}
@@ -434,7 +450,9 @@ function ScheduleStatusBadge({ application }: { application: InterviewWorkspaceA
         ? { className: 'border-emerald-200 bg-emerald-50 text-emerald-700', label: 'Finalizat' }
         : application.interviewAttendance === 'late'
           ? { className: 'border-amber-200 bg-amber-50 text-amber-800', label: 'Intarziat' }
-          : { className: 'border-[#dfe5ec] bg-white text-[#526071]', label: 'Programat' }
+          : application.onlineInterview
+            ? { className: 'border-[#007fb3] bg-white text-[#007fb3]', label: 'Online' }
+            : { className: 'border-[#dfe5ec] bg-white text-[#526071]', label: 'Programat' }
 
   return (
     <span
@@ -449,6 +467,7 @@ function CandidateWorkspace(props: {
   application: InterviewWorkspaceApplication
   busyKey: string | null
   deadline: string | null
+  interviewQuestionsURL: string | null
   interviewSlot: GeneratedInterviewSlot | null
   isReadOnly: boolean
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
@@ -456,9 +475,22 @@ function CandidateWorkspace(props: {
 }) {
   const { application } = props
   const [note, setNote] = useState('')
+  const [scores, setScores] = useState(() => normalizeInterviewScores(application.interviewScores))
   const canAttend = !props.isReadOnly && application.status === 'interview'
   const canWriteNotes = !props.isReadOnly
+  const canWriteScores = !props.isReadOnly
   const canMarkUnscheduledAbsent = !application.interviewDate && isDeadlinePassed(props.deadline)
+  const scoreTotal = calculateInterviewScoreTotal(scores)
+  const scoresChanged = !areInterviewScoresEqual(scores, application.interviewScores)
+
+  useEffect(() => {
+    setScores(normalizeInterviewScores(application.interviewScores))
+  }, [application.id, application.interviewScores])
+
+  function updateScore(key: InterviewScoreKey, value: string) {
+    setScores((current) => ({ ...current, [key]: parseInterviewScoreInput(value) }))
+  }
+
   return (
     <section className="rounded-lg border border-[#dfe5ec] bg-white p-4 shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-5">
       <div className="flex flex-col gap-4 border-b border-[#edf0f4] pb-5 lg:flex-row lg:items-start lg:justify-between">
@@ -501,6 +533,171 @@ function CandidateWorkspace(props: {
             )}
           </div>
         </div>
+      </div>
+
+      {application.notes && (
+        <div className="mt-5 border-t border-[#edf0f4] pt-5">
+          <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]">
+            Note etape precedente
+          </h3>
+          <p className="mt-3 whitespace-pre-wrap rounded-md bg-[#f8fafc] px-3 py-2.5 text-sm text-[#526071]">
+            {application.notes}
+          </p>
+        </div>
+      )}
+      <div className="mt-5 border-t border-[#edf0f4] pt-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]">
+            Evaluare interview
+          </h3>
+          <div className="rounded-md bg-[#f8fafc] px-3 py-2 text-sm font-black text-[#152039]">
+            Total {scoreTotal}/50
+          </div>
+        </div>
+        <div className="mt-3 rounded-md border border-[#e4e8ef] md:hidden">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead className="bg-[#f8fafc] text-xs font-black uppercase tracking-[0.08em] text-[#748094]">
+              <tr>
+                <th className="px-3 py-2.5">Categorie</th>
+                <th className="w-32 px-3 py-2.5 text-right">Nota</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#edf0f4]">
+              {interviewScoreCategories.map((category) => (
+                <tr key={category.key}>
+                  <td className="px-3 py-2.5 font-bold text-[#344054]">{category.label}</td>
+                  <td className="px-3 py-2.5">
+                    <input
+                      className="h-9 w-full rounded-md border border-[#dfe5ec] px-2 text-right font-bold tabular-nums outline-none focus:border-[#00a2e0] disabled:bg-[#f8fafc] disabled:text-[#8a94a6]"
+                      disabled={!canWriteScores}
+                      max={10}
+                      min={0}
+                      onChange={(event) => updateScore(category.key, event.target.value)}
+                      step={1}
+                      type="number"
+                      value={scores[category.key] ?? ''}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t border-[#dfe5ec] bg-[#f8fafc] font-black">
+              <tr>
+                <td className="px-3 py-2.5">Total</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{scoreTotal}/50</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div className="mt-3 hidden rounded-md border border-[#e4e8ef] md:block">
+          <table className="w-full table-fixed border-collapse text-center text-sm">
+            <thead className="bg-[#f8fafc] text-xs font-black uppercase tracking-[0.08em] text-[#748094]">
+              <tr>
+                {interviewScoreCategories.map((category) => (
+                  <th className="px-2 py-2.5" key={category.key}>
+                    {category.label}
+                  </th>
+                ))}
+                <th className="w-24 px-2 py-2.5">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {interviewScoreCategories.map((category) => (
+                  <td className="border-t border-[#edf0f4] px-2 py-3" key={category.key}>
+                    <input
+                      className="mx-auto h-9 w-full max-w-20 rounded-md border border-[#dfe5ec] px-2 text-center font-bold tabular-nums outline-none focus:border-[#00a2e0] disabled:bg-[#f8fafc] disabled:text-[#8a94a6]"
+                      disabled={!canWriteScores}
+                      max={10}
+                      min={0}
+                      onChange={(event) => updateScore(category.key, event.target.value)}
+                      step={1}
+                      type="number"
+                      value={scores[category.key] ?? ''}
+                    />
+                  </td>
+                ))}
+                <td className="border-t border-[#edf0f4] bg-[#f8fafc] px-2 py-3 font-black tabular-nums">
+                  {scoreTotal}/50
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {(canWriteScores || props.interviewQuestionsURL) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {canWriteScores && (
+              <button
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#cdd5df] px-3 text-xs font-bold disabled:opacity-55"
+                disabled={!scoresChanged || props.busyKey === `scores-${application.id}`}
+                onClick={() =>
+                  void props.onAction(
+                    {
+                      action: 'save-interview-scores',
+                      applicationId: application.id,
+                      scores,
+                    },
+                    `scores-${application.id}`,
+                  )
+                }
+                type="button"
+              >
+                <Save className="size-4" /> Salveaza evaluarea
+              </button>
+            )}
+            {props.interviewQuestionsURL && (
+              <a
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#cdd5df] px-3 text-xs font-bold text-[#344054] hover:border-[#00a2e0] hover:text-[#007fb3]"
+                href={props.interviewQuestionsURL}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <FileText className="size-4" /> Intrebari Interview
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="mt-5 border-t border-[#edf0f4] pt-5">
+        <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]">
+          Note interview
+        </h3>
+        <div className="mt-3 grid gap-2">
+          {application.interviewNotes.map((item) => (
+            <div className="rounded-md bg-[#f8fafc] px-3 py-2.5" key={item.id}>
+              <p className="text-sm font-bold">{item.author?.name || 'Membru board'}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-[#526071]">{item.note}</p>
+              <p className="mt-1 text-xs text-[#8a94a6]">{formatDateTime(item.createdAt)}</p>
+            </div>
+          ))}
+        </div>
+        {canWriteNotes && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <textarea
+              className="min-h-24 rounded-md border border-[#dfe5ec] p-3 text-sm outline-none focus:border-[#00a2e0]"
+              maxLength={2000}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Adauga nota de interview"
+              value={note}
+            />
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-[#cdd5df] px-3 text-xs font-bold disabled:opacity-55"
+              disabled={!note.trim() || props.busyKey === `note-${application.id}`}
+              onClick={async () => {
+                const content = note.trim()
+                if (!content) return
+                await props.onAction(
+                  { action: 'add-note', applicationId: application.id, note: content },
+                  `note-${application.id}`,
+                )
+                setNote('')
+              }}
+              type="button"
+            >
+              <Save className="size-4" /> Salveaza nota
+            </button>
+          </div>
+        )}
       </div>
       <div className="pt-5">
         <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]">Prezenta</h3>
@@ -563,57 +760,6 @@ function CandidateWorkspace(props: {
             </p>
           )}
         </div>
-      </div>
-      {application.notes && (
-        <div className="mt-5 border-t border-[#edf0f4] pt-5">
-          <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]">
-            Note etape precedente
-          </h3>
-          <p className="mt-3 whitespace-pre-wrap rounded-md bg-[#f8fafc] px-3 py-2.5 text-sm text-[#526071]">
-            {application.notes}
-          </p>
-        </div>
-      )}
-      <div className="mt-5 border-t border-[#edf0f4] pt-5">
-        <h3 className="text-sm font-black uppercase tracking-[0.1em] text-[#748094]">
-          Note interview
-        </h3>
-        <div className="mt-3 grid gap-2">
-          {application.interviewNotes.map((item) => (
-            <div className="rounded-md bg-[#f8fafc] px-3 py-2.5" key={item.id}>
-              <p className="text-sm font-bold">{item.author?.name || 'Membru board'}</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-[#526071]">{item.note}</p>
-              <p className="mt-1 text-xs text-[#8a94a6]">{formatDateTime(item.createdAt)}</p>
-            </div>
-          ))}
-        </div>
-        {canWriteNotes && (
-          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <textarea
-              className="min-h-24 rounded-md border border-[#dfe5ec] p-3 text-sm outline-none focus:border-[#00a2e0]"
-              maxLength={2000}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="Adauga nota de interview"
-              value={note}
-            />
-            <button
-              className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-md border border-[#cdd5df] px-3 text-xs font-bold disabled:opacity-55"
-              disabled={!note.trim() || props.busyKey === `note-${application.id}`}
-              onClick={async () => {
-                const content = note.trim()
-                if (!content) return
-                await props.onAction(
-                  { action: 'add-note', applicationId: application.id, note: content },
-                  `note-${application.id}`,
-                )
-                setNote('')
-              }}
-              type="button"
-            >
-              <Save className="size-4" /> Salveaza nota
-            </button>
-          </div>
-        )}
       </div>
     </section>
   )
@@ -1195,6 +1341,36 @@ function serializeInterviewIntervals(intervals: InterviewWorkspaceInterval[]) {
 function formatInterviewCapacity(value: number) {
   if (value === 1) return '1 candidat poate fi programat'
   return `${value} candidati pot fi programati`
+}
+function normalizeInterviewScores(value?: Partial<InterviewScores> | null): InterviewScores {
+  return Object.fromEntries(
+    interviewScoreCategories.map((category) => [
+      category.key,
+      normalizeInterviewScore(value?.[category.key]),
+    ]),
+  ) as InterviewScores
+}
+function parseInterviewScoreInput(value: string) {
+  if (value === '') return null
+
+  return normalizeInterviewScore(value)
+}
+function normalizeInterviewScore(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+
+  const score = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(score)) return null
+
+  return Math.min(10, Math.max(0, score))
+}
+function calculateInterviewScoreTotal(scores: InterviewScores) {
+  return interviewScoreCategories.reduce(
+    (total, category) => total + (scores[category.key] ?? 0),
+    0,
+  )
+}
+function areInterviewScoresEqual(left: InterviewScores, right: InterviewScores) {
+  return interviewScoreCategories.every((category) => left[category.key] === right[category.key])
 }
 function toDateTimeInput(value: string | null) {
   if (!value) return ''
