@@ -36,6 +36,7 @@ import { Comissions } from './collections/Comissions'
 import { Applications } from './collections/Applications'
 import { AspirementConfig } from './globals/AspirementConfig/config'
 import { Documents } from './collections/Documents'
+import { Logs } from './collections/Logs'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -144,6 +145,7 @@ export default buildConfig({
     Comissions,
     Applications,
     Documents,
+    Logs,
   ],
   cors: allowedOrigins,
   // Payload appends serverURL automatically during config sanitization.

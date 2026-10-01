@@ -80,6 +80,7 @@ function serializeConfig(config: AspirementConfig): ManagedRecruitmentConfig {
   return {
     defaultInterviewDate: normalizeDate(config.recruitment?.defaultInterviewDate),
     interviewSchedulingDeadline: normalizeDate(config.recruitment?.interviewSchedulingDeadline),
+    reviewAcceptedMessage: config.recruitment?.['review-accepted-message'] ?? null,
     recruitmentEndDate: normalizeDate(config.recruitment?.recruitmentEndDate),
     recruitmentStartDate: normalizeDate(config.recruitment?.recruitmentStartDate),
   }
@@ -119,6 +120,7 @@ function serializeApplication(application: Application): ManagedApplication {
   return {
     aspirerUserId: getRelationshipID(review.aspirerUser),
     commissionId: getRelationshipID(review.comission),
+    interviewScheduleToken: application.reviewProcess?.interviewScheduleToken || '',
     createdAt: application.createdAt,
     customMailHistory: (review.customMailHistory ?? []).map((mail) => ({
       body: mail.body,

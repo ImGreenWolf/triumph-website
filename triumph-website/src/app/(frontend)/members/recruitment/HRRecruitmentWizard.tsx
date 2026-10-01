@@ -59,7 +59,11 @@ import type { GooglePlaceLocation } from '@/utilities/googlePlace'
 import { generateInterviewSlots } from '@/utilities/interviewSchedule'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
 import { cn } from '@/utilities/ui'
-import { getCommissionLabel } from '@/utilities/aspirementRecruitment'
+import {
+  createApplicantParameters,
+  getInterviewScheduleURL,
+  renderRecruitmentMessage,
+} from '@/utilities/aspirementRecruitmentMessage'
 
 type WizardStepKey = RecruitmentStepKey | 'debug'
 
@@ -148,11 +152,13 @@ export type ManagedApplication = {
   phone: string
   reviewedCoordinatorIds: string[]
   status: ManagedApplicationStatus
+  interviewScheduleToken: string
 }
 
 export type ManagedRecruitmentConfig = {
   defaultInterviewDate: string | null
   interviewSchedulingDeadline: string | null
+  reviewAcceptedMessage?: unknown
   recruitmentEndDate: string | null
   recruitmentStartDate: string | null
 }
@@ -274,7 +280,10 @@ function Metrics({ workflow }: { workflow: RecruitmentWorkflowState }) {
         <>
           <HeaderStat label="Programate" value={String(workflow.metrics.scheduled)} />
           <HeaderStat label="Mailuri" value={String(workflow.metrics.mailedInterviews)} />
-          <HeaderStat label="Rămași" value={String(workflow.metrics.mailedInterviews - workflow.metrics.scheduled)} />
+          <HeaderStat
+            label="Rămași"
+            value={String(workflow.metrics.mailedInterviews - workflow.metrics.scheduled)}
+          />
         </>
       )
     case 'interviews':
@@ -540,7 +549,7 @@ export default function HRRecruitmentWizard(props: {
               <button
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.08] px-4 text-sm font-bold text-white transition hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-55 sm:justify-self-end"
                 disabled={applications.length === 0}
-                onClick={() => exportRecruitmentApplications(applications, commissions)}
+                onClick={() => exportRecruitmentApplications(applications, commissions, config)}
                 type="button"
               >
                 <Download className="size-4" />
@@ -3683,8 +3692,9 @@ function formatDateRange(start: string | null, end: string | null) {
 function exportRecruitmentApplications(
   applications: ManagedApplication[],
   commissions: ManagedCommission[],
+  config: ManagedRecruitmentConfig,
 ) {
-  const csv = buildRecruitmentApplicationsCSV(applications, commissions)
+  const csv = buildRecruitmentApplicationsCSV(applications, commissions, config)
   const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -3700,6 +3710,7 @@ function exportRecruitmentApplications(
 function buildRecruitmentApplicationsCSV(
   applications: ManagedApplication[],
   commissions: ManagedCommission[],
+  config: ManagedRecruitmentConfig,
 ) {
   const answerHeaders = getCSVAnswerHeaders(applications)
   const headers = [
@@ -3713,6 +3724,8 @@ function buildRecruitmentApplicationsCSV(
     'Trimis la',
     'Data interview',
     'Prezenta interview',
+    'Mesaj Manual',
+    'Link Programare',
     'Email interview trimis la',
     'Email final trimis la',
     'Coordonatori cunoscuti',
@@ -3739,6 +3752,8 @@ function buildRecruitmentApplicationsCSV(
         formatExportDateTime(application.createdAt),
         formatExportDateTime(application.interviewDate),
         application.interviewAttendance || '',
+        getCSVInterviewMessage(application, commissions, config),
+        getCSVInterviewScheduleLink(application),
         formatExportDateTime(application.interviewMailSentAt),
         formatExportDateTime(application.finalMailSentAt),
         getCSVUserNames(application.knownCoordinatorIds, commissions),
@@ -3770,6 +3785,47 @@ function buildRecruitmentApplicationsCSV(
     })
 
   return [headers, ...rows].map((row) => row.map(formatCSVCell).join(',')).join('\r\n')
+}
+
+function getCSVInterviewMessage(
+  application: ManagedApplication,
+  commissions: ManagedCommission[],
+  config: ManagedRecruitmentConfig,
+) {
+  const commissionLabel = getCSVCommissionLabel(application, commissions)
+  const scheduleLink = getCSVInterviewScheduleLink(application)
+
+  return renderRecruitmentMessage({
+    fallback:
+      'Ai fost acceptat pentru etapa de interview. Te rugam sa iti alegi un interval pentru programare.',
+    message: config.reviewAcceptedMessage,
+    parameters: createApplicantParameters({
+      application: {
+        email: application.email,
+        formSubmission: {
+          submissionData: [...application.formAnswers.map((answer) => ({
+            field: answer.field,
+            value: answer.value,
+          })), {
+            field: 'interviewLink',
+            value: scheduleLink
+          }]
+        },
+        name: application.name,
+        reviewProcess: {
+          interviewDate: application.interviewDate,
+        },
+      } as Parameters<typeof createApplicantParameters>[0]['application'],
+      commissionLabel,
+      scheduleLink,
+    }),
+  }).text
+}
+
+function getCSVInterviewScheduleLink(application: ManagedApplication) {
+  return application.interviewScheduleToken
+    ? getInterviewScheduleURL(application.interviewScheduleToken)
+    : ''
 }
 
 function getCSVAnswerHeaders(applications: ManagedApplication[]) {

@@ -61,7 +61,7 @@ export function generateInterviewScheduleToken() {
 }
 
 export function getInterviewScheduleURL(token: string, request?: Request) {
-  const baseURL = getRequestBaseURL(request)
+  const baseURL = getServerSideURL() || getRequestBaseURL(request) 
   return `${baseURL}/aspirement/interview/${encodeURIComponent(token)}`
 }
 
@@ -180,7 +180,7 @@ export function validateInterviewIntervals(intervals: InterviewIntervalInput[] |
 
 export function createApplicantParameters(args: {
   application: Pick<Application, 'email' | 'formSubmission' | 'name'> & {
-    reviewProcess?: Application['reviewProcess']
+    reviewProcess?: Pick<NonNullable<Application['reviewProcess']>, 'interviewDate'>
   }
   commissionLabel?: string
   scheduleLink?: string

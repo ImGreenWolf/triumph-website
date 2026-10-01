@@ -36,7 +36,9 @@ type Args = {
 
 type ApplicationWithInterviewScores = Application & {
   reviewProcess?: Application['reviewProcess'] & {
-    interviewScores?: Partial<InterviewScores> | null
+    interviewScores?: Array<
+      Partial<InterviewScores> & { coordinator?: string | User | null; id?: string | null }
+    > | null
   }
 }
 
@@ -159,7 +161,7 @@ function serializeApplication(
       id: note.id ?? `${getRelationshipID(note.author)}-${note.createdAt}`,
       note: note.note,
     })),
-    interviewScores: normalizeInterviewScores(review.interviewScores),
+    interviewScores: normalizeInterviewScoreRows(review.interviewScores),
     name: application.name,
     notes: review.notes ?? '',
     onlineInterview: Boolean(review.onlineInterview),
@@ -218,6 +220,19 @@ function normalizeDate(value?: string | null) {
   if (!value) return null
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+function normalizeInterviewScoreRows(
+  value?: Array<Partial<InterviewScores> & { coordinator?: string | User | null }> | null,
+) {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .map((entry) => ({
+      coordinatorId: getRelationshipID(entry.coordinator),
+      ...normalizeInterviewScores(entry),
+    }))
+    .filter((entry) => Boolean(entry.coordinatorId))
 }
 
 function normalizeInterviewScores(value?: Partial<InterviewScores> | null): InterviewScores {

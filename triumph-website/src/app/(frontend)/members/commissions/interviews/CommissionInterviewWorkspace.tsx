@@ -44,6 +44,10 @@ type InterviewScoreKey = (typeof interviewScoreCategories)[number]['key']
 
 export type InterviewScores = Record<InterviewScoreKey, number | null>
 
+export type InterviewCoordinatorScores = InterviewScores & {
+  coordinatorId: string
+}
+
 export type InterviewWorkspaceUser = { email: string; id: string; name: string }
 
 export type InterviewWorkspaceInterval = {
@@ -79,7 +83,7 @@ export type InterviewWorkspaceApplication = {
     id: string
     note: string
   }>
-  interviewScores: InterviewScores
+  interviewScores: InterviewCoordinatorScores[]
   name: string
   notes: string
   onlineInterview: boolean
@@ -104,7 +108,7 @@ type ApplicationPatch = Partial<
   >
 > & {
   id: string
-  interviewScores?: InterviewScores
+  interviewScores?: InterviewCoordinatorScores[]
   interviewNotes?: Array<
     | { author: InterviewWorkspaceUser | null; createdAt: string; id: string; note: string }
     | { authorId: string; createdAt: string; id: string; note: string }
@@ -343,12 +347,14 @@ export default function CommissionInterviewWorkspace(props: {
             <CandidateWorkspace
               application={selectedApplication}
               busyKey={busyKey}
+              coordinators={commission.coordinators}
               deadline={props.schedulingDeadline}
               interviewQuestionsURL={props.interviewQuestionsURL}
               interviewSlot={selectedInterviewSlot}
               isReadOnly={isReadOnly}
               onAction={runAction}
               onOpenDetails={() => setDetailsOpen(true)}
+              user={props.user}
             />
           ) : (
             <EmptyInterviewState />
@@ -466,26 +472,39 @@ function ScheduleStatusBadge({ application }: { application: InterviewWorkspaceA
 function CandidateWorkspace(props: {
   application: InterviewWorkspaceApplication
   busyKey: string | null
+  coordinators: InterviewWorkspaceUser[]
   deadline: string | null
   interviewQuestionsURL: string | null
   interviewSlot: GeneratedInterviewSlot | null
   isReadOnly: boolean
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
   onOpenDetails: () => void
+  user: InterviewWorkspaceUser
 }) {
   const { application } = props
   const [note, setNote] = useState('')
-  const [scores, setScores] = useState(() => normalizeInterviewScores(application.interviewScores))
+  const [scores, setScores] = useState(() =>
+    getCoordinatorScores(application.interviewScores, props.user.id),
+  )
+  const isCurrentCoordinator = props.coordinators.some(
+    (coordinator) => coordinator.id === props.user.id,
+  )
   const canAttend = !props.isReadOnly && application.status === 'interview'
   const canWriteNotes = !props.isReadOnly
-  const canWriteScores = !props.isReadOnly
+  const canWriteScores = !props.isReadOnly && isCurrentCoordinator
   const canMarkUnscheduledAbsent = !application.interviewDate && isDeadlinePassed(props.deadline)
-  const scoreTotal = calculateInterviewScoreTotal(scores)
-  const scoresChanged = !areInterviewScoresEqual(scores, application.interviewScores)
+  const savedScores = getCoordinatorScores(application.interviewScores, props.user.id)
+  const scoreRows = buildCoordinatorScoreRows(props.coordinators, application.interviewScores, {
+    coordinatorId: props.user.id,
+    scores,
+  })
+  const scoreTotal = calculateInterviewScoreRowsTotal(scoreRows)
+  const maxScoreTotal = Math.max(scoreRows.length, 1) * 50
+  const scoresChanged = !areInterviewScoresEqual(scores, savedScores)
 
   useEffect(() => {
-    setScores(normalizeInterviewScores(application.interviewScores))
-  }, [application.id, application.interviewScores])
+    setScores(getCoordinatorScores(application.interviewScores, props.user.id))
+  }, [application.id, application.interviewScores, props.user.id])
 
   function updateScore(key: InterviewScoreKey, value: string) {
     setScores((current) => ({ ...current, [key]: parseInterviewScoreInput(value) }))
@@ -551,48 +570,52 @@ function CandidateWorkspace(props: {
             Evaluare interview
           </h3>
           <div className="rounded-md bg-[#f8fafc] px-3 py-2 text-sm font-black text-[#152039]">
-            Total {scoreTotal}/50
+            Total {scoreTotal}/{maxScoreTotal}
           </div>
         </div>
-        <div className="mt-3 rounded-md border border-[#e4e8ef] md:hidden">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead className="bg-[#f8fafc] text-xs font-black uppercase tracking-[0.08em] text-[#748094]">
-              <tr>
-                <th className="px-3 py-2.5">Categorie</th>
-                <th className="w-32 px-3 py-2.5 text-right">Nota</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#edf0f4]">
-              {interviewScoreCategories.map((category) => (
-                <tr key={category.key}>
-                  <td className="px-3 py-2.5 font-bold text-[#344054]">{category.label}</td>
-                  <td className="px-3 py-2.5">
-                    <input
-                      className="h-9 w-full rounded-md border border-[#dfe5ec] px-2 text-right font-bold tabular-nums outline-none focus:border-[#00a2e0] disabled:bg-[#f8fafc] disabled:text-[#8a94a6]"
-                      disabled={!canWriteScores}
-                      max={10}
-                      min={0}
-                      onChange={(event) => updateScore(category.key, event.target.value)}
-                      step={1}
-                      type="number"
-                      value={scores[category.key] ?? ''}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t border-[#dfe5ec] bg-[#f8fafc] font-black">
-              <tr>
-                <td className="px-3 py-2.5">Total</td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{scoreTotal}/50</td>
-              </tr>
-            </tfoot>
-          </table>
+        <div className="mt-3 grid gap-3 md:hidden">
+          {scoreRows.map((row) => {
+            const isOwnRow = row.coordinator.id === props.user.id
+            const rowTotal = calculateInterviewScoreTotal(row.scores)
+
+            return (
+              <div className="rounded-md border border-[#e4e8ef]" key={row.coordinator.id}>
+                <div className="flex items-center justify-between gap-3 bg-[#f8fafc] px-3 py-2.5">
+                  <p className="min-w-0 truncate text-sm font-black">{row.coordinator.name}</p>
+                  <p className="shrink-0 text-xs font-black tabular-nums text-[#526071]">
+                    {rowTotal}/50
+                  </p>
+                </div>
+                <table className="w-full border-collapse text-left text-sm">
+                  <tbody className="divide-y divide-[#edf0f4]">
+                    {interviewScoreCategories.map((category) => (
+                      <tr key={category.key}>
+                        <td className="px-3 py-2.5 font-bold text-[#344054]">{category.label}</td>
+                        <td className="w-32 px-3 py-2.5">
+                          <input
+                            className="h-9 w-full rounded-md border border-[#dfe5ec] px-2 text-right font-bold tabular-nums outline-none focus:border-[#00a2e0] disabled:bg-[#f8fafc] disabled:text-[#8a94a6]"
+                            disabled={!canWriteScores || !isOwnRow}
+                            max={10}
+                            min={0}
+                            onChange={(event) => updateScore(category.key, event.target.value)}
+                            step={1}
+                            type="number"
+                            value={row.scores[category.key] ?? ''}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })}
         </div>
         <div className="mt-3 hidden rounded-md border border-[#e4e8ef] md:block">
-          <table className="w-full table-fixed border-collapse text-center text-sm">
+          <table className="w-full border-collapse text-center text-sm">
             <thead className="bg-[#f8fafc] text-xs font-black uppercase tracking-[0.08em] text-[#748094]">
               <tr>
+                <th className="w-48 px-3 py-2.5 text-left">Coordonator</th>
                 {interviewScoreCategories.map((category) => (
                   <th className="px-2 py-2.5" key={category.key}>
                     {category.label}
@@ -601,27 +624,55 @@ function CandidateWorkspace(props: {
                 <th className="w-24 px-2 py-2.5">Total</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[#edf0f4]">
+              {scoreRows.map((row) => {
+                const isOwnRow = row.coordinator.id === props.user.id
+                const rowTotal = calculateInterviewScoreTotal(row.scores)
+
+                return (
+                  <tr key={row.coordinator.id}>
+                    <td className="px-3 py-3 text-left">
+                      <p className="font-bold">{row.coordinator.name}</p>
+                      {isOwnRow && (
+                        <p className="mt-0.5 text-xs font-black uppercase tracking-[0.08em] text-[#007fb3]">
+                          Tu
+                        </p>
+                      )}
+                    </td>
+                    {interviewScoreCategories.map((category) => (
+                      <td className="px-2 py-3" key={category.key}>
+                        <input
+                          className="mx-auto h-9 w-full max-w-20 rounded-md border border-[#dfe5ec] px-2 text-center font-bold tabular-nums outline-none focus:border-[#00a2e0] disabled:bg-[#f8fafc] disabled:text-[#8a94a6]"
+                          disabled={!canWriteScores || !isOwnRow}
+                          max={10}
+                          min={0}
+                          onChange={(event) => updateScore(category.key, event.target.value)}
+                          step={1}
+                          type="number"
+                          value={row.scores[category.key] ?? ''}
+                        />
+                      </td>
+                    ))}
+                    <td className="bg-[#f8fafc] px-2 py-3 font-black tabular-nums">
+                      {rowTotal}/50
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+            <tfoot className="border-t border-[#dfe5ec] bg-[#f8fafc] font-black">
               <tr>
+                <td className="px-3 py-2.5 text-left">Total</td>
                 {interviewScoreCategories.map((category) => (
-                  <td className="border-t border-[#edf0f4] px-2 py-3" key={category.key}>
-                    <input
-                      className="mx-auto h-9 w-full max-w-20 rounded-md border border-[#dfe5ec] px-2 text-center font-bold tabular-nums outline-none focus:border-[#00a2e0] disabled:bg-[#f8fafc] disabled:text-[#8a94a6]"
-                      disabled={!canWriteScores}
-                      max={10}
-                      min={0}
-                      onChange={(event) => updateScore(category.key, event.target.value)}
-                      step={1}
-                      type="number"
-                      value={scores[category.key] ?? ''}
-                    />
+                  <td className="px-2 py-2.5 tabular-nums" key={category.key}>
+                    {calculateInterviewCategoryTotal(scoreRows, category.key)}
                   </td>
                 ))}
-                <td className="border-t border-[#edf0f4] bg-[#f8fafc] px-2 py-3 font-black tabular-nums">
-                  {scoreTotal}/50
+                <td className="px-2 py-2.5 tabular-nums">
+                  {scoreTotal}/{maxScoreTotal}
                 </td>
               </tr>
-            </tbody>
+            </tfoot>
           </table>
         </div>
         {(canWriteScores || props.interviewQuestionsURL) && (
@@ -1368,6 +1419,40 @@ function calculateInterviewScoreTotal(scores: InterviewScores) {
     (total, category) => total + (scores[category.key] ?? 0),
     0,
   )
+}
+function calculateInterviewScoreRowsTotal(
+  rows: Array<{ coordinator: InterviewWorkspaceUser; scores: InterviewScores }>,
+) {
+  return rows.reduce((total, row) => total + calculateInterviewScoreTotal(row.scores), 0)
+}
+function calculateInterviewCategoryTotal(
+  rows: Array<{ coordinator: InterviewWorkspaceUser; scores: InterviewScores }>,
+  key: InterviewScoreKey,
+) {
+  return rows.reduce((total, row) => total + (row.scores[key] ?? 0), 0)
+}
+function getCoordinatorScores(
+  entries: InterviewCoordinatorScores[],
+  coordinatorId: string,
+): InterviewScores {
+  return normalizeInterviewScores(
+    entries.find((entry) => entry.coordinatorId === coordinatorId) ?? null,
+  )
+}
+function buildCoordinatorScoreRows(
+  coordinators: InterviewWorkspaceUser[],
+  entries: InterviewCoordinatorScores[],
+  current: { coordinatorId: string; scores: InterviewScores },
+) {
+  const coordinatorMap = new Map(coordinators.map((coordinator) => [coordinator.id, coordinator]))
+
+  return [...coordinatorMap.values()].map((coordinator) => ({
+    coordinator,
+    scores:
+      coordinator.id === current.coordinatorId
+        ? current.scores
+        : getCoordinatorScores(entries, coordinator.id),
+  }))
 }
 function areInterviewScoresEqual(left: InterviewScores, right: InterviewScores) {
   return interviewScoreCategories.every((category) => left[category.key] === right[category.key])

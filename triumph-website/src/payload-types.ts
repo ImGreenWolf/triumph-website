@@ -85,6 +85,7 @@ export interface Config {
     comissions: Comission;
     applications: Application;
     documents: Document;
+    logs: Log;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -132,6 +133,7 @@ export interface Config {
     comissions: ComissionsSelect<false> | ComissionsSelect<true>;
     applications: ApplicationsSelect<false> | ApplicationsSelect<true>;
     documents: DocumentsSelect<false> | DocumentsSelect<true>;
+    logs: LogsSelect<false> | LogsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -2294,13 +2296,17 @@ export interface Application {
           id?: string | null;
         }[]
       | null;
-    interviewScores?: {
-      interact?: number | null;
-      teamPlayer?: number | null;
-      situatii?: number | null;
-      comunicare?: number | null;
-      leadership?: number | null;
-    };
+    interviewScores?:
+      | {
+          coordinator: string | User;
+          interact?: number | null;
+          teamPlayer?: number | null;
+          situatii?: number | null;
+          comunicare?: number | null;
+          leadership?: number | null;
+          id?: string | null;
+        }[]
+      | null;
     coordonatorIncompatability?: (string | User)[] | null;
     coordonatorReviewChecks?: (string | User)[] | null;
     aspirerUser?: (string | null) | User;
@@ -2353,6 +2359,18 @@ export interface FormSubmission {
       }[]
     | null;
   submissionKey: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "logs".
+ */
+export interface Log {
+  id: string;
+  title: string;
+  type: 'email' | 'info' | 'warning' | 'error' | 'debug';
+  text: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -2610,6 +2628,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'documents';
         value: string | Document;
+      } | null)
+    | ({
+        relationTo: 'logs';
+        value: string | Log;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -3689,11 +3711,13 @@ export interface ApplicationsSelect<T extends boolean = true> {
         interviewScores?:
           | T
           | {
+              coordinator?: T;
               interact?: T;
               teamPlayer?: T;
               situatii?: T;
               comunicare?: T;
               leadership?: T;
+              id?: T;
             };
         coordonatorIncompatability?: T;
         coordonatorReviewChecks?: T;
@@ -3794,6 +3818,17 @@ export interface DocumentsSelect<T extends boolean = true> {
               filename?: T;
             };
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "logs_select".
+ */
+export interface LogsSelect<T extends boolean = true> {
+  title?: T;
+  type?: T;
+  text?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

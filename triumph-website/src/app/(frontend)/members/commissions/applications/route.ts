@@ -31,7 +31,7 @@ type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
   coordonatorReviewChecks?: (string | User)[] | null
   finalMailSentAt?: string | null
   finalMailSentBy?: string | User | null
-  interviewScores?: InterviewScores | null
+  interviewScores?: InterviewScoreEntry[] | null
   interviewMailSentAt?: string | null
   interviewMailSentBy?: string | User | null
   interviewNotes?:
@@ -116,6 +116,11 @@ type InterviewScores = {
   leadership?: number | null
   situatii?: number | null
   teamPlayer?: number | null
+}
+
+type InterviewScoreEntry = InterviewScores & {
+  coordinator: string | User
+  id?: string | null
 }
 
 const interviewScoreKeys = [
@@ -323,8 +328,7 @@ export async function sendCustomCandidateMail(args: {
   const recipient = application.email.trim()
   const senderAddress = getCustomMailSenderAddress(args.user)
   const sentAt = new Date().toISOString()
-
-  await args.payload.sendEmail({
+  const emailPayload = {
     from: getCustomMailFromHeader(args.user),
     html: await buildRecruitmentEmailHTML({
       messageHTML: renderPlainTextEmailHTML(body),
@@ -335,7 +339,34 @@ export async function sendCustomCandidateMail(args: {
     subject,
     text: body,
     to: recipient,
-  })
+  }
+
+  try {
+    const emailResult = await args.payload.sendEmail(emailPayload)
+
+    await createEmailLog(args.payload, {
+      action: 'send-custom-mail',
+      application,
+      emailPayload,
+      recipient,
+      result: emailResult,
+      sentBy: args.user,
+      status: 'sent',
+      timestamp: sentAt,
+    })
+  } catch (error) {
+    await createEmailLog(args.payload, {
+      action: 'send-custom-mail',
+      application,
+      emailPayload,
+      error,
+      recipient,
+      sentBy: args.user,
+      status: 'failed',
+      timestamp: sentAt,
+    })
+    throw error
+  }
 
   const updated = await updateApplicationReview(args.payload, application, {
     customMailHistory: [
@@ -402,6 +433,7 @@ async function updateRecruitmentConfig(args: {
     recruitmentConfig: {
       defaultInterviewDate: updated.recruitment?.defaultInterviewDate ?? null,
       interviewSchedulingDeadline: updated.recruitment?.interviewSchedulingDeadline ?? null,
+      reviewAcceptedMessage: updated.recruitment?.['review-accepted-message'] ?? null,
       recruitmentEndDate: updated.recruitment?.recruitmentEndDate ?? null,
       recruitmentStartDate: updated.recruitment?.recruitmentStartDate ?? null,
     },
@@ -723,16 +755,23 @@ async function saveInterviewScores(args: {
   const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
   const commission = await getApplicationCommission(args.payload, application)
 
-  if (!(await canManageAssignedApplication(args.payload, commission, args.user))) {
+  if (!isCommissionCoordinator(commission, args.user)) {
     return Response.json(
-      { message: 'Nu ai permisiunea de a nota acest candidat.' },
+      { message: 'Doar coordonatorii comisiei pot salva evaluarea.' },
       { status: 403 },
     )
   }
 
   const scores = normalizeInterviewScores(args.body.scores)
+  const existingScores = normalizeInterviewScoreEntries(application.reviewProcess?.interviewScores)
   const updated = await updateApplicationReview(args.payload, application, {
-    interviewScores: scores,
+    interviewScores: [
+      ...existingScores.filter((entry) => getRelationshipID(entry.coordinator) !== args.user.id),
+      {
+        coordinator: args.user.id,
+        ...scores,
+      },
+    ],
   })
 
   return Response.json({ application: serializeApplicationUpdate(updated) })
@@ -964,7 +1003,7 @@ async function sendInterviewMails(args: {
         })
       }
 
-      await args.payload.sendEmail({
+      const emailPayload = {
         html: await buildRecruitmentEmailHTML({
           cta: schedulesInterview
             ? {
@@ -983,10 +1022,29 @@ async function sendInterviewMails(args: {
         subject: 'Update cu privire la aplicația ta pentru clubul Interact București Triumph.',
         text: schedulesInterview ? `${message.text}\n\nProgramare: ${scheduleLink}` : message.text,
         to: application.email,
+      }
+      const sentAt = new Date().toISOString()
+      const emailResult = await args.payload.sendEmail(emailPayload)
+
+      await createEmailLog(args.payload, {
+        action: 'send-interview-mails',
+        application: prepared,
+        emailPayload,
+        extra: {
+          accepted,
+          schedulesInterview,
+          scheduleLink: scheduleLink || null,
+          unresolvedPlaceholders: message.unresolvedPlaceholders,
+        },
+        recipient: application.email,
+        result: emailResult,
+        sentBy: args.user,
+        status: 'sent',
+        timestamp: sentAt,
       })
 
       const updated = await updateApplicationReview(args.payload, prepared, {
-        interviewMailSentAt: new Date().toISOString(),
+        interviewMailSentAt: sentAt,
         interviewMailSentBy: args.user.id,
       })
 
@@ -994,6 +1052,16 @@ async function sendInterviewMails(args: {
       result.sent += 1
       addPlaceholderWarnings(result, prepared, message.unresolvedPlaceholders)
     } catch (error) {
+      const eligibilityError = isEligibilityError(error)
+      await createEmailLog(args.payload, {
+        action: 'send-interview-mails',
+        application,
+        error,
+        recipient: application.email,
+        sentBy: args.user,
+        status: eligibilityError ? 'skipped' : 'failed',
+      })
+
       if (isEligibilityError(error)) {
         result.skipped += 1
         result.warnings.push(
@@ -1057,7 +1125,7 @@ async function sendFinalMails(args: {
         }),
       })
 
-      await args.payload.sendEmail({
+      const emailPayload = {
         html: await buildRecruitmentEmailHTML({
           messageHTML: message.html,
           preheader: 'Update cu privire la aplicația ta pentru clubul Interact București Triumph',
@@ -1066,6 +1134,23 @@ async function sendFinalMails(args: {
         subject: 'Update cu privire la aplicația ta pentru clubul Interact București Triumph',
         text: message.text,
         to: application.email,
+      }
+      const sentAt = new Date().toISOString()
+      const emailResult = await args.payload.sendEmail(emailPayload)
+
+      await createEmailLog(args.payload, {
+        action: 'send-final-mails',
+        application,
+        emailPayload,
+        extra: {
+          accepted,
+          unresolvedPlaceholders: message.unresolvedPlaceholders,
+        },
+        recipient: application.email,
+        result: emailResult,
+        sentBy: args.user,
+        status: 'sent',
+        timestamp: sentAt,
       })
 
       let aspirerUserId = getRelationshipID(application.reviewProcess?.aspirerUser)
@@ -1082,7 +1167,7 @@ async function sendFinalMails(args: {
 
       const updated = await updateApplicationReview(args.payload, application, {
         aspirerUser: aspirerUserId || undefined,
-        finalMailSentAt: new Date().toISOString(),
+        finalMailSentAt: sentAt,
         finalMailSentBy: args.user.id,
       })
 
@@ -1090,6 +1175,15 @@ async function sendFinalMails(args: {
       result.sent += 1
       addPlaceholderWarnings(result, application, message.unresolvedPlaceholders)
     } catch (error) {
+      await createEmailLog(args.payload, {
+        action: 'send-final-mails',
+        application,
+        error,
+        recipient: application.email,
+        sentBy: args.user,
+        status: 'failed',
+      })
+
       result.failed += 1
       result.failures.push({
         email: application.email,
@@ -1348,6 +1442,96 @@ function addPlaceholderWarnings(
   result.warnings.push(
     `${application.name} (${application.email}): placeholders fara valoare: ${placeholders.join(', ')}.`,
   )
+}
+
+async function createEmailLog(
+  payload: Payload,
+  args: {
+    action: string
+    application?: Pick<Application, 'email' | 'id' | 'name'> | null
+    emailPayload?: unknown
+    error?: unknown
+    extra?: Record<string, unknown>
+    recipient: string
+    result?: unknown
+    sentBy?: Pick<User, 'email' | 'id' | 'name' | 'role'> | null
+    status: 'failed' | 'sent' | 'skipped'
+    timestamp?: string
+  },
+) {
+  const timestamp = args.timestamp ?? new Date().toISOString()
+
+  try {
+    await payload.create({
+      collection: 'logs',
+      data: {
+        text: stringifyLogData({
+          action: args.action,
+          application: args.application
+            ? {
+                email: args.application.email,
+                id: args.application.id,
+                name: args.application.name,
+              }
+            : null,
+          email: args.emailPayload ?? null,
+          error: args.error ? serializeLogError(args.error) : null,
+          extra: args.extra ?? null,
+          recipient: args.recipient,
+          result: args.result ?? null,
+          sentBy: args.sentBy
+            ? {
+                email: args.sentBy.email,
+                id: args.sentBy.id,
+                name: args.sentBy.name,
+                role: args.sentBy.role,
+              }
+            : null,
+          status: args.status,
+          timestamp,
+        }),
+        title: `${args.recipient} - ${timestamp}`,
+        type: 'email',
+      },
+      overrideAccess: true,
+    })
+  } catch (error) {
+    console.error('Failed to create email log', error)
+  }
+}
+
+function stringifyLogData(data: unknown) {
+  const seen = new WeakSet<object>()
+
+  return JSON.stringify(
+    data,
+    (_key, value: unknown) => {
+      if (value instanceof Error) return serializeLogError(value)
+      if (typeof value === 'bigint') return value.toString()
+      if (typeof value === 'function') return `[Function ${value.name || 'anonymous'}]`
+
+      if (value && typeof value === 'object') {
+        if (seen.has(value)) return '[Circular]'
+        seen.add(value)
+      }
+
+      return value
+    },
+    2,
+  )
+}
+
+function serializeLogError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      ...Object.fromEntries(Object.entries(error)),
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+    }
+  }
+
+  return error
 }
 
 async function authenticateRequest(request: Request, payload: Payload) {
@@ -1616,8 +1800,13 @@ function serializeCommissionUpdate(commission: ExtendedCommission) {
   }
 }
 
-function serializeInterviewScores(value?: InterviewScores | null): InterviewScores {
-  return normalizeInterviewScores(value)
+function serializeInterviewScores(value?: InterviewScoreEntry[] | null) {
+  return normalizeInterviewScoreEntries(value)
+    .map((entry) => ({
+      coordinatorId: getRelationshipID(entry.coordinator),
+      ...normalizeInterviewScores(entry),
+    }))
+    .filter((entry) => Boolean(entry.coordinatorId))
 }
 
 function getKnownCoordinatorIDs(application: ExtendedApplication) {
@@ -1707,6 +1896,25 @@ function normalizeInterviewScores(value: unknown): InterviewScores {
   return Object.fromEntries(
     interviewScoreKeys.map((key) => [key, normalizeInterviewScore(input[key])]),
   ) as InterviewScores
+}
+
+function normalizeInterviewScoreEntries(value: unknown): InterviewScoreEntry[] {
+  if (!Array.isArray(value)) return []
+
+  const entries: InterviewScoreEntry[] = []
+
+  value.forEach((item) => {
+    const entry = item && typeof item === 'object' ? (item as InterviewScoreEntry) : null
+    const coordinator = getRelationshipID(entry?.coordinator)
+    if (!entry || !coordinator) return
+
+    entries.push({
+      coordinator,
+      ...normalizeInterviewScores(entry),
+    })
+  })
+
+  return entries
 }
 
 function normalizeInterviewScore(value: unknown) {

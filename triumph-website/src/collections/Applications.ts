@@ -219,8 +219,14 @@ export const Applications: CollectionConfig = {
         },
         {
           name: 'interviewScores',
-          type: 'group',
+          type: 'array',
           fields: [
+            {
+              name: 'coordinator',
+              type: 'relationship',
+              relationTo: 'users',
+              required: true,
+            },
             {
               name: 'interact',
               type: 'number',
