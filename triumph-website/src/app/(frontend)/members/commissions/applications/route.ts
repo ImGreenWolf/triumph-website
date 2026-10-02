@@ -1,5 +1,6 @@
 import payloadConfig from '@payload-config'
 import { randomBytes } from 'node:crypto'
+import { revalidateTag } from 'next/cache'
 import { getPayload, type Payload } from 'payload'
 
 import type { Application, AspirementConfig, Comission, User } from '@/payload-types'
@@ -24,6 +25,7 @@ import {
 } from '@/utilities/aspirementRecruitment'
 import { isBoardMember } from '@/utilities/membersAccess'
 import { getEndOfBucharestDay, getStartOfBucharestDay } from '@/utilities/recruitmentWorkflow'
+import { HR_RECRUITMENT_DATA_CACHE_TAG } from '@/utilities/hrRecruitmentCache'
 import { slugify } from 'payload/shared'
 
 type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
@@ -164,75 +166,9 @@ export async function PATCH(request: Request) {
   try {
     assertScopeActionAccess(action, user, scope)
 
-    if (action === 'review-submission') {
-      return await reviewSubmission({ body, payload, user })
-    }
-
-    if (action === 'delete-application') {
-      return await deleteApplication({ body, payload, user })
-    }
-
-    if (action === 'bulk-review-submissions') {
-      return await bulkReviewSubmissions({ body, payload, user })
-    }
-
-    if (action === 'toggle-known') {
-      return await toggleKnownApplicant({ body, payload, user })
-    }
-
-    if (action === 'confirm-review') {
-      return await confirmCoordinatorReview({ body, payload, user })
-    }
-
-    if (action === 'assign-candidate') {
-      return await assignCandidate({ body, payload, user })
-    }
-
-    if (action === 'bulk-assign-candidates') {
-      return await bulkAssignCandidates({ body, payload, user })
-    }
-
-    if (action === 'update-commission-schedule') {
-      return await updateCommissionSchedule({ body, payload, scope, user })
-    }
-
-    if (action === 'update-recruitment-config') {
-      return await updateRecruitmentConfig({ body, payload, user })
-    }
-
-    if (action === 'add-form-comment') {
-      return await addFormReviewComment({ body, payload, user })
-    }
-
-    if (action === 'add-note') {
-      return await addInterviewNote({ body, payload, user })
-    }
-
-    if (action === 'save-interview-scores') {
-      return await saveInterviewScores({ body, payload, user })
-    }
-
-    if (action === 'set-interview-attendance') {
-      return await setInterviewAttendance({ body, payload, user })
-    }
-
-    if (action === 'final-decision') {
-      return await finalDecision({ body, payload, user })
-    }
-
-    if (action === 'send-interview-mails') {
-      return await sendInterviewMails({ body, payload, request, user })
-    }
-
-    if (action === 'send-final-mails') {
-      return await sendFinalMails({ body, payload, user })
-    }
-
-    if (action === 'send-custom-mail') {
-      return await sendCustomCandidateMail({ body, payload, user })
-    }
-
-    return Response.json({ message: 'Actiune necunoscuta.' }, { status: 400 })
+    const response = await handleApplicationAction({ action, body, payload, request, scope, user })
+    if (response.ok) revalidateTag(HR_RECRUITMENT_DATA_CACHE_TAG, 'max')
+    return response
   } catch (error) {
     return Response.json(
       {
@@ -241,6 +177,85 @@ export async function PATCH(request: Request) {
       { status: getErrorStatus(error) },
     )
   }
+}
+
+async function handleApplicationAction(args: {
+  action: string
+  body: Record<string, unknown>
+  payload: Payload
+  request: Request
+  scope: RouteScope
+  user: User
+}) {
+  if (args.action === 'review-submission') {
+    return reviewSubmission(args)
+  }
+
+  if (args.action === 'delete-application') {
+    return deleteApplication(args)
+  }
+
+  if (args.action === 'bulk-review-submissions') {
+    return bulkReviewSubmissions(args)
+  }
+
+  if (args.action === 'toggle-known') {
+    return toggleKnownApplicant(args)
+  }
+
+  if (args.action === 'confirm-review') {
+    return confirmCoordinatorReview(args)
+  }
+
+  if (args.action === 'assign-candidate') {
+    return assignCandidate(args)
+  }
+
+  if (args.action === 'bulk-assign-candidates') {
+    return bulkAssignCandidates(args)
+  }
+
+  if (args.action === 'update-commission-schedule') {
+    return updateCommissionSchedule(args)
+  }
+
+  if (args.action === 'update-recruitment-config') {
+    return updateRecruitmentConfig(args)
+  }
+
+  if (args.action === 'add-form-comment') {
+    return addFormReviewComment(args)
+  }
+
+  if (args.action === 'add-note') {
+    return addInterviewNote(args)
+  }
+
+  if (args.action === 'save-interview-scores') {
+    return saveInterviewScores(args)
+  }
+
+  if (args.action === 'set-interview-attendance') {
+    return setInterviewAttendance(args)
+  }
+
+  if (args.action === 'final-decision') {
+    return finalDecision(args)
+  }
+
+  if (args.action === 'send-interview-mails') {
+    return sendInterviewMails(args)
+  }
+
+  if (args.action === 'send-final-mails') {
+    return sendFinalMails(args)
+  }
+
+  if (args.action === 'send-custom-mail') {
+    return sendCustomCandidateMail(args)
+  }
+
+  return Response.json({ message: 'Actiune necunoscuta.' }, { status: 400 })
 }
 
 async function reviewSubmission(args: {

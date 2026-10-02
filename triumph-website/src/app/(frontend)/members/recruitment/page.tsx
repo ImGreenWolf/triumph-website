@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { unstable_cache } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import payloadConfig from '@payload-config'
@@ -14,6 +15,7 @@ import type {
 import { normalizeInstagramUsername } from '@/utilities/instagram'
 import { normalizeGooglePlace } from '@/utilities/googlePlace'
 import { DEFAULT_CUSTOM_MAIL_SENDER } from '@/utilities/customCandidateMail'
+import { HR_RECRUITMENT_DATA_CACHE_TAG } from '@/utilities/hrRecruitmentCache'
 import { isBoardMember } from '@/utilities/membersAccess'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
@@ -30,6 +32,39 @@ export const metadata: Metadata = {
   title: 'Recruitment HR | Interact Bucuresti Triumph',
 }
 
+const getCachedHRRecruitmentData = unstable_cache(
+  async () => {
+    const payload = await getPayload({ config: payloadConfig })
+    const [config, commissionResult, applicationResult] = await Promise.all([
+      payload.findGlobal({ slug: 'aspirementConfig', depth: 0, overrideAccess: true }),
+      payload.find({
+        collection: 'comissions',
+        depth: 2,
+        limit: 0,
+        overrideAccess: true,
+        pagination: false,
+        sort: 'commissionNumber',
+      }),
+      payload.find({
+        collection: 'applications',
+        depth: 2,
+        limit: 0,
+        overrideAccess: true,
+        pagination: false,
+        sort: '-createdAt',
+      }),
+    ])
+
+    return {
+      applications: (applicationResult.docs as Application[]).map(serializeApplication),
+      commissions: (commissionResult.docs as Comission[]).map(serializeCommission),
+      config: serializeConfig(config as AspirementConfig),
+    }
+  },
+  [HR_RECRUITMENT_DATA_CACHE_TAG],
+  { tags: [HR_RECRUITMENT_DATA_CACHE_TAG] },
+)
+
 export default async function HRRecruitmentPage() {
   const payload = await getPayload({ config: payloadConfig })
   const auth = await payload.auth({ headers: await getPayloadAuthHeaders() })
@@ -45,32 +80,14 @@ export default async function HRRecruitmentPage() {
   })) as User
   if (!isBoardMember(member)) redirect('/members')
 
-  const [config, commissionResult, applicationResult] = await Promise.all([
-    payload.findGlobal({ slug: 'aspirementConfig', depth: 0, overrideAccess: true }),
-    payload.find({
-      collection: 'comissions',
-      depth: 2,
-      limit: 0,
-      overrideAccess: true,
-      pagination: false,
-      sort: 'commissionNumber',
-    }),
-    payload.find({
-      collection: 'applications',
-      depth: 2,
-      limit: 0,
-      overrideAccess: true,
-      pagination: false,
-      sort: '-createdAt',
-    }),
-  ])
+  const recruitmentData = await getCachedHRRecruitmentData()
 
   return (
     <HRRecruitmentWizard
-      applications={(applicationResult.docs as Application[]).map(serializeApplication)}
+      applications={recruitmentData.applications}
       canOpenCommissionView
-      commissions={(commissionResult.docs as Comission[]).map(serializeCommission)}
-      config={serializeConfig(config as AspirementConfig)}
+      commissions={recruitmentData.commissions}
+      config={recruitmentData.config}
       user={serializeUser(member) as ManagedUser}
     />
   )

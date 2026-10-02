@@ -145,7 +145,13 @@ export default function CommissionInterviewWorkspace(props: {
   const [notice, setNotice] = useState<Notice | null>(null)
 
   useEffect(() => setHeaderTheme('light'), [setHeaderTheme])
-  useEffect(() => setApplications(props.applications), [props.applications])
+  useEffect(
+    () =>
+      setApplications((current) =>
+        mergeApplicationsForRefresh(current, props.applications, props.user.id),
+      ),
+    [props.applications, props.user.id],
+  )
   useEffect(() => setCommissions(props.commissions), [props.commissions])
 
   const refreshRecruitmentData = useCallback(() => {
@@ -482,6 +488,8 @@ function CandidateWorkspace(props: {
   user: InterviewWorkspaceUser
 }) {
   const { application } = props
+  const busyKey = props.busyKey
+  const onAction = props.onAction
   const [note, setNote] = useState('')
   const [scores, setScores] = useState(() =>
     getCoordinatorScores(application.interviewScores, props.user.id),
@@ -503,8 +511,44 @@ function CandidateWorkspace(props: {
   const scoresChanged = !areInterviewScoresEqual(scores, savedScores)
 
   useEffect(() => {
+    setNote('')
     setScores(getCoordinatorScores(application.interviewScores, props.user.id))
-  }, [application.id, application.interviewScores, props.user.id])
+  }, [application.id, props.user.id])
+
+  useEffect(() => {
+    if (!canWriteScores || !scoresChanged || busyKey === `scores-${application.id}`) return
+
+    const timeoutID = window.setTimeout(() => {
+      void onAction(
+        {
+          action: 'save-interview-scores',
+          applicationId: application.id,
+          scores,
+        },
+        `scores-${application.id}`,
+      ).catch(() => undefined)
+    }, 2500)
+
+    return () => window.clearTimeout(timeoutID)
+  }, [application.id, busyKey, canWriteScores, onAction, scores, scoresChanged])
+
+  useEffect(() => {
+    const content = note.trim()
+    if (!canWriteNotes || !content || busyKey === `note-${application.id}`) return
+
+    const timeoutID = window.setTimeout(() => {
+      void onAction(
+        { action: 'add-note', applicationId: application.id, note: content },
+        `note-${application.id}`,
+      )
+        .then(() => {
+          setNote((current) => (current.trim() === content ? '' : current))
+        })
+        .catch(() => undefined)
+    }, 2500)
+
+    return () => window.clearTimeout(timeoutID)
+  }, [application.id, busyKey, canWriteNotes, note, onAction])
 
   function updateScore(key: InterviewScoreKey, value: string) {
     setScores((current) => ({ ...current, [key]: parseInterviewScoreInput(value) }))
@@ -1456,6 +1500,39 @@ function buildCoordinatorScoreRows(
 }
 function areInterviewScoresEqual(left: InterviewScores, right: InterviewScores) {
   return interviewScoreCategories.every((category) => left[category.key] === right[category.key])
+}
+function mergeApplicationsForRefresh(
+  current: InterviewWorkspaceApplication[],
+  refreshed: InterviewWorkspaceApplication[],
+  userId: string,
+) {
+  const currentByID = new Map(current.map((application) => [application.id, application]))
+
+  return refreshed.map((application) => {
+    const existing = currentByID.get(application.id)
+    if (!existing) return application
+
+    return {
+      ...application,
+      interviewScores: mergeInterviewScoresForRefresh(
+        existing.interviewScores,
+        application.interviewScores,
+        userId,
+      ),
+    }
+  })
+}
+function mergeInterviewScoresForRefresh(
+  current: InterviewCoordinatorScores[],
+  refreshed: InterviewCoordinatorScores[],
+  userId: string,
+) {
+  const ownCurrentScores = current.find((entry) => entry.coordinatorId === userId)
+  if (!ownCurrentScores) return refreshed
+
+  return [...refreshed.filter((entry) => entry.coordinatorId !== userId), ownCurrentScores].sort(
+    (left, right) => left.coordinatorId.localeCompare(right.coordinatorId),
+  )
 }
 function toDateTimeInput(value: string | null) {
   if (!value) return ''

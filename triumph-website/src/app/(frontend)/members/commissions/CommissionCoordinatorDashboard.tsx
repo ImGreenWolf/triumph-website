@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { motion, useReducedMotion, type Variants } from 'framer-motion'
 import {
   ArrowLeft,
@@ -208,6 +208,8 @@ export default function CommissionCoordinatorDashboard(props: {
     user,
   } = props
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const { setHeaderTheme } = useHeaderTheme()
   const prefersReducedMotion = useReducedMotion()
   const [recruitmentRefreshing, startRecruitmentRefresh] = useTransition()
@@ -217,12 +219,19 @@ export default function CommissionCoordinatorDashboard(props: {
   const [selectedCommissionId, setSelectedCommissionId] = useState(
     () => initialCommissions[0]?.id ?? '',
   )
-  const [view, setView] = useState<WorkspaceView>('overview')
+  const [view, setView] = useState<WorkspaceView>(searchParams.get('view') as WorkspaceView || "overview")
   const [query, setQuery] = useState('')
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [detailApplicationId, setDetailApplicationId] = useState<string | null>(null)
   const [jsonUploadWizardOpen, setJsonUploadWizardOpen] = useState(false)
+
+  function selectView(view: WorkspaceView) {
+      setView(view)
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('view', view)
+      router.replace(`/members/commissions?${params.toString()}`, { scroll: false })
+    }
 
   useEffect(() => {
     setHeaderTheme('light')
@@ -478,7 +487,7 @@ export default function CommissionCoordinatorDashboard(props: {
               className="h-10 min-w-0 rounded-md border border-[#d9e0e8] bg-white px-3 text-sm font-bold outline-none focus:border-[#00a2e0] sm:w-56"
               onChange={(event) => {
                 setSelectedCommissionId(event.target.value)
-                setView('overview')
+                selectView('overview')
                 setQuery('')
               }}
               value={selectedCommission.id}
@@ -520,7 +529,7 @@ export default function CommissionCoordinatorDashboard(props: {
       <main className="mx-auto grid max-w-[1440px] gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[230px_minmax(0,1fr)] lg:px-8">
         <CoordinatorSidebar
           isBoard={isBoard}
-          onChange={setView}
+          onChange={selectView}
           pendingDecisions={pendingDecisions.length}
           pendingKnownReview={pendingKnownReview ? reviewRemaining : 0}
           unresolvedCandidates={unresolvedCandidates.length}
@@ -536,8 +545,8 @@ export default function CommissionCoordinatorDashboard(props: {
             <CoordinatorOverview
               assignedCandidates={selectedApplications.length}
               commission={selectedCommission}
-              onOpenAssigned={() => setView('assigned-candidates')}
-              onOpenKnownApplicants={() => setView('known-applicants')}
+              onOpenAssigned={() => selectView('assigned-candidates')}
+              onOpenKnownApplicants={() => selectView('known-applicants')}
               pendingDecisions={pendingDecisions.length}
               pendingKnownReview={pendingKnownReview ? reviewRemaining : 0}
               readOnly={!canManageSelectedCommission}
@@ -1176,7 +1185,8 @@ function DenseCandidateRow(props: {
         <Avatar name={application.name} />
         <div className="min-w-0">
           <p className="truncate text-sm font-bold">{application.name}</p>
-          <p className="mt-0.5 truncate text-xs text-[#748094]">{application.email}</p>
+          <p className="mt-0.5 truncate text-xs text-[#748094]">{application.formAnswers.find(val => val.field == 'telephone')!.value}</p>
+          <p className="truncate text-xs text-[#748094]">{application.email}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
