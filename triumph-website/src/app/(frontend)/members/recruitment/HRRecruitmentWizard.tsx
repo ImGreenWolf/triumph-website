@@ -279,11 +279,13 @@ function Metrics({ workflow }: { workflow: RecruitmentWorkflowState }) {
       return (
         <>
           <HeaderStat label="Programate" value={String(workflow.metrics.scheduled)} />
-          <HeaderStat label="Mailuri" value={String(workflow.metrics.mailedInterviews)} />
           <HeaderStat
             label="Rămași"
-            value={String(workflow.metrics.mailedInterviews - workflow.metrics.scheduled)}
+            value={String(workflow.metrics.interviewsPending - workflow.metrics.scheduled)}
           />
+          <HeaderStat label="Acceptați" value={String(workflow.metrics.interviewsPending)} />
+          <HeaderStat label="% Prog." value={String(Math.round(workflow.metrics.scheduled*100 / workflow.metrics.interviewsPending))+'%'} />
+
         </>
       )
     case 'interviews':
