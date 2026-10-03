@@ -32,6 +32,17 @@ type ApplicationWithExtendedReview = Application & {
           note: string
         }[]
       | null
+    interviewScores?:
+      | {
+          comunicare?: number | null
+          coordinator: string | User
+          id?: string | null
+          interact?: number | null
+          leadership?: number | null
+          situatii?: number | null
+          teamPlayer?: number | null
+        }[]
+      | null
     formReviewComments?:
       | {
           author: string | User
@@ -43,6 +54,7 @@ type ApplicationWithExtendedReview = Application & {
     coordonatorReviewChecks?: (string | User)[] | null
     finalMailSentAt?: string | null
     finalMailSentBy?: string | User | null
+    interviewArrivedLateAt?: string | null
     interviewMailSentAt?: string | null
     interviewMailSentBy?: string | User | null
     interviewScheduleToken?: string | null
@@ -97,6 +109,7 @@ export default async function CommissionCoordinatorPage() {
   )
   const canManageAllCommissions = member.role === 'hr-director' && coordinatedCommissions.length > 0
   const commissions = accessibleCommissions
+  const preferredCommissionId = coordinatedCommissions[0]?.id ?? commissions[0]?.id ?? ''
   const manageableCommissionIds = canManageAllCommissions
     ? commissions.map((commission) => commission.id)
     : coordinatedCommissions.map((commission) => commission.id)
@@ -106,6 +119,7 @@ export default async function CommissionCoordinatorPage() {
       <CommissionCoordinatorDashboard
         applications={[]}
         commissions={[]}
+        initialCommissionId=""
         isBoard={false}
         manageableCommissionIds={[]}
         recruitmentPool={[]}
@@ -164,6 +178,7 @@ export default async function CommissionCoordinatorPage() {
       applications={managedApplications}
       commissions={commissions.map(serializeCommission)}
       generalViewHref={hasBoardAccess ? '/members/recruitment' : undefined}
+      initialCommissionId={preferredCommissionId}
       isBoard={hasBoardAccess}
       manageableCommissionIds={manageableCommissionIds}
       recruitmentPool={recruitmentPool}
@@ -211,6 +226,7 @@ function serializeApplication(application: ApplicationWithExtendedReview): Manag
     })),
     finalMailSentAt: normalizeDate(reviewProcess.finalMailSentAt),
     id: application.id,
+    interviewArrivedLateAt: normalizeDate(reviewProcess.interviewArrivedLateAt),
     interviewAttendance: reviewProcess.interviewAttendance ?? null,
     interviewDate: normalizeDate(reviewProcess.interviewDate),
     interviewMailSentAt: normalizeDate(reviewProcess.interviewMailSentAt),
@@ -220,6 +236,19 @@ function serializeApplication(application: ApplicationWithExtendedReview): Manag
       id: note.id ?? `${getRelationshipID(note.author)}-${note.createdAt}`,
       note: note.note,
     })),
+    interviewScores:
+      reviewProcess.interviewScores && reviewProcess.interviewScores?.length
+        ? reviewProcess.interviewScores
+            .map((entry) => ({
+              comunicare: normalizeScore(entry.comunicare),
+              coordinatorId: getRelationshipID(entry.coordinator),
+              interact: normalizeScore(entry.interact),
+              leadership: normalizeScore(entry.leadership),
+              situatii: normalizeScore(entry.situatii),
+              teamPlayer: normalizeScore(entry.teamPlayer),
+            }))
+            .filter((entry) => Boolean(entry.coordinatorId))
+        : undefined,
     knownCoordinatorIds: (reviewProcess.coordonatorIncompatability ?? [])
       .map(getRelationshipID)
       .filter(Boolean),
@@ -327,4 +356,9 @@ function normalizeDate(value?: string | null) {
 
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+function normalizeScore(value: unknown) {
+  const score = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(score) ? Math.min(10, Math.max(0, score)) : null
 }

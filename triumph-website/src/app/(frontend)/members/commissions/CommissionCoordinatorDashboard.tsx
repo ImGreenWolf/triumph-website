@@ -76,16 +76,27 @@ export type ManagedApplication = {
   formReviewComments: ManagedFormReviewComment[]
   finalMailSentAt: string | null
   id: string
+  interviewArrivedLateAt: string | null
   interviewDate: string | null
   interviewAttendance: 'scheduled' | 'late' | 'absent' | 'completed' | null
   interviewMailSentAt: string | null
   interviewNotes: ManagedInterviewNote[]
+  interviewScores: ManagedInterviewScores[] | undefined
   knownCoordinatorIds: string[]
   name: string
   notes: string
   onlineInterview: boolean
   reviewedCoordinatorIds: string[]
   status: ManagedApplicationStatus
+}
+
+export type ManagedInterviewScores = {
+  comunicare?: number | null
+  coordinatorId: string
+  interact?: number | null
+  leadership?: number | null
+  situatii?: number | null
+  teamPlayer?: number | null
 }
 
 export type ManagedInterviewNote = {
@@ -139,6 +150,8 @@ type ApplicationPatch = Partial<
     | 'commissionId'
     | 'finalMailSentAt'
     | 'formReviewComments'
+    | 'interviewArrivedLateAt'
+    | 'interviewAttendance'
     | 'interviewDate'
     | 'interviewMailSentAt'
     | 'knownCoordinatorIds'
@@ -180,6 +193,14 @@ const completedRecruitmentStatuses = new Set<ManagedApplicationStatus>([
   'interview-withdrawn',
 ])
 
+const finalDecisionPendingLabel = 'Decizia finală va fi disponibilă după finalizarea interviului.'
+
+function getPreferredCommissionId(commissions: ManagedCommission[], preferredId: string) {
+  return commissions.some((commission) => commission.id === preferredId)
+    ? preferredId
+    : (commissions[0]?.id ?? '')
+}
+
 const panelVariants = {
   hidden: { opacity: 0, y: 12 },
   visible: {
@@ -193,6 +214,7 @@ export default function CommissionCoordinatorDashboard(props: {
   applications: ManagedApplication[]
   commissions: ManagedCommission[]
   generalViewHref?: string
+  initialCommissionId: string
   isBoard: boolean
   manageableCommissionIds: string[]
   recruitmentPool: ManagedRecruitmentPoolApplicant[]
@@ -202,6 +224,7 @@ export default function CommissionCoordinatorDashboard(props: {
     applications: initialApplications,
     commissions: initialCommissions,
     generalViewHref,
+    initialCommissionId,
     isBoard,
     manageableCommissionIds,
     recruitmentPool: initialRecruitmentPool,
@@ -216,10 +239,12 @@ export default function CommissionCoordinatorDashboard(props: {
   const [applications, setApplications] = useState(initialApplications)
   const [commissions, setCommissions] = useState(initialCommissions)
   const [recruitmentPool, setRecruitmentPool] = useState(initialRecruitmentPool)
-  const [selectedCommissionId, setSelectedCommissionId] = useState(
-    () => initialCommissions[0]?.id ?? '',
+  const [selectedCommissionId, setSelectedCommissionId] = useState(() =>
+    getPreferredCommissionId(initialCommissions, initialCommissionId),
   )
-  const [view, setView] = useState<WorkspaceView>(searchParams.get('view') as WorkspaceView || "overview")
+  const [view, setView] = useState<WorkspaceView>(
+    (searchParams.get('view') as WorkspaceView) || 'overview',
+  )
   const [query, setQuery] = useState('')
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -227,11 +252,11 @@ export default function CommissionCoordinatorDashboard(props: {
   const [jsonUploadWizardOpen, setJsonUploadWizardOpen] = useState(false)
 
   function selectView(view: WorkspaceView) {
-      setView(view)
-      const params = new URLSearchParams(searchParams.toString())
-      params.set('view', view)
-      router.replace(`/members/commissions?${params.toString()}`, { scroll: false })
-    }
+    setView(view)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('view', view)
+    router.replace(`/members/commissions?${params.toString()}`, { scroll: false })
+  }
 
   useEffect(() => {
     setHeaderTheme('light')
@@ -241,7 +266,12 @@ export default function CommissionCoordinatorDashboard(props: {
     setApplications(initialApplications)
     setCommissions(initialCommissions)
     setRecruitmentPool(initialRecruitmentPool)
-  }, [initialApplications, initialCommissions, initialRecruitmentPool])
+    setSelectedCommissionId((current) =>
+      initialCommissions.some((commission) => commission.id === current)
+        ? current
+        : getPreferredCommissionId(initialCommissions, initialCommissionId),
+    )
+  }, [initialApplications, initialCommissions, initialCommissionId, initialRecruitmentPool])
 
   const refreshRecruitmentData = useCallback(() => {
     startRecruitmentRefresh(() => {
@@ -1179,24 +1209,28 @@ function DenseCandidateRow(props: {
 }) {
   const { application } = props
   const canDecide = props.canManage && ['interviewed', 'absent'].includes(application.status)
+  const showFinalDecisionNote = props.canManage && application.status === 'interview' && !canDecide
+  const phone = application.formAnswers.find((val) => val.field == 'telephone')!.value
   return (
     <article className="grid gap-3 px-4 py-3.5 xl:grid-cols-[minmax(13rem,1fr)_minmax(12rem,0.75fr)_auto] xl:items-center">
       <div className="flex min-w-0 items-center gap-3">
         <Avatar name={application.name} />
         <div className="min-w-0">
           <p className="truncate text-sm font-bold">{application.name}</p>
-          <p className="mt-0.5 truncate text-xs text-[#748094]">{application.formAnswers.find(val => val.field == 'telephone')!.value}</p>
+          {phone && (
+            <a className="mt-0.5 truncate text-xs text-[#748094]" href={`tel:${phone}`}>
+              {phone}
+            </a>
+          )}
           <p className="truncate text-xs text-[#748094]">{application.email}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge
-          onlineInterview={application.onlineInterview}
-          status={application.status}
-        />
+        <StatusBadge onlineInterview={application.onlineInterview} status={application.status} />
         <span className="rounded-md bg-[#f4f6f8] px-2 py-1 text-xs font-bold text-[#526071]">
           {candidateInterviewState(application)}
         </span>
+        <InterviewGradeBadge application={application} />
       </div>
       <div className="flex flex-wrap gap-2 xl:justify-end">
         <button
@@ -1254,6 +1288,11 @@ function DenseCandidateRow(props: {
             </button>
           </>
         )}
+        {showFinalDecisionNote && (
+          <span className="inline-flex min-h-9 items-center rounded-md bg-[#f8fafc] px-2.5 text-xs font-semibold text-[#748094]">
+            {finalDecisionPendingLabel}
+          </span>
+        )}
       </div>
     </article>
   )
@@ -1275,13 +1314,47 @@ function SearchField(props: { query: string; setQuery: (query: string) => void }
 }
 
 function candidateInterviewState(application: ManagedApplication) {
+  const arrivedLate = Boolean(
+    application.interviewArrivedLateAt || application.interviewAttendance === 'late',
+  )
   if (application.status === 'absent' || application.interviewAttendance === 'absent')
-    return 'Absent'
+    return arrivedLate ? 'Absent · intarziat' : 'Absent'
   if (application.status === 'interviewed' || application.interviewAttendance === 'completed')
-    return 'Finalizat'
-  if (application.interviewAttendance === 'late') return 'Intarziat'
+    return arrivedLate ? 'Finalizat · intarziat' : 'Finalizat'
+  if (arrivedLate) return 'Intarziat'
   if (application.interviewDate) return formatDate(application.interviewDate)
   return 'Neprogramat'
+}
+
+function InterviewGradeBadge({ application }: { application: ManagedApplication }) {
+  if (!application.interviewScores) return <></>
+  const grade = calculateInterviewGrade(application.interviewScores)
+
+  return (
+    <span className="rounded-md bg-[#eef9ff] px-2 py-1 text-xs font-black text-[#007fb3] ring-1 ring-[#c7ecfb]">
+      Nota interview {grade ? `${grade.total}/${grade.max}` : '-'}
+    </span>
+  )
+}
+
+function calculateInterviewGrade(scores: ManagedInterviewScores[]) {
+  if (scores.length === 0) return null
+
+  const total = scores.reduce(
+    (sum, entry) =>
+      sum +
+      (entry.interact ?? 0) +
+      (entry.teamPlayer ?? 0) +
+      (entry.situatii ?? 0) +
+      (entry.comunicare ?? 0) +
+      (entry.leadership ?? 0),
+    0,
+  )
+
+  return {
+    max: scores.length * 50,
+    total,
+  }
 }
 
 function compareAssignedCandidates(left: ManagedApplication, right: ManagedApplication) {
@@ -2057,6 +2130,7 @@ function AssignedApplicationCard(props: {
   const { application, busyKey, onAction, onOpenDetails } = props
   const [note, setNote] = useState('')
   const canDecide = ['interviewed', 'absent'].includes(application.status)
+  const showFinalDecisionNote = application.status === 'interview' && !canDecide
 
   return (
     <ApplicationCard
@@ -2101,13 +2175,20 @@ function AssignedApplicationCard(props: {
             </button>
           </>
         ) : (
-          <Link
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#d9dfe7] bg-white px-3 text-xs font-bold text-[#344054] transition hover:bg-[#f8fafc]"
-            href="/members/commissions/interviews"
-          >
-            <Clock3 className="size-3.5" />
-            Deschide interview-uri
-          </Link>
+          <>
+            <Link
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#d9dfe7] bg-white px-3 text-xs font-bold text-[#344054] transition hover:bg-[#f8fafc]"
+              href="/members/commissions/interviews"
+            >
+              <Clock3 className="size-3.5" />
+              Deschide interview-uri
+            </Link>
+            {showFinalDecisionNote && (
+              <span className="inline-flex min-h-10 items-center rounded-lg bg-[#f8fafc] px-3 text-xs font-semibold text-[#748094]">
+                {finalDecisionPendingLabel}
+              </span>
+            )}
+          </>
         )
       }
       application={application}
@@ -2190,6 +2271,7 @@ function ApplicationCard(props: {
                 ? formatDate(application.interviewDate)
                 : 'Interview neprogramat'}
             </span>
+            <InterviewGradeBadge application={application} />
             <span className="rounded-md bg-[#f7f9fc] px-2 py-1">
               {application.knownCoordinatorIds.length} marcaje coordonatori
             </span>

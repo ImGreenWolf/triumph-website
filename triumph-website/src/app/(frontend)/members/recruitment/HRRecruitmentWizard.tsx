@@ -142,10 +142,12 @@ export type ManagedApplication = {
   formUploads: ManagedUpload[]
   id: string
   instagram: string
+  interviewArrivedLateAt: string | null
   interviewAttendance: 'scheduled' | 'late' | 'absent' | 'completed' | null
   interviewDate: string | null
   interviewMailSentAt: string | null
   interviewNotes: ManagedInterviewNote[]
+  interviewScores: ManagedInterviewScores[]
   knownCoordinatorIds: string[]
   name: string
   notes: string
@@ -153,6 +155,15 @@ export type ManagedApplication = {
   reviewedCoordinatorIds: string[]
   status: ManagedApplicationStatus
   interviewScheduleToken: string
+}
+
+export type ManagedInterviewScores = {
+  comunicare?: number | null
+  coordinatorId: string
+  interact?: number | null
+  leadership?: number | null
+  situatii?: number | null
+  teamPlayer?: number | null
 }
 
 export type ManagedRecruitmentConfig = {
@@ -171,6 +182,7 @@ type ApplicationPatch = Partial<
     | 'aspirerUserId'
     | 'commissionId'
     | 'finalMailSentAt'
+    | 'interviewArrivedLateAt'
     | 'interviewAttendance'
     | 'interviewDate'
     | 'interviewMailSentAt'
@@ -240,7 +252,13 @@ const statusLabels: Record<ManagedApplicationStatus, string> = {
   'submission-waitlisted': 'Lista de asteptare',
 }
 
-function Metrics({ workflow }: { workflow: RecruitmentWorkflowState }) {
+function Metrics({
+  applications,
+  workflow,
+}: {
+  applications: ManagedApplication[]
+  workflow: RecruitmentWorkflowState
+}) {
   switch (workflow.currentStep) {
     case 'forms':
       return (
@@ -284,15 +302,25 @@ function Metrics({ workflow }: { workflow: RecruitmentWorkflowState }) {
             value={String(workflow.metrics.interviewsPending - workflow.metrics.scheduled)}
           />
           <HeaderStat label="Acceptați" value={String(workflow.metrics.interviewsPending)} />
-          <HeaderStat label="% Prog." value={String(Math.round(workflow.metrics.scheduled*100 / workflow.metrics.interviewsPending))+'%'} />
-
+          <HeaderStat
+            label="% Prog."
+            value={
+              String(
+                Math.round((workflow.metrics.scheduled * 100) / workflow.metrics.interviewsPending),
+              ) + '%'
+            }
+          />
         </>
       )
     case 'interviews':
+      const interviewMetrics = calculateInterviewMetrics(applications)
+
       return (
         <>
-          <HeaderStat label="Programate" value={String(workflow.metrics.scheduled)} />
-          <HeaderStat label="Acceptate" value={String(workflow.metrics.accepted)} />
+          <HeaderStat label="Total" value={String(interviewMetrics.total)} />
+          <HeaderStat label="Completed" value={String(interviewMetrics.completed)} />
+          <HeaderStat label="Absentees" value={String(interviewMetrics.absentees)} />
+          <HeaderStat label="Average grade" value={interviewMetrics.averageGrade} />
         </>
       )
     case 'results':
@@ -546,7 +574,7 @@ export default function HRRecruitmentWizard(props: {
             </div>
             <div className="grid min-w-0 gap-3 sm:min-w-[26rem]">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Metrics workflow={workflow}></Metrics>
+                <Metrics applications={applications} workflow={workflow}></Metrics>
               </div>
               <button
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.08] px-4 text-sm font-bold text-white transition hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-55 sm:justify-self-end"
@@ -2217,8 +2245,7 @@ function InterviewStep(props: {
   const active = props.applications.filter((application) =>
     ['interview', 'interviewed', 'absent'].includes(application.status),
   )
-  const scheduled = active.filter((application) => application.interviewDate).length
-  const unresolved = active.filter((application) => application.status === 'interview').length
+  const metrics = calculateInterviewMetrics(active)
   return (
     <div className="grid gap-5">
       <InfoPanel
@@ -2227,29 +2254,46 @@ function InterviewStep(props: {
         title="Ziua de interview"
       />
       <Panel>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <SmallMetric label="Programati" value={String(scheduled)} />
-          <SmallMetric label="De rezolvat" value={String(unresolved)} />
-          <SmallMetric label="Fara programare" value={String(active.length - scheduled)} />
+        <div className="grid gap-3 sm:grid-cols-4">
+          <SmallMetric label="Total" value={String(metrics.total)} />
+          <SmallMetric label="Completed" value={String(metrics.completed)} />
+          <SmallMetric label="Absentees" value={String(metrics.absentees)} />
+          <SmallMetric label="Average grade" value={metrics.averageGrade} />
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-5 grid gap-3 xl:grid-cols-2">
           {props.commissions.map((commission) => {
-            const count = active.filter(
+            const commissionApplications = active.filter(
               (application) => application.commissionId === commission.id,
-            ).length
+            )
+            const commissionMetrics = calculateCommissionInterviewMetrics(
+              commission,
+              commissionApplications,
+            )
+
             return (
               <Link
-                className="flex items-center justify-between rounded-md border border-[#e4e8ef] bg-[#f8fafc] p-3 transition hover:border-[#00a2e0]"
+                className="rounded-md border border-[#e4e8ef] bg-[#f8fafc] p-4 transition hover:border-[#00a2e0]"
                 href={`/members/commissions/interviews?commission=${commission.id}`}
                 key={commission.id}
               >
-                <span>
-                  <span className="block text-sm font-bold">{commission.label}</span>
-                  <span className="mt-1 block text-xs text-[#748094]">
-                    {count} candidati activi
-                  </span>
-                </span>
-                <ChevronRight className="size-4 text-[#007fb3]" />
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold">{commission.label}</p>
+                    <p className="mt-1 text-xs text-[#748094]">
+                      Current interview: {commissionMetrics.currentInterview}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-[#8a94a6]">
+                      Location: {commissionMetrics.currentLocation}
+                    </p>
+                  </div>
+                  <ChevronRight className="mt-1 size-4 shrink-0 text-[#007fb3]" />
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <SmallMetric label="Average grade" value={commissionMetrics.averageGrade} />
+                  <SmallMetric label="Absentees / total" value={commissionMetrics.absenteesTotal} />
+                  <SmallMetric label="Completed" value={commissionMetrics.completedPercentage} />
+                  <SmallMetric label="Smallest grade" value={commissionMetrics.smallestGrade} />
+                </div>
               </Link>
             )
           })}
@@ -2257,6 +2301,118 @@ function InterviewStep(props: {
       </Panel>
     </div>
   )
+}
+
+function calculateInterviewMetrics(applications: ManagedApplication[]) {
+  const active = applications.filter((application) =>
+    ['interview', 'interviewed', 'absent'].includes(application.status),
+  )
+  const completed = active.filter(
+    (application) =>
+      application.status === 'interviewed' || application.interviewAttendance === 'completed',
+  ).length
+  const absentees = active.filter(
+    (application) =>
+      application.status === 'absent' || application.interviewAttendance === 'absent',
+  ).length
+
+  return {
+    absentees,
+    averageGrade: formatAverageInterviewGrade(active),
+    completed,
+    total: active.length,
+  }
+}
+
+function calculateCommissionInterviewMetrics(
+  commission: ManagedCommission,
+  applications: ManagedApplication[],
+) {
+  const completed = applications.filter(
+    (application) =>
+      application.status === 'interviewed' || application.interviewAttendance === 'completed',
+  ).length
+  const absentees = applications.filter(
+    (application) =>
+      application.status === 'absent' || application.interviewAttendance === 'absent',
+  ).length
+  const current = getCurrentCommissionInterview(commission, applications)
+
+  return {
+    absenteesTotal: `${absentees}/${applications.length}`,
+    averageGrade: formatAverageInterviewGrade(applications),
+    completedPercentage: formatPercentage(completed, applications.length),
+    currentInterview: current.application
+      ? `${current.application.name} · ${formatDateTime(current.application.interviewDate)}`
+      : 'Niciunul',
+    currentLocation: current.location || '-',
+    smallestGrade: formatSmallestInterviewGrade(applications),
+  }
+}
+
+function getCurrentCommissionInterview(
+  commission: ManagedCommission,
+  applications: ManagedApplication[],
+) {
+  const now = Date.now()
+  const slots = generateInterviewSlots(commission.interviewIntervals)
+  const applicationsByStart = new Map(
+    applications
+      .filter((application) => application.interviewDate)
+      .map((application) => [application.interviewDate, application]),
+  )
+
+  for (const slot of slots) {
+    const start = new Date(slot.start).getTime()
+    const end = new Date(slot.end).getTime()
+    if (!Number.isFinite(start) || !Number.isFinite(end) || now < start || now > end) continue
+
+    const application = applicationsByStart.get(slot.start) ?? null
+    return {
+      application,
+      location: slot.location ?? '',
+    }
+  }
+
+  return { application: null, location: '' }
+}
+
+function formatAverageInterviewGrade(applications: ManagedApplication[]) {
+  const grades = applications.flatMap((application) =>
+    (application.interviewScores ?? []).map(calculateInterviewScoreRowTotal),
+  )
+  if (grades.length === 0) return '-'
+
+  const average = grades.reduce((sum, grade) => sum + grade, 0) / grades.length
+  return `${formatGradeNumber(average)}/50`
+}
+
+function formatSmallestInterviewGrade(applications: ManagedApplication[]) {
+  const grades = applications.flatMap((application) =>
+    (application.interviewScores ?? []).map(calculateInterviewScoreRowTotal),
+  )
+  if (grades.length === 0) return '-'
+
+  return `${formatGradeNumber(Math.min(...grades))}/50`
+}
+
+function calculateInterviewScoreRowTotal(scores: ManagedInterviewScores) {
+  return (
+    (scores.interact ?? 0) +
+    (scores.teamPlayer ?? 0) +
+    (scores.situatii ?? 0) +
+    (scores.comunicare ?? 0) +
+    (scores.leadership ?? 0)
+  )
+}
+
+function formatGradeNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function formatPercentage(value: number, total: number) {
+  if (total === 0) return '0%'
+  return `${Math.round((value / total) * 100)}%`
 }
 
 function ResultStep(props: {
@@ -3753,7 +3909,7 @@ function buildRecruitmentApplicationsCSV(
         getCSVCommissionLabel(application, commissions),
         formatExportDateTime(application.createdAt),
         formatExportDateTime(application.interviewDate),
-        application.interviewAttendance || '',
+        formatCSVInterviewAttendance(application),
         getCSVInterviewMessage(application, commissions, config),
         getCSVInterviewScheduleLink(application),
         formatExportDateTime(application.interviewMailSentAt),
@@ -3805,13 +3961,16 @@ function getCSVInterviewMessage(
       application: {
         email: application.email,
         formSubmission: {
-          submissionData: [...application.formAnswers.map((answer) => ({
-            field: answer.field,
-            value: answer.value,
-          })), {
-            field: 'interviewLink',
-            value: scheduleLink
-          }]
+          submissionData: [
+            ...application.formAnswers.map((answer) => ({
+              field: answer.field,
+              value: answer.value,
+            })),
+            {
+              field: 'interviewLink',
+              value: scheduleLink,
+            },
+          ],
         },
         name: application.name,
         reviewProcess: {
@@ -3861,6 +4020,17 @@ function getCSVAnswerHeader(answer: ManagedApplication['formAnswers'][number]) {
 
 function getCSVStatusLabel(status: ManagedApplicationStatus) {
   return statusLabels[status] || status
+}
+
+function formatCSVInterviewAttendance(application: ManagedApplication) {
+  const arrivedLate = Boolean(
+    application.interviewArrivedLateAt || application.interviewAttendance === 'late',
+  )
+
+  if (!application.interviewAttendance) return arrivedLate ? 'late' : ''
+  if (application.interviewAttendance === 'completed' && arrivedLate) return 'completed late'
+  if (application.interviewAttendance === 'absent' && arrivedLate) return 'absent late'
+  return application.interviewAttendance
 }
 
 function getCSVCommissionLabel(application: ManagedApplication, commissions: ManagedCommission[]) {

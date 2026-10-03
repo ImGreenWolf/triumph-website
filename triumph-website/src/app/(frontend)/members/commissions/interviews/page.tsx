@@ -36,6 +36,7 @@ type Args = {
 
 type ApplicationWithInterviewScores = Application & {
   reviewProcess?: Application['reviewProcess'] & {
+    interviewArrivedLateAt?: string | null
     interviewScores?: Array<
       Partial<InterviewScores> & { coordinator?: string | User | null; id?: string | null }
     > | null
@@ -100,9 +101,10 @@ export default async function CommissionInterviewsPage({ searchParams }: Args) {
     overrideAccess: true,
   })) as AspirementConfigWithInterview
   const params = await searchParams
+  const preferredCommissionID = coordinatedCommissions[0]?.id ?? commissions[0]?.id ?? ''
   const selectedID = commissions.some((commission) => commission.id === params.commission)
     ? (params.commission ?? '')
-    : commissions[0]?.id || ''
+    : preferredCommissionID
 
   return (
     <CommissionInterviewWorkspace
@@ -153,6 +155,7 @@ function serializeApplication(
     formAnswers: answers,
     id: application.id,
     instagram: normalizeInstagramUsername(findAnswer(answers, ['insta', 'instagram'])),
+    interviewArrivedLateAt: normalizeDate(review.interviewArrivedLateAt),
     interviewAttendance: review.interviewAttendance ?? null,
     interviewDate: normalizeDate(review.interviewDate),
     interviewNotes: (review.interviewNotes ?? []).map((note) => ({

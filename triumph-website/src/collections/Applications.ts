@@ -82,6 +82,13 @@ export const Applications: CollectionConfig = {
           ],
         },
         {
+          name: 'interviewArrivedLateAt',
+          type: 'date',
+          admin: {
+            readOnly: true,
+          },
+        },
+        {
           name: 'interviewScheduleToken',
           type: 'text',
           admin: {

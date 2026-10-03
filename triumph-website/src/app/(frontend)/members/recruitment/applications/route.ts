@@ -86,6 +86,7 @@ function serializeApplication(application: Application) {
     formUploads: getSubmissionUploads(submission),
     id: application.id,
     instagram: normalizeInstagramUsername(findSubmissionValue(answers, ['insta', 'instagram'])),
+    interviewArrivedLateAt: normalizeDate(review.interviewArrivedLateAt),
     interviewAttendance: review.interviewAttendance ?? null,
     interviewDate: normalizeDate(review.interviewDate),
     interviewMailSentAt: normalizeDate(review.interviewMailSentAt),
@@ -95,6 +96,16 @@ function serializeApplication(application: Application) {
       id: note.id ?? `${getRelationshipID(note.author)}-${note.createdAt}`,
       note: note.note,
     })),
+    interviewScores: (review.interviewScores ?? [])
+      .map((entry) => ({
+        comunicare: normalizeScore(entry.comunicare),
+        coordinatorId: getRelationshipID(entry.coordinator),
+        interact: normalizeScore(entry.interact),
+        leadership: normalizeScore(entry.leadership),
+        situatii: normalizeScore(entry.situatii),
+        teamPlayer: normalizeScore(entry.teamPlayer),
+      }))
+      .filter((entry) => Boolean(entry.coordinatorId)),
     knownCoordinatorIds: (review.coordonatorIncompatability ?? [])
       .map(getRelationshipID)
       .filter(Boolean),
@@ -185,4 +196,9 @@ function normalizeDate(value?: string | null) {
   if (!value) return null
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+function normalizeScore(value: unknown) {
+  const score = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(score) ? Math.min(10, Math.max(0, score)) : null
 }

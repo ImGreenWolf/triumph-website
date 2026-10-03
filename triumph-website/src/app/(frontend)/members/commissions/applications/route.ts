@@ -55,6 +55,7 @@ type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
   interviewScheduleToken?: string | null
   interviewScheduleTokenCreatedAt?: string | null
   interviewAttendance?: 'scheduled' | 'late' | 'absent' | 'completed' | null
+  interviewArrivedLateAt?: string | null
   customMailHistory?:
     | {
         body: string
@@ -871,6 +872,10 @@ async function setInterviewAttendance(args: {
   }
 
   const updated = await updateApplicationReview(args.payload, application, {
+    interviewArrivedLateAt:
+      attendance === 'late'
+        ? (application.reviewProcess?.interviewArrivedLateAt ?? new Date().toISOString())
+        : application.reviewProcess?.interviewArrivedLateAt,
     interviewAttendance: attendance,
     status:
       attendance === 'completed' ? 'interviewed' : attendance === 'absent' ? 'absent' : 'interview',
@@ -1769,6 +1774,7 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
     })),
     finalMailSentAt: application.reviewProcess?.finalMailSentAt ?? null,
     id: application.id,
+    interviewArrivedLateAt: application.reviewProcess?.interviewArrivedLateAt ?? null,
     interviewDate: application.reviewProcess?.interviewDate ?? null,
     interviewAttendance: application.reviewProcess?.interviewAttendance ?? null,
     interviewMailSentAt: application.reviewProcess?.interviewMailSentAt ?? null,

@@ -40,6 +40,8 @@ const interviewScoreCategories = [
   { key: 'leadership', label: 'Leadership' },
 ] as const
 
+const finalDecisionPendingLabel = 'Decizia finală va fi disponibilă după finalizarea interviului.'
+
 type InterviewScoreKey = (typeof interviewScoreCategories)[number]['key']
 
 export type InterviewScores = Record<InterviewScoreKey, number | null>
@@ -75,6 +77,7 @@ export type InterviewWorkspaceApplication = {
   formAnswers: Array<{ field: string; label: string; value: string }>
   id: string
   instagram: string
+  interviewArrivedLateAt: string | null
   interviewAttendance: 'scheduled' | 'late' | 'absent' | 'completed' | null
   interviewDate: string | null
   interviewNotes: Array<{
@@ -104,7 +107,11 @@ export type InterviewWorkspaceApplication = {
 type ApplicationPatch = Partial<
   Pick<
     InterviewWorkspaceApplication,
-    'interviewAttendance' | 'interviewDate' | 'onlineInterview' | 'status'
+    | 'interviewArrivedLateAt'
+    | 'interviewAttendance'
+    | 'interviewDate'
+    | 'onlineInterview'
+    | 'status'
   >
 > & {
   id: string
@@ -152,7 +159,14 @@ export default function CommissionInterviewWorkspace(props: {
       ),
     [props.applications, props.user.id],
   )
-  useEffect(() => setCommissions(props.commissions), [props.commissions])
+  useEffect(() => {
+    setCommissions(props.commissions)
+    setSelectedCommissionID((current) =>
+      props.commissions.some((commission) => commission.id === current)
+        ? current
+        : props.initialCommissionId,
+    )
+  }, [props.commissions, props.initialCommissionId])
 
   const refreshRecruitmentData = useCallback(() => {
     startRecruitmentRefresh(() => {
@@ -455,12 +469,21 @@ function ScheduleList(props: {
 }
 
 function ScheduleStatusBadge({ application }: { application: InterviewWorkspaceApplication }) {
+  const arrivedLate = Boolean(
+    application.interviewArrivedLateAt || application.interviewAttendance === 'late',
+  )
   const status =
     application.status === 'absent' || application.interviewAttendance === 'absent'
-      ? { className: 'border-red-200 bg-red-50 text-red-700', label: 'Absent' }
+      ? {
+          className: 'border-red-200 bg-red-50 text-red-700',
+          label: arrivedLate ? 'Absent intarziat' : 'Absent',
+        }
       : application.status === 'interviewed' || application.interviewAttendance === 'completed'
-        ? { className: 'border-emerald-200 bg-emerald-50 text-emerald-700', label: 'Finalizat' }
-        : application.interviewAttendance === 'late'
+        ? {
+            className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            label: arrivedLate ? 'Finalizat intarziat' : 'Finalizat',
+          }
+        : arrivedLate
           ? { className: 'border-amber-200 bg-amber-50 text-amber-800', label: 'Intarziat' }
           : application.onlineInterview
             ? { className: 'border-[#007fb3] bg-white text-[#007fb3]', label: 'Online' }
@@ -845,6 +868,9 @@ function CandidateWorkspace(props: {
                 }
                 tone="danger"
               />
+              <span className="inline-flex min-h-10 items-center rounded-md bg-[#f8fafc] px-3 text-xs font-semibold text-[#748094]">
+                {finalDecisionPendingLabel}
+              </span>
             </>
           )}
           {!canAttend && (
