@@ -1,6 +1,14 @@
 'use client'
 
-import { CalendarClock, CheckCircle2, Clock3, MapPinIcon, Phone, Users, XCircle } from 'lucide-react'
+import {
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  MapPinIcon,
+  Phone,
+  Users,
+  XCircle,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useHeaderTheme } from '@/providers/HeaderTheme'
@@ -54,12 +62,21 @@ export default function ScheduleInterviewClient(props: {
   const [currentOnlineInterview, setCurrentOnlineInterview] = useState(() =>
     Boolean(props.currentOnlineInterview),
   )
+  const [editingSchedule, setEditingSchedule] = useState(() => !props.currentInterviewDate)
   const [withdrawn, setWithdrawn] = useState(false)
   const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null)
   const selected = useMemo(
     () => slots.find((slot) => slot.start === selectedSlot),
     [selectedSlot, slots],
   )
+  const currentSlot = useMemo(
+    () =>
+      slots.find((slot) => slot.start === currentInterviewDate) ??
+      slots.find((slot) => slot.isCurrent) ??
+      null,
+    [currentInterviewDate, slots],
+  )
+  const scheduleDeadlinePassed = isPastDate(props.deadline)
   const days = useMemo(() => groupSlotsByDay(slots), [slots])
   const [selectedDayKey, setSelectedDayKey] = useState(
     () =>
@@ -120,6 +137,7 @@ export default function ScheduleInterviewClient(props: {
       if (result.slots) setSlots(result.slots)
 
       setNotice({ kind: 'success', message: 'Programarea a fost salvata.' })
+      setEditingSchedule(false)
     } catch (error) {
       setNotice({
         kind: 'error',
@@ -186,6 +204,22 @@ export default function ScheduleInterviewClient(props: {
                 ? 'Retragerea a fost inregistrata. Iti multumim ca ne-ai anuntat.'
                 : props.unavailableMessage || ''
             }
+          />
+        ) : currentInterviewDate && !editingSchedule ? (
+          <SavedInterviewDetails
+            busy={busy}
+            coordinatorContacts={props.coordinatorContacts}
+            currentInterviewDate={currentInterviewDate}
+            currentOnlineInterview={currentOnlineInterview}
+            deadline={props.deadline}
+            notice={notice}
+            onEdit={() => {
+              setNotice(null)
+              setEditingSchedule(true)
+            }}
+            onWithdraw={withdraw}
+            scheduleDeadlinePassed={scheduleDeadlinePassed}
+            slot={currentSlot}
           />
         ) : (
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -309,11 +343,16 @@ export default function ScheduleInterviewClient(props: {
                   {selected?.label || 'Selecteaza un interval'}
                 </p>
                 {selected?.location && (
-                  <div className='flex flex-col mt-2'>
-                    <p className="mt-1 flex items-center gap-2 text-xs font-bold text-[#00a2e0] tracking-[0.08em] uppercase"><MapPinIcon size={16}/>Locația Interview-ului</p>
-                    <p className="flex items-center gap-2 text-md font-bold text-primary-text">{selected.location}</p>
+                  <div className="flex flex-col mt-2">
+                    <p className="mt-1 flex items-center gap-2 text-xs font-bold text-[#00a2e0] tracking-[0.08em] uppercase">
+                      <MapPinIcon size={16} />
+                      Locația Interview-ului
+                    </p>
+                    <p className="flex items-center gap-2 text-md font-bold text-primary-text">
+                      {selected.location}
+                    </p>
                   </div>
-           )}
+                )}
                 {selected?.onlineInterview && (
                   <p className="mt-2 inline-flex rounded-full bg-[#eef9ff] px-2 py-1 text-xs font-black uppercase tracking-[0.08em] text-[#007fb3]">
                     Online interview
@@ -366,6 +405,20 @@ export default function ScheduleInterviewClient(props: {
                 <CheckCircle2 className="size-4" />
                 {busy ? 'Se salveaza...' : 'Salveaza programarea'}
               </button>
+              {currentInterviewDate && (
+                <button
+                  className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#d9dfe7] bg-white px-4 text-sm font-bold text-[#344054] transition hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={busy}
+                  onClick={() => {
+                    setSelectedSlot(currentInterviewDate)
+                    setOnlineInterview(currentOnlineInterview)
+                    setEditingSchedule(false)
+                  }}
+                  type="button"
+                >
+                  Inapoi la programarea salvata
+                </button>
+              )}
               <button
                 className="mt-5 w-full text-center text-xs font-medium text-[#8a94a6] underline-offset-2 hover:text-[#526071] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={busy}
@@ -379,6 +432,157 @@ export default function ScheduleInterviewClient(props: {
         )}
       </section>
     </main>
+  )
+}
+
+function SavedInterviewDetails(props: {
+  busy: boolean
+  coordinatorContacts: InterviewCoordinatorContact[]
+  currentInterviewDate: string
+  currentOnlineInterview: boolean
+  deadline: string | null
+  notice: { kind: 'error' | 'success'; message: string } | null
+  onEdit: () => void
+  onWithdraw: () => Promise<void>
+  scheduleDeadlinePassed: boolean
+  slot: InterviewScheduleSlot | null
+}) {
+  const slot = props.slot
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <section className="rounded-2xl border border-[#dfe5ec] bg-white p-5 shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+            <CheckCircle2 className="size-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.08em] text-[#748094]">
+              Programare salvata
+            </p>
+            <h2 className="mt-1 text-2xl font-bold">Interview-ul tau este programat</h2>
+            <p className="mt-2 text-sm leading-6 text-[#526071]">
+              Aici poti verifica detaliile alegerii tale. Pastreaza linkul daca vrei sa revii la
+              aceste informatii.
+            </p>
+          </div>
+        </div>
+
+        <dl className="mt-6 grid gap-3 sm:grid-cols-2">
+          <SavedDetailItem label="Data" value={formatDateOnly(props.currentInterviewDate)} />
+          <SavedDetailItem
+            label="Ora"
+            value={
+              slot
+                ? `${formatTime(slot.start)} - ${formatTime(slot.end)}`
+                : formatTime(props.currentInterviewDate)
+            }
+          />
+          <SavedDetailItem
+            className="sm:col-span-2"
+            label="Locatie"
+            value={slot?.location || 'Locatia va fi confirmata de coordonatori.'}
+          />
+          <SavedDetailItem
+            label="Format"
+            value={
+              props.currentOnlineInterview
+                ? 'Ai ales interview online'
+                : slot?.onlineInterview
+                  ? 'Slot online'
+                  : 'Interview fizic'
+            }
+          />
+          <SavedDetailItem
+            label="Interval"
+            value={slot?.label || formatDate(props.currentInterviewDate)}
+          />
+        </dl>
+
+        {slot?.onlineInterview && (
+          <p className="mt-4 inline-flex rounded-full bg-[#eef9ff] px-3 py-1.5 text-xs font-black uppercase tracking-[0.08em] text-[#007fb3]">
+            Acest interval este configurat ca online
+          </p>
+        )}
+        {props.currentOnlineInterview && !slot?.onlineInterview && (
+          <p className="mt-4 rounded-xl border border-[#bde8f8] bg-[#eef9ff] px-4 py-3 text-sm font-semibold text-[#007fb3]">
+            Ai bifat ca doresti interview online. Coordonatorii vor vedea preferinta ta.
+          </p>
+        )}
+      </section>
+
+      <aside className="rounded-2xl border border-[#dfe5ec] bg-white p-4 shadow-[0_8px_30px_rgba(22,34,57,0.04)] sm:p-5">
+        <h2 className="text-lg font-bold">Detalii utile</h2>
+        {props.deadline && (
+          <div className="mt-4 rounded-xl bg-[#f7f9fc] p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.08em] text-[#748094]">
+              Deadline modificare
+            </p>
+            <p className="mt-1 text-sm font-bold text-[#152039]">{formatDate(props.deadline)}</p>
+          </div>
+        )}
+
+        {props.coordinatorContacts.length > 0 && (
+          <div className="mt-4 rounded-xl border border-[#e5e9ef] bg-white p-4">
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-[#748094]">
+              <Users className="size-4" />
+              Coordonatori comisie
+            </p>
+            <div className="mt-3 grid gap-2">
+              {props.coordinatorContacts.map((coordinator) => (
+                <div
+                  className="rounded-lg border border-[#edf0f4] bg-[#f7f9fc] px-3 py-2"
+                  key={coordinator.id}
+                >
+                  <p className="text-sm font-bold text-[#152039]">{coordinator.name}</p>
+                  <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-[#748094]">
+                    <Phone className="size-3.5 shrink-0" />
+                    {coordinator.phone || 'Telefon indisponibil'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {props.notice && <StatusPanel kind={props.notice.kind} message={props.notice.message} />}
+
+        {props.scheduleDeadlinePassed ? (
+          <p className="mt-4 rounded-xl bg-[#f7f9fc] px-4 py-3 text-sm font-semibold text-[#748094]">
+            Programarea nu mai poate fi modificata dupa deadline.
+          </p>
+        ) : (
+          <button
+            className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#00a2e0] px-4 text-sm font-bold text-white transition hover:bg-[#008fc7] disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={props.busy}
+            onClick={props.onEdit}
+            type="button"
+          >
+            <CalendarClock className="size-4" />
+            Modifica programarea
+          </button>
+        )}
+        <button
+          className="mt-5 w-full text-center text-xs font-medium text-[#8a94a6] underline-offset-2 hover:text-[#526071] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={props.busy}
+          onClick={() => void props.onWithdraw()}
+          type="button"
+        >
+          Retrage-te din proces
+        </button>
+      </aside>
+    </div>
+  )
+}
+
+function SavedDetailItem(props: { className?: string; label: string; value: string }) {
+  return (
+    <div className={`rounded-xl bg-[#f7f9fc] p-4 ${props.className ?? ''}`}>
+      <dt className="text-xs font-bold uppercase tracking-[0.08em] text-[#748094]">
+        {props.label}
+      </dt>
+      <dd className="mt-1 text-sm font-bold leading-6 text-[#152039]">{props.value}</dd>
+    </div>
   )
 }
 
@@ -589,6 +793,18 @@ function formatDate(value: string) {
   }).format(date)
 }
 
+function formatDateOnly(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    month: 'long',
+    weekday: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
 function formatTime(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -609,6 +825,13 @@ function getDayKey(value: string | null) {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function isPastDate(value: string | null) {
+  if (!value) return false
+
+  const date = new Date(value)
+  return !Number.isNaN(date.getTime()) && date < new Date()
 }
 
 function startOfLocalDay(value: Date) {
