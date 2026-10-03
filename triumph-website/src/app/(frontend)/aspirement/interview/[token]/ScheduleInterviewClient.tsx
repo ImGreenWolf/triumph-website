@@ -77,6 +77,7 @@ export default function ScheduleInterviewClient(props: {
     [currentInterviewDate, slots],
   )
   const scheduleDeadlinePassed = isPastDate(props.deadline)
+  const canEditSavedSchedule = !scheduleDeadlinePassed && !props.unavailableMessage
   const days = useMemo(() => groupSlotsByDay(slots), [slots])
   const [selectedDayKey, setSelectedDayKey] = useState(
     () =>
@@ -186,9 +187,14 @@ export default function ScheduleInterviewClient(props: {
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
             Programeaza interview-ul
           </h1>
-          {props.deadline && (
+          {props.deadline && !scheduleDeadlinePassed && (
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
               Poti modifica programarea pana la {formatDate(props.deadline)}.
+            </p>
+          )}
+          {props.deadline && scheduleDeadlinePassed && currentInterviewDate && (
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
+              Programarea ta este salvata. Deadline-ul pentru modificari a trecut.
             </p>
           )}
           <p className=" max-w-2xl text-sm leading-6 text-white/65">
@@ -196,31 +202,36 @@ export default function ScheduleInterviewClient(props: {
           </p>
         </div>
 
-        {props.unavailableMessage || withdrawn ? (
+        {withdrawn ? (
           <StatusPanel
-            kind={withdrawn ? 'success' : 'error'}
-            message={
-              withdrawn
-                ? 'Retragerea a fost inregistrata. Iti multumim ca ne-ai anuntat.'
-                : props.unavailableMessage || ''
-            }
+            kind="success"
+            message="Retragerea a fost inregistrata. Iti multumim ca ne-ai anuntat."
           />
         ) : currentInterviewDate && !editingSchedule ? (
           <SavedInterviewDetails
             busy={busy}
+            canEditSchedule={canEditSavedSchedule}
             coordinatorContacts={props.coordinatorContacts}
             currentInterviewDate={currentInterviewDate}
             currentOnlineInterview={currentOnlineInterview}
             deadline={props.deadline}
+            lockedMessage={
+              scheduleDeadlinePassed
+                ? 'Programarea nu mai poate fi modificata dupa deadline.'
+                : props.unavailableMessage
+                  ? 'Programarea nu mai poate fi modificata.'
+                  : undefined
+            }
             notice={notice}
             onEdit={() => {
               setNotice(null)
               setEditingSchedule(true)
             }}
             onWithdraw={withdraw}
-            scheduleDeadlinePassed={scheduleDeadlinePassed}
             slot={currentSlot}
           />
+        ) : props.unavailableMessage ? (
+          <StatusPanel kind="error" message={props.unavailableMessage} />
         ) : (
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
             <section className="grid gap-5">
@@ -437,14 +448,15 @@ export default function ScheduleInterviewClient(props: {
 
 function SavedInterviewDetails(props: {
   busy: boolean
+  canEditSchedule: boolean
   coordinatorContacts: InterviewCoordinatorContact[]
   currentInterviewDate: string
   currentOnlineInterview: boolean
   deadline: string | null
+  lockedMessage?: string
   notice: { kind: 'error' | 'success'; message: string } | null
   onEdit: () => void
   onWithdraw: () => Promise<void>
-  scheduleDeadlinePassed: boolean
   slot: InterviewScheduleSlot | null
 }) {
   const slot = props.slot
@@ -547,9 +559,9 @@ function SavedInterviewDetails(props: {
 
         {props.notice && <StatusPanel kind={props.notice.kind} message={props.notice.message} />}
 
-        {props.scheduleDeadlinePassed ? (
+        {!props.canEditSchedule ? (
           <p className="mt-4 rounded-xl bg-[#f7f9fc] px-4 py-3 text-sm font-semibold text-[#748094]">
-            Programarea nu mai poate fi modificata dupa deadline.
+            {props.lockedMessage || 'Programarea nu mai poate fi modificata.'}
           </p>
         ) : (
           <button
