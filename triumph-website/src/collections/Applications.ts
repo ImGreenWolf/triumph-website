@@ -64,6 +64,11 @@ export const Applications: CollectionConfig = {
         {
           name: 'interviewDate',
           type: 'date',
+          admin: {
+            date: {
+              pickerAppearance: 'dayAndTime',
+            },
+          },
         },
         {
           name: 'onlineInterview',

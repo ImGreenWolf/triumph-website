@@ -63,6 +63,8 @@ type ApplicationWithExtendedReview = Application & {
 }
 
 type CommissionWithReviews = Comission & {
+  interviewDecisionConfirmedAt?: string | null
+  interviewDecisionConfirmedBy?: string | User | null
   recruitmentReviews?:
     | {
         confirmedAt: string
@@ -198,6 +200,8 @@ function serializeCommission(commission: CommissionWithReviews): ManagedCommissi
     commissionNumber: commission.commissionNumber,
     coordinators: commission.coordinators.map(serializeUser).filter(isManagedUser),
     id: commission.id,
+    interviewDecisionConfirmedAt: normalizeDate(commission.interviewDecisionConfirmedAt),
+    interviewDecisionConfirmedById: getRelationshipID(commission.interviewDecisionConfirmedBy),
     label: `Comisia ${commission.commissionNumber}`,
     mandateLabel: getMandateLabel(commission.mandate),
     recruitmentReviews: (commission.recruitmentReviews ?? [])
@@ -237,8 +241,8 @@ function serializeApplication(application: ApplicationWithExtendedReview): Manag
       note: note.note,
     })),
     interviewScores:
-      reviewProcess.interviewScores && reviewProcess.interviewScores?.length
-        ? reviewProcess.interviewScores
+      normalizeInterviewScoreEntries(reviewProcess.interviewScores).length > 0
+        ? normalizeInterviewScoreEntries(reviewProcess.interviewScores)
             .map((entry) => ({
               comunicare: normalizeScore(entry.comunicare),
               coordinatorId: getRelationshipID(entry.coordinator),
@@ -361,4 +365,21 @@ function normalizeDate(value?: string | null) {
 function normalizeScore(value: unknown) {
   const score = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(score) ? Math.min(10, Math.max(0, score)) : null
+}
+
+function normalizeInterviewScoreEntries(value: unknown) {
+  if (!Array.isArray(value)) return []
+
+  return value.filter(
+    (
+      entry,
+    ): entry is {
+      comunicare?: unknown
+      coordinator?: unknown
+      interact?: unknown
+      leadership?: unknown
+      situatii?: unknown
+      teamPlayer?: unknown
+    } => Boolean(entry && typeof entry === 'object'),
+  )
 }

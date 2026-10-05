@@ -2216,6 +2216,11 @@ export interface Comission {
       }[]
     | null;
   /**
+   * Tracks when final interview decisions were confirmed by the commission.
+   */
+  interviewDecisionConfirmedAt?: string | null;
+  interviewDecisionConfirmedBy?: (string | null) | User;
+  /**
    * Adauga o zi pentru a programa interview-uri cu aspirantii.
    */
   interviewIntervals?:
@@ -3638,6 +3643,8 @@ export interface ComissionsSelect<T extends boolean = true> {
         confirmedAt?: T;
         id?: T;
       };
+  interviewDecisionConfirmedAt?: T;
+  interviewDecisionConfirmedBy?: T;
   interviewIntervals?:
     | T
     | {

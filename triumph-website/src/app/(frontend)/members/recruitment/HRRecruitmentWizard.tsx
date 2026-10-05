@@ -123,6 +123,8 @@ export type ManagedCommission = {
   commissionNumber: number
   coordinators: ManagedUser[]
   id: string
+  interviewDecisionConfirmedAt: string | null
+  interviewDecisionConfirmedById: string
   interviewIntervals: ManagedInterval[]
   label: string
   recruitmentReviews: Array<{ confirmedAt: string; coordinatorId: string }>
@@ -239,6 +241,14 @@ const reviewedStatuses = new Set<ManagedApplicationStatus>([
   'interview-rejected',
 ])
 
+const interviewMetricStatuses = new Set<ManagedApplicationStatus>([
+  'interview',
+  'interviewed',
+  'absent',
+  'interview-passed',
+  'interview-rejected',
+])
+
 const statusLabels: Record<ManagedApplicationStatus, string> = {
   absent: 'Absent',
   'coordonator-review': 'Acceptat',
@@ -318,8 +328,7 @@ function Metrics({
       return (
         <>
           <HeaderStat label="Total" value={String(interviewMetrics.total)} />
-          <HeaderStat label="Completed" value={String(interviewMetrics.completed)} />
-          <HeaderStat label="Absentees" value={String(interviewMetrics.absentees)} />
+          <HeaderStat label="Marked" value={interviewMetrics.markedTotal} />
           <HeaderStat label="Average grade" value={interviewMetrics.averageGrade} />
         </>
       )
@@ -2123,6 +2132,7 @@ function DebugStep(props: {
     (application) => !application.interviewMailSentAt,
   ).length
   const unsentFinal = finalCandidates.filter((application) => !application.finalMailSentAt).length
+  const finalConfirmation = getFinalDecisionConfirmationState(finalCandidates, props.commissions)
   const readySchedules = props.commissions.filter(
     (commission) => commission.interviewIntervals.length > 0,
   ).length
@@ -2213,11 +2223,17 @@ function DebugStep(props: {
             <p className="mt-1 text-sm text-[#748094]">
               {unsentFinal} netrimise din {finalCandidates.length} decizii finale.
             </p>
+            <p className="mt-1 text-sm font-semibold text-[#748094]">
+              {finalConfirmation.confirmed}/{finalConfirmation.total} comisii au confirmat
+              deciziile.
+            </p>
           </div>
           <button
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
             disabled={
-              finalCandidates.length === 0 || isMailActionBusy(props.busyKey, 'send-final-mails')
+              finalCandidates.length === 0 ||
+              !finalConfirmation.allConfirmed ||
+              isMailActionBusy(props.busyKey, 'send-final-mails')
             }
             onClick={() => void props.onAction({ action: 'send-final-mails' }, 'send-final-mails')}
             type="button"
@@ -2226,6 +2242,11 @@ function DebugStep(props: {
             {props.busyKey === 'send-final-mails' ? 'Se trimit...' : 'Trimite batch final'}
           </button>
         </div>
+        {!finalConfirmation.allConfirmed && finalConfirmation.pendingLabels.length > 0 && (
+          <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+            Asteapta confirmarea pentru: {finalConfirmation.pendingLabels.join(', ')}.
+          </p>
+        )}
         <CandidateMailTable
           applications={finalCandidates}
           commissions={props.commissions}
@@ -2243,7 +2264,7 @@ function InterviewStep(props: {
   commissions: ManagedCommission[]
 }) {
   const active = props.applications.filter((application) =>
-    ['interview', 'interviewed', 'absent'].includes(application.status),
+    interviewMetricStatuses.has(application.status),
   )
   const metrics = calculateInterviewMetrics(active)
   return (
@@ -2256,8 +2277,7 @@ function InterviewStep(props: {
       <Panel>
         <div className="grid gap-3 sm:grid-cols-4">
           <SmallMetric label="Total" value={String(metrics.total)} />
-          <SmallMetric label="Completed" value={String(metrics.completed)} />
-          <SmallMetric label="Absentees" value={String(metrics.absentees)} />
+          <SmallMetric label="Marked" value={metrics.markedTotal} />
           <SmallMetric label="Average grade" value={metrics.averageGrade} />
         </div>
         <div className="mt-5 grid gap-3 xl:grid-cols-2">
@@ -2290,8 +2310,7 @@ function InterviewStep(props: {
                 </div>
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   <SmallMetric label="Average grade" value={commissionMetrics.averageGrade} />
-                  <SmallMetric label="Absentees / total" value={commissionMetrics.absenteesTotal} />
-                  <SmallMetric label="Completed" value={commissionMetrics.completedPercentage} />
+                  <SmallMetric label="Marked" value={commissionMetrics.markedTotal} />
                   <SmallMetric label="Smallest grade" value={commissionMetrics.smallestGrade} />
                 </div>
               </Link>
@@ -2305,11 +2324,14 @@ function InterviewStep(props: {
 
 function calculateInterviewMetrics(applications: ManagedApplication[]) {
   const active = applications.filter((application) =>
-    ['interview', 'interviewed', 'absent'].includes(application.status),
+    interviewMetricStatuses.has(application.status),
   )
   const completed = active.filter(
     (application) =>
-      application.status === 'interviewed' || application.interviewAttendance === 'completed',
+      application.status === 'interviewed' ||
+      application.status === 'interview-passed' ||
+      application.status === 'interview-rejected' ||
+      application.interviewAttendance === 'completed',
   ).length
   const absentees = active.filter(
     (application) =>
@@ -2320,6 +2342,7 @@ function calculateInterviewMetrics(applications: ManagedApplication[]) {
     absentees,
     averageGrade: formatAverageInterviewGrade(active),
     completed,
+    markedTotal: formatMarkedTotal(completed, active.length, absentees),
     total: active.length,
   }
 }
@@ -2330,7 +2353,10 @@ function calculateCommissionInterviewMetrics(
 ) {
   const completed = applications.filter(
     (application) =>
-      application.status === 'interviewed' || application.interviewAttendance === 'completed',
+      application.status === 'interviewed' ||
+      application.status === 'interview-passed' ||
+      application.status === 'interview-rejected' ||
+      application.interviewAttendance === 'completed',
   ).length
   const absentees = applications.filter(
     (application) =>
@@ -2339,13 +2365,12 @@ function calculateCommissionInterviewMetrics(
   const current = getCurrentCommissionInterview(commission, applications)
 
   return {
-    absenteesTotal: `${absentees}/${applications.length}`,
     averageGrade: formatAverageInterviewGrade(applications),
-    completedPercentage: formatPercentage(completed, applications.length),
     currentInterview: current.application
       ? `${current.application.name} · ${formatDateTime(current.application.interviewDate)}`
       : 'Niciunul',
     currentLocation: current.location || '-',
+    markedTotal: formatMarkedTotal(completed, applications.length, absentees),
     smallestGrade: formatSmallestInterviewGrade(applications),
   }
 }
@@ -2410,9 +2435,30 @@ function formatGradeNumber(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
-function formatPercentage(value: number, total: number) {
-  if (total === 0) return '0%'
-  return `${Math.round((value / total) * 100)}%`
+function formatMarkedTotal(marked: number, total: number, absentees: number) {
+  return `${marked}/${total} (${absentees})`
+}
+
+function getFinalDecisionConfirmationState(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+) {
+  const commissionIDs = new Set(
+    applications
+      .map((application) => application.commissionId)
+      .filter((id): id is string => Boolean(id)),
+  )
+  const relevantCommissions = commissions.filter((commission) => commissionIDs.has(commission.id))
+  const pending = relevantCommissions.filter(
+    (commission) => !commission.interviewDecisionConfirmedAt,
+  )
+
+  return {
+    allConfirmed: pending.length === 0,
+    confirmed: relevantCommissions.length - pending.length,
+    pendingLabels: pending.map((commission) => commission.label),
+    total: relevantCommissions.length,
+  }
 }
 
 function ResultStep(props: {
@@ -2425,6 +2471,7 @@ function ResultStep(props: {
     ['interview-passed', 'interview-rejected'].includes(application.status),
   )
   const unsent = final.filter((application) => !application.finalMailSentAt)
+  const finalConfirmation = getFinalDecisionConfirmationState(final, props.commissions)
   return (
     <div className="grid gap-5">
       <InfoPanel
@@ -2437,10 +2484,18 @@ function ResultStep(props: {
           <div>
             <h3 className="text-lg font-bold">Emailuri finale</h3>
             <p className="mt-1 text-sm text-[#748094]">{unsent.length} rezultate netrimise.</p>
+            <p className="mt-1 text-sm font-semibold text-[#748094]">
+              {finalConfirmation.confirmed}/{finalConfirmation.total} comisii au confirmat
+              deciziile.
+            </p>
           </div>
           <button
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#00a2e0] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
-            disabled={unsent.length === 0 || isMailActionBusy(props.busyKey, 'send-final-mails')}
+            disabled={
+              unsent.length === 0 ||
+              !finalConfirmation.allConfirmed ||
+              isMailActionBusy(props.busyKey, 'send-final-mails')
+            }
             onClick={() => void props.onAction({ action: 'send-final-mails' }, 'send-final-mails')}
             type="button"
           >
@@ -2448,6 +2503,11 @@ function ResultStep(props: {
             {props.busyKey === 'send-final-mails' ? 'Se trimit...' : 'Trimite emailurile finale'}
           </button>
         </div>
+        {!finalConfirmation.allConfirmed && finalConfirmation.pendingLabels.length > 0 && (
+          <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+            Asteapta confirmarea pentru: {finalConfirmation.pendingLabels.join(', ')}.
+          </p>
+        )}
         <CandidateMailTable
           applications={final}
           commissions={props.commissions}

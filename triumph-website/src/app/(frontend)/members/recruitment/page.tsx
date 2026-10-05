@@ -108,6 +108,8 @@ function serializeCommission(commission: Comission): ManagedCommission {
     commissionNumber: commission.commissionNumber,
     coordinators: commission.coordinators.map(serializeUser).filter(isManagedUser),
     id: commission.id,
+    interviewDecisionConfirmedAt: normalizeDate(commission.interviewDecisionConfirmedAt),
+    interviewDecisionConfirmedById: getRelationshipID(commission.interviewDecisionConfirmedBy),
     interviewIntervals: (commission.interviewIntervals ?? []).map((interval) => ({
       breaks: (interval.breaks ?? []).map((item) => ({
         endTime: normalizeDate(item.endTime),
@@ -170,7 +172,7 @@ function serializeApplication(application: Application): ManagedApplication {
       id: note.id ?? `${getRelationshipID(note.author)}-${note.createdAt}`,
       note: note.note,
     })),
-    interviewScores: (review.interviewScores ?? [])
+    interviewScores: normalizeInterviewScoreEntries(review.interviewScores)
       .map((entry) => ({
         comunicare: normalizeScore(entry.comunicare),
         coordinatorId: getRelationshipID(entry.coordinator),
@@ -279,4 +281,21 @@ function normalizeDate(value?: string | null) {
 function normalizeScore(value: unknown) {
   const score = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(score) ? Math.min(10, Math.max(0, score)) : null
+}
+
+function normalizeInterviewScoreEntries(value: unknown) {
+  if (!Array.isArray(value)) return []
+
+  return value.filter(
+    (
+      entry,
+    ): entry is {
+      comunicare?: unknown
+      coordinator?: unknown
+      interact?: unknown
+      leadership?: unknown
+      situatii?: unknown
+      teamPlayer?: unknown
+    } => Boolean(entry && typeof entry === 'object'),
+  )
 }

@@ -74,6 +74,8 @@ type ExtendedApplication = Application & {
 }
 
 type ExtendedCommission = Comission & {
+  interviewDecisionConfirmedAt?: string | null
+  interviewDecisionConfirmedBy?: string | User | null
   recruitmentReviews?:
     | {
         confirmedAt: string
@@ -136,6 +138,7 @@ const interviewScoreKeys = [
 
 const coordinatorActions = new Set([
   'add-note',
+  'confirm-final-decisions',
   'confirm-review',
   'final-decision',
   'save-interview-scores',
@@ -242,6 +245,10 @@ async function handleApplicationAction(args: {
 
   if (args.action === 'final-decision') {
     return finalDecision(args)
+  }
+
+  if (args.action === 'confirm-final-decisions') {
+    return confirmFinalDecisions(args)
   }
 
   if (args.action === 'send-interview-mails') {
@@ -863,9 +870,16 @@ async function setInterviewAttendance(args: {
     })
     const deadlineValue = config.recruitment?.interviewSchedulingDeadline
     const deadline = deadlineValue ? new Date(deadlineValue) : null
-    if (!deadline || Number.isNaN(deadline.getTime()) || deadline > new Date()) {
+    const canCloseRound = await canCloseCommissionInterviewRound(args.payload, commission)
+    if (
+      (!deadline || Number.isNaN(deadline.getTime()) || deadline > new Date()) &&
+      !canCloseRound
+    ) {
       return Response.json(
-        { message: 'Un candidat neprogramat poate fi marcat absent doar dupa deadline.' },
+        {
+          message:
+            'Un candidat neprogramat poate fi marcat absent doar dupa deadline sau dupa incheierea interview-urilor comisiei.',
+        },
         { status: 409 },
       )
     }
@@ -889,7 +903,8 @@ async function finalDecision(args: {
   payload: Payload
   user: User
 }) {
-  const application = await getApplication(args.payload, normalizeText(args.body.applicationId))
+  const applicationID = normalizeText(args.body.applicationId)
+  let application = await getApplication(args.payload, applicationID)
   const commission = await getApplicationCommission(args.payload, application)
 
   if (!(await canManageAssignedApplication(args.payload, commission, args.user))) {
@@ -904,7 +919,21 @@ async function finalDecision(args: {
     return Response.json({ message: 'Selecteaza o decizie valida.' }, { status: 400 })
   }
 
-  if (!['interviewed', 'absent'].includes(application.reviewProcess?.status ?? '')) {
+  await markClosableCommissionInterviewsAbsent(args.payload, commission)
+  application = await getApplication(args.payload, applicationID)
+
+  if (application.reviewProcess?.finalMailSentAt) {
+    return Response.json(
+      { message: 'Decizia nu mai poate fi modificata dupa trimiterea emailului final.' },
+      { status: 409 },
+    )
+  }
+
+  if (
+    !['interviewed', 'absent', 'interview-passed', 'interview-rejected'].includes(
+      application.reviewProcess?.status ?? '',
+    )
+  ) {
     return Response.json(
       {
         message: 'Decizia finala este disponibila doar dupa finalizarea sau absenta la interview.',
@@ -917,10 +946,43 @@ async function finalDecision(args: {
   const updated = await updateApplicationReview(args.payload, application, {
     status,
   })
+  const updatedCommission = await clearInterviewDecisionConfirmation(args.payload, commission)
 
   return Response.json({
     application: serializeApplicationUpdate(updated),
+    commission: serializeCommissionUpdate(updatedCommission),
   })
+}
+
+async function confirmFinalDecisions(args: {
+  body: Record<string, unknown>
+  payload: Payload
+  user: User
+}) {
+  const commission = await getCommission(args.payload, normalizeText(args.body.commissionId))
+  if (!(await canManageCommission(args.payload, commission, args.user))) {
+    return Response.json(
+      { message: 'Nu ai permisiunea de a confirma deciziile acestei comisii.' },
+      { status: 403 },
+    )
+  }
+
+  await assertCommissionInterviewRoundComplete(args.payload, commission)
+  await assertCommissionFinalDecisionsComplete(args.payload, commission)
+
+  const updated = (await args.payload.update({
+    collection: 'comissions',
+    data: {
+      interviewDecisionConfirmedAt: new Date().toISOString(),
+      interviewDecisionConfirmedBy: args.user.id,
+    },
+    id: commission.id,
+    overrideAccess: true,
+  })) as ExtendedCommission
+
+  revalidateTag(HR_RECRUITMENT_DATA_CACHE_TAG, 'max')
+
+  return Response.json({ commission: serializeCommissionUpdate(updated) })
 }
 
 async function sendInterviewMails(args: {
@@ -1123,6 +1185,7 @@ async function sendFinalMails(args: {
     applicationId,
     status: ['interview-passed', 'interview-rejected'],
   })
+  await assertFinalDecisionCommissionsConfirmed(args.payload, applications)
   const pending = applicationId
     ? applications
     : applications.filter((application) => !application.reviewProcess?.finalMailSentAt)
@@ -1305,7 +1368,63 @@ async function getApplicationCommission(payload: Payload, application: ExtendedA
   return getCommission(payload, commissionID)
 }
 
-async function assertCommissionInterviewRoundComplete(
+async function canCloseCommissionInterviewRound(payload: Payload, commission: ExtendedCommission) {
+  const unresolved = await getCommissionUnresolvedInterviewApplications(payload, commission)
+  if (unresolved.length === 0) return true
+
+  if (hasCommissionInterviewSchedulePassed(commission)) return true
+
+  return unresolved.every((application) => !application.reviewProcess?.interviewDate)
+}
+
+async function markClosableCommissionInterviewsAbsent(
+  payload: Payload,
+  commission: ExtendedCommission,
+) {
+  const unresolved = await getCommissionUnresolvedInterviewApplications(payload, commission)
+  if (unresolved.length === 0) return
+
+  const schedulePassed = hasCommissionInterviewSchedulePassed(commission)
+  const hasScheduledUnresolved = unresolved.some((application) =>
+    Boolean(application.reviewProcess?.interviewDate),
+  )
+
+  if (!schedulePassed && hasScheduledUnresolved) return
+
+  const candidatesToMark = schedulePassed
+    ? unresolved
+    : unresolved.filter((application) => !application.reviewProcess?.interviewDate)
+
+  await Promise.all(
+    candidatesToMark.map((application) =>
+      updateApplicationReview(payload, application, {
+        interviewAttendance: 'absent',
+        status: 'absent',
+      }),
+    ),
+  )
+}
+
+async function clearInterviewDecisionConfirmation(
+  payload: Payload,
+  commission: ExtendedCommission,
+) {
+  if (!commission.interviewDecisionConfirmedAt && !commission.interviewDecisionConfirmedBy) {
+    return commission
+  }
+
+  return (await payload.update({
+    collection: 'comissions',
+    data: {
+      interviewDecisionConfirmedAt: null,
+      interviewDecisionConfirmedBy: null,
+    },
+    id: commission.id,
+    overrideAccess: true,
+  })) as ExtendedCommission
+}
+
+async function getCommissionUnresolvedInterviewApplications(
   payload: Payload,
   commission: ExtendedCommission,
 ) {
@@ -1322,7 +1441,58 @@ async function assertCommissionInterviewRoundComplete(
       ],
     },
   })
+
+  return result.docs as ExtendedApplication[]
+}
+
+function hasCommissionInterviewSchedulePassed(commission: ExtendedCommission) {
+  const slots = generateInterviewSlots(commission.interviewIntervals)
+  if (slots.length === 0) return false
+
+  const latestEnd = slots.reduce<Date | null>((latest, slot) => {
+    const end = new Date(slot.end)
+    if (Number.isNaN(end.getTime())) return latest
+    if (!latest || end > latest) return end
+    return latest
+  }, null)
+
+  return Boolean(latestEnd && latestEnd < new Date())
+}
+
+async function assertCommissionFinalDecisionsComplete(
+  payload: Payload,
+  commission: ExtendedCommission,
+) {
+  const result = await payload.find({
+    collection: 'applications',
+    depth: 0,
+    limit: 0,
+    overrideAccess: true,
+    pagination: false,
+    where: {
+      and: [
+        { 'reviewProcess.comission': { equals: commission.id } },
+        { 'reviewProcess.status': { in: ['interview', 'interviewed', 'absent'] } },
+      ],
+    },
+  })
+
   if (result.docs.length > 0) {
+    throw Object.assign(
+      new Error(
+        'Toate deciziile comisiei trebuie sa fie Acceptat sau Respins inainte de confirmare.',
+      ),
+      { status: 409 },
+    )
+  }
+}
+
+async function assertCommissionInterviewRoundComplete(
+  payload: Payload,
+  commission: ExtendedCommission,
+) {
+  const unresolved = await getCommissionUnresolvedInterviewApplications(payload, commission)
+  if (unresolved.length > 0) {
     throw Object.assign(
       new Error('Toate interview-urile comisiei trebuie rezolvate inainte de decizii.'),
       {
@@ -1345,6 +1515,49 @@ async function assertAllInterviewRoundsComplete(payload: Payload) {
   })
   if (result.docs.length > 0) {
     throw Object.assign(new Error('Exista candidati fara decizie finala.'), { status: 409 })
+  }
+}
+
+async function assertFinalDecisionCommissionsConfirmed(
+  payload: Payload,
+  applications: ExtendedApplication[],
+) {
+  const commissionIDs = [
+    ...new Set(
+      applications
+        .map((application) => getRelationshipID(application.reviewProcess?.comission))
+        .filter(Boolean),
+    ),
+  ]
+
+  if (commissionIDs.length === 0) return
+
+  const result = await payload.find({
+    collection: 'comissions',
+    depth: 0,
+    limit: 0,
+    overrideAccess: true,
+    pagination: false,
+    where: {
+      id: {
+        in: commissionIDs,
+      },
+    },
+  })
+  const confirmedIDs = new Set(
+    (result.docs as ExtendedCommission[])
+      .filter((commission) => Boolean(commission.interviewDecisionConfirmedAt))
+      .map((commission) => commission.id),
+  )
+  const missingCount = commissionIDs.filter((id) => !confirmedIDs.has(id)).length
+
+  if (missingCount > 0) {
+    throw Object.assign(
+      new Error(
+        'Toate comisiile trebuie sa confirme deciziile finale inainte de emailurile finale.',
+      ),
+      { status: 409 },
+    )
   }
 }
 
@@ -1802,6 +2015,8 @@ function serializeApplicationUpdate(application: ExtendedApplication) {
 function serializeCommissionUpdate(commission: ExtendedCommission) {
   return {
     id: commission.id,
+    interviewDecisionConfirmedAt: commission.interviewDecisionConfirmedAt ?? null,
+    interviewDecisionConfirmedById: getRelationshipID(commission.interviewDecisionConfirmedBy),
     interviewIntervals: (commission.interviewIntervals ?? []).map((interval) => ({
       breaks: (interval.breaks ?? []).map((item) => ({
         endTime: item.endTime ?? null,

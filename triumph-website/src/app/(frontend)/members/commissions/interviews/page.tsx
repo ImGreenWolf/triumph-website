@@ -126,6 +126,8 @@ function serializeCommission(commission: Comission): InterviewWorkspaceCommissio
   return {
     coordinators: commission.coordinators.map(serializeCommissionUser),
     id: commission.id,
+    interviewDecisionConfirmedAt: normalizeDate(commission.interviewDecisionConfirmedAt),
+    interviewDecisionConfirmedById: getRelationshipID(commission.interviewDecisionConfirmedBy),
     interviewIntervals: (commission.interviewIntervals ?? []).map((interval) => ({
       breaks: (interval.breaks ?? []).map((item) => ({
         endTime: normalizeDate(item.endTime),

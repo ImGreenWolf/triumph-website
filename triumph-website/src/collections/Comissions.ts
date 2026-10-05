@@ -78,6 +78,22 @@ export const Comissions: CollectionConfig = {
       ],
     },
     {
+      name: 'interviewDecisionConfirmedAt',
+      type: 'date',
+      admin: {
+        description: 'Tracks when final interview decisions were confirmed by the commission.',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'interviewDecisionConfirmedBy',
+      type: 'relationship',
+      relationTo: 'users',
+      admin: {
+        readOnly: true,
+      },
+    },
+    {
       name: 'interviewIntervals',
       type: 'array',
       label: 'Intervalele pentru Interview',

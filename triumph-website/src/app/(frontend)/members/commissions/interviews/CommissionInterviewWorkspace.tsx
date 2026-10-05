@@ -67,6 +67,8 @@ type GeneratedInterviewSlot = ReturnType<typeof generateInterviewSlots>[number]
 export type InterviewWorkspaceCommission = {
   coordinators: InterviewWorkspaceUser[]
   id: string
+  interviewDecisionConfirmedAt: string | null
+  interviewDecisionConfirmedById: string
   interviewIntervals: InterviewWorkspaceInterval[]
   label: string
 }
@@ -188,13 +190,35 @@ export default function CommissionInterviewWorkspace(props: {
   const activeCandidates = candidates.filter((application) =>
     ['interview', 'interviewed', 'absent'].includes(application.status),
   )
+  const decisionCandidates = candidates.filter((application) =>
+    ['interview', 'interviewed', 'absent', 'interview-passed', 'interview-rejected'].includes(
+      application.status,
+    ),
+  )
   const unresolved = activeCandidates.filter((application) => application.status === 'interview')
+  const commissionSlots = useMemo(
+    () => (commission ? generateInterviewSlots(commission.interviewIntervals) : []),
+    [commission],
+  )
+  const commissionInterviewSchedulePassed = hasInterviewSchedulePassed(commissionSlots)
   const scheduled = [...activeCandidates]
     .filter((application) => application.interviewDate)
     .sort((left, right) => (left.interviewDate || '').localeCompare(right.interviewDate || ''))
   const scheduledUnresolved = scheduled.filter((application) => application.status === 'interview')
   const unscheduled = unresolved.filter((application) => !application.interviewDate)
-  const allResolved = activeCandidates.length > 0 && unresolved.length === 0
+  const hasOnlyUnscheduledUnresolved =
+    unresolved.length > 0 && unresolved.every((application) => !application.interviewDate)
+  const finalDecisionAvailable =
+    decisionCandidates.length > 0 &&
+    (unresolved.length === 0 || hasOnlyUnscheduledUnresolved || commissionInterviewSchedulePassed)
+  const finalDecisionApplications = decisionCandidates.filter(
+    (application) =>
+      ['interviewed', 'absent', 'interview-passed', 'interview-rejected'].includes(
+        application.status,
+      ) ||
+      (application.status === 'interview' &&
+        (!application.interviewDate || commissionInterviewSchedulePassed)),
+  )
   const selectedApplication =
     candidates.find((application) => application.id === selectedApplicationID) ??
     scheduledUnresolved[0] ??
@@ -204,9 +228,7 @@ export default function CommissionInterviewWorkspace(props: {
     null
   const selectedInterviewSlot =
     selectedApplication?.interviewDate && commission
-      ? (generateInterviewSlots(commission.interviewIntervals).find(
-          (slot) => slot.start === selectedApplication.interviewDate,
-        ) ?? null)
+      ? (commissionSlots.find((slot) => slot.start === selectedApplication.interviewDate) ?? null)
       : null
 
   function updateApplication(patch: ApplicationPatch) {
@@ -372,6 +394,7 @@ export default function CommissionInterviewWorkspace(props: {
               interviewQuestionsURL={props.interviewQuestionsURL}
               interviewSlot={selectedInterviewSlot}
               isReadOnly={isReadOnly}
+              roundCanBeClosed={hasOnlyUnscheduledUnresolved || commissionInterviewSchedulePassed}
               onAction={runAction}
               onOpenDetails={() => setDetailsOpen(true)}
               user={props.user}
@@ -379,12 +402,16 @@ export default function CommissionInterviewWorkspace(props: {
           ) : (
             <EmptyInterviewState />
           )}
-          {allResolved && (
+          {finalDecisionAvailable && (
             <FinalDecisionPanel
-              applications={activeCandidates.filter((application) =>
-                ['interviewed', 'absent'].includes(application.status),
-              )}
+              applications={finalDecisionApplications}
+              autoAbsentCount={
+                finalDecisionApplications.filter(
+                  (application) => application.status === 'interview',
+                ).length
+              }
               busyKey={busyKey}
+              commission={commission}
               isReadOnly={isReadOnly}
               onAction={runAction}
             />
@@ -508,6 +535,7 @@ function CandidateWorkspace(props: {
   isReadOnly: boolean
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
   onOpenDetails: () => void
+  roundCanBeClosed: boolean
   user: InterviewWorkspaceUser
 }) {
   const { application } = props
@@ -523,7 +551,8 @@ function CandidateWorkspace(props: {
   const canAttend = !props.isReadOnly && application.status === 'interview'
   const canWriteNotes = !props.isReadOnly
   const canWriteScores = !props.isReadOnly && isCurrentCoordinator
-  const canMarkUnscheduledAbsent = !application.interviewDate && isDeadlinePassed(props.deadline)
+  const canMarkUnscheduledAbsent =
+    !application.interviewDate && (props.roundCanBeClosed || isDeadlinePassed(props.deadline))
   const savedScores = getCoordinatorScores(application.interviewScores, props.user.id)
   const scoreRows = buildCoordinatorScoreRows(props.coordinators, application.interviewScores, {
     coordinatorId: props.user.id,
@@ -958,22 +987,61 @@ function InterviewDetailsDrawer(props: {
 
 function FinalDecisionPanel(props: {
   applications: InterviewWorkspaceApplication[]
+  autoAbsentCount: number
   busyKey: string | null
+  commission: InterviewWorkspaceCommission
   isReadOnly: boolean
   onAction: (body: Record<string, unknown>, key: string) => Promise<ActionResult>
 }) {
+  const allDecided = props.applications.every((application) =>
+    ['interview-passed', 'interview-rejected'].includes(application.status),
+  )
+  const confirmed = Boolean(props.commission.interviewDecisionConfirmedAt)
+
   return (
     <section className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-      <div className="flex gap-3">
-        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-700" />
-        <div>
-          <h2 className="font-bold text-emerald-900">Toate interview-urile sunt rezolvate</h2>
-          <p className="mt-1 text-sm text-emerald-800">
-            {props.isReadOnly
-              ? 'Rezultatele pot fi consultate aici.'
-              : 'Poti decide acum pentru fiecare candidat. Candidatii absenti necesita o respingere explicita.'}
-          </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex gap-3">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-700" />
+          <div>
+            <h2 className="font-bold text-emerald-900">Decizii finale disponibile</h2>
+            <p className="mt-1 text-sm text-emerald-800">
+              {props.isReadOnly
+                ? 'Rezultatele pot fi consultate aici.'
+                : 'Poti decide acum pentru fiecare candidat. Candidatii absenti necesita o respingere explicita.'}
+            </p>
+            {props.autoAbsentCount > 0 && !props.isReadOnly && (
+              <p className="mt-2 rounded-md bg-white/65 px-3 py-2 text-sm font-semibold text-emerald-900">
+                {props.autoAbsentCount} candidat
+                {props.autoAbsentCount === 1 ? '' : 'i'} fara rezolvare va fi marcat absent la prima
+                decizie finala.
+              </p>
+            )}
+            {confirmed && (
+              <p className="mt-2 text-sm font-bold text-emerald-900">
+                Deciziile comisiei sunt confirmate.
+              </p>
+            )}
+          </div>
         </div>
+        {!props.isReadOnly && (
+          <button
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#141e34] px-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={
+              confirmed || !allDecided || props.busyKey === `confirm-final-${props.commission.id}`
+            }
+            onClick={() =>
+              void props.onAction(
+                { action: 'confirm-final-decisions', commissionId: props.commission.id },
+                `confirm-final-${props.commission.id}`,
+              )
+            }
+            type="button"
+          >
+            <Check className="size-4" />
+            {confirmed ? 'Confirmat' : allDecided ? 'Confirma deciziile' : 'Decide toti candidatii'}
+          </button>
+        )}
       </div>
       <div className="mt-4 grid gap-2">
         {props.applications.map((application) => (
@@ -984,14 +1052,25 @@ function FinalDecisionPanel(props: {
             <div>
               <p className="text-sm font-bold">{application.name}</p>
               <p className="mt-1 text-xs text-[#748094]">
-                {application.status === 'absent' ? 'Absent' : 'Interview finalizat'}
+                {application.status === 'interview'
+                  ? 'Va fi marcat absent'
+                  : application.status === 'absent'
+                    ? 'Absent'
+                    : application.status === 'interview-passed'
+                      ? 'Acceptat'
+                      : application.status === 'interview-rejected'
+                        ? 'Respins'
+                        : 'Interview finalizat'}
               </p>
             </div>
             {!props.isReadOnly && (
               <div className="flex flex-wrap gap-2">
                 <button
                   className="inline-flex h-9 items-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-bold text-white disabled:opacity-55"
-                  disabled={props.busyKey === `pass-${application.id}`}
+                  disabled={
+                    props.busyKey === `pass-${application.id}` ||
+                    application.status === 'interview-passed'
+                  }
                   onClick={() =>
                     void props.onAction(
                       {
@@ -1008,7 +1087,10 @@ function FinalDecisionPanel(props: {
                 </button>
                 <button
                   className="inline-flex h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 disabled:opacity-55"
-                  disabled={props.busyKey === `reject-${application.id}`}
+                  disabled={
+                    props.busyKey === `reject-${application.id}` ||
+                    application.status === 'interview-rejected'
+                  }
                   onClick={() =>
                     void props.onAction(
                       {
@@ -1580,6 +1662,18 @@ function hasExplicitTimezone(value: string) {
 }
 function isDeadlinePassed(value: string | null) {
   return Boolean(value && new Date(value) < new Date())
+}
+function hasInterviewSchedulePassed(slots: GeneratedInterviewSlot[]) {
+  if (slots.length === 0) return false
+
+  const latestEnd = slots.reduce<Date | null>((latest, slot) => {
+    const end = new Date(slot.end)
+    if (Number.isNaN(end.getTime())) return latest
+    if (!latest || end > latest) return end
+    return latest
+  }, null)
+
+  return Boolean(latestEnd && latestEnd < new Date())
 }
 function formatDate(value: string | null | undefined) {
   if (!value) return 'Fara data'

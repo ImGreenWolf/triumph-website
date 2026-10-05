@@ -43,6 +43,8 @@ export type ManagedCommission = {
   commissionNumber: number
   coordinators: ManagedUser[]
   id: string
+  interviewDecisionConfirmedAt: string | null
+  interviewDecisionConfirmedById: string
   label: string
   mandateLabel: string
   recruitmentReviews: {
@@ -337,15 +339,10 @@ export default function CommissionCoordinatorDashboard(props: {
     )
   }
 
-  function applyCommissionReview(
-    commissionId: string,
-    reviews: ManagedCommission['recruitmentReviews'],
-  ) {
+  function applyCommissionPatch(patch: Partial<ManagedCommission> & { id: string }) {
     setCommissions((current) =>
       current.map((commission) =>
-        commission.id === commissionId
-          ? { ...commission, recruitmentReviews: reviews }
-          : commission,
+        commission.id === patch.id ? { ...commission, ...patch } : commission,
       ),
     )
   }
@@ -387,10 +384,7 @@ export default function CommissionCoordinatorDashboard(props: {
       })
       const result = (await response.json()) as {
         application?: ServerApplicationPatch
-        commission?: {
-          id: string
-          recruitmentReviews: ManagedCommission['recruitmentReviews']
-        }
+        commission?: Partial<ManagedCommission> & { id: string }
         message?: string
         mailBatch?: MailBatchResult
         setupEmailSent?: boolean
@@ -401,9 +395,7 @@ export default function CommissionCoordinatorDashboard(props: {
       }
 
       if (result.application) applyApplicationPatch(result.application)
-      if (result.commission) {
-        applyCommissionReview(result.commission.id, result.commission.recruitmentReviews)
-      }
+      if (result.commission) applyCommissionPatch(result.commission)
 
       setNotice({
         kind: 'success',
@@ -1208,7 +1200,10 @@ function DenseCandidateRow(props: {
   onOpenDetails: (applicationID: string) => void
 }) {
   const { application } = props
-  const canDecide = props.canManage && ['interviewed', 'absent'].includes(application.status)
+  const canDecide =
+    props.canManage &&
+    !application.finalMailSentAt &&
+    ['interviewed', 'absent', 'interview-passed', 'interview-rejected'].includes(application.status)
   const showFinalDecisionNote = props.canManage && application.status === 'interview' && !canDecide
   const phone = application.formAnswers.find((val) => val.field == 'telephone')!.value
   return (
@@ -1252,7 +1247,10 @@ function DenseCandidateRow(props: {
           <>
             <button
               className="inline-flex h-9 items-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-bold text-white disabled:opacity-55"
-              disabled={props.busyKey === 'pass-' + application.id}
+              disabled={
+                props.busyKey === 'pass-' + application.id ||
+                application.status === 'interview-passed'
+              }
               onClick={() =>
                 void props.onAction(
                   {
@@ -1270,7 +1268,10 @@ function DenseCandidateRow(props: {
             </button>
             <button
               className="inline-flex h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 disabled:opacity-55"
-              disabled={props.busyKey === 'reject-' + application.id}
+              disabled={
+                props.busyKey === 'reject-' + application.id ||
+                application.status === 'interview-rejected'
+              }
               onClick={() =>
                 void props.onAction(
                   {
@@ -1619,7 +1620,12 @@ function Recruitment(props: {
       />
 
       {isBoard && (
-        <BoardMailBatchActions applications={applications} busyKey={busyKey} onAction={onAction} />
+        <BoardMailBatchActions
+          applications={applications}
+          busyKey={busyKey}
+          commissions={commissions}
+          onAction={onAction}
+        />
       )}
 
       {isBoard && (
@@ -1773,6 +1779,7 @@ function ApplicantPoolList(props: {
 function BoardMailBatchActions(props: {
   applications: ManagedApplication[]
   busyKey: string | null
+  commissions: ManagedCommission[]
   onAction: <T extends Record<string, unknown>>(body: T, busyLabel: string) => Promise<unknown>
 }) {
   const { applications, busyKey, onAction } = props
@@ -1784,6 +1791,7 @@ function BoardMailBatchActions(props: {
       ['interview-passed', 'interview-rejected'].includes(application.status) &&
       !application.finalMailSentAt,
   ).length
+  const finalConfirmation = getFinalDecisionConfirmationState(applications, props.commissions)
 
   return (
     <Panel>
@@ -1806,7 +1814,11 @@ function BoardMailBatchActions(props: {
           </button>
           <button
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={busyKey === 'send-final-mails' || finalPending === 0}
+            disabled={
+              busyKey === 'send-final-mails' ||
+              finalPending === 0 ||
+              !finalConfirmation.allConfirmed
+            }
             onClick={() => void onAction({ action: 'send-final-mails' }, 'send-final-mails')}
             type="button"
           >
@@ -1815,6 +1827,11 @@ function BoardMailBatchActions(props: {
           </button>
         </div>
       </div>
+      {!finalConfirmation.allConfirmed && finalConfirmation.pendingLabels.length > 0 && (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+          Asteapta confirmarea pentru: {finalConfirmation.pendingLabels.join(', ')}.
+        </p>
+      )}
     </Panel>
   )
 }
@@ -2129,7 +2146,9 @@ function AssignedApplicationCard(props: {
 }) {
   const { application, busyKey, onAction, onOpenDetails } = props
   const [note, setNote] = useState('')
-  const canDecide = ['interviewed', 'absent'].includes(application.status)
+  const canDecide =
+    !application.finalMailSentAt &&
+    ['interviewed', 'absent', 'interview-passed', 'interview-rejected'].includes(application.status)
   const showFinalDecisionNote = application.status === 'interview' && !canDecide
 
   return (
@@ -2139,7 +2158,9 @@ function AssignedApplicationCard(props: {
           <>
             <button
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-              disabled={busyKey === `pass-${application.id}`}
+              disabled={
+                busyKey === `pass-${application.id}` || application.status === 'interview-passed'
+              }
               onClick={() =>
                 void onAction(
                   {
@@ -2157,7 +2178,10 @@ function AssignedApplicationCard(props: {
             </button>
             <button
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-red-50 px-3 text-xs font-bold text-red-700 ring-1 ring-red-100 transition hover:bg-red-100 disabled:opacity-60"
-              disabled={busyKey === `reject-${application.id}`}
+              disabled={
+                busyKey === `reject-${application.id}` ||
+                application.status === 'interview-rejected'
+              }
               onClick={() =>
                 void onAction(
                   {
@@ -2710,6 +2734,29 @@ function calculateMetrics(
       (sum, commission) => sum + commission.recruitmentReviews.length,
       0,
     ),
+  }
+}
+
+function getFinalDecisionConfirmationState(
+  applications: ManagedApplication[],
+  commissions: ManagedCommission[],
+) {
+  const commissionIDs = new Set(
+    applications
+      .filter((application) =>
+        ['interview-passed', 'interview-rejected'].includes(application.status),
+      )
+      .map((application) => application.commissionId)
+      .filter(Boolean),
+  )
+  const relevantCommissions = commissions.filter((commission) => commissionIDs.has(commission.id))
+  const pending = relevantCommissions.filter(
+    (commission) => !commission.interviewDecisionConfirmedAt,
+  )
+
+  return {
+    allConfirmed: pending.length === 0,
+    pendingLabels: pending.map((commission) => commission.label),
   }
 }
 
