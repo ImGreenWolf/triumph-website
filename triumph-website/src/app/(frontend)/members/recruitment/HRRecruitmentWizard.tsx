@@ -2436,7 +2436,7 @@ function formatGradeNumber(value: number) {
 }
 
 function formatMarkedTotal(marked: number, total: number, absentees: number) {
-  return `${marked}/${total} (${absentees})`
+  return `${marked}/${total} (${absentees} absenți)`
 }
 
 function getFinalDecisionConfirmationState(
