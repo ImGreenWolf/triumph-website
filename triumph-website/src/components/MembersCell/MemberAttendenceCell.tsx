@@ -17,7 +17,7 @@ export default async function MeetingAttendenceCell({
 }: DefaultServerCellComponentProps) {
   const summary = await getCachedAttendanceSummary(payload, rowData as User)
   const attendanceCount = summary.presentMeetings + summary.lateMeetings
-  const meetingsCount = Math.max(0, summary.totalMeetings - summary.motivatedMeetings)
+  const meetingsCount = summary.totalMeetings
 
   return <MemberAttendenceCell attendanceCount={attendanceCount} meetingsCount={meetingsCount} />
 }

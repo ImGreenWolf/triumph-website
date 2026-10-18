@@ -1,3 +1,5 @@
+import { MemberDataBoundary } from '@/app/(frontend)/members/_components/MemberDataBoundary'
+import { getMemberReads } from '@/utilities/memberReads'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { HTMLAttributes, ReactNode } from 'react'
@@ -22,7 +24,11 @@ import type { Meeting, User } from '@/payload-types'
 import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 import { cn } from '@/utilities/ui'
 
-import { getTodayMeeting } from './actions'
+import { getTodayMemberMeeting } from '@/utilities/memberMeetings'
+import {
+  getMeetingCheckInSummary,
+  meetingAttendanceMemberRoles,
+} from '@/utilities/meetingAttendance'
 import ClockComponent from './clockComponent'
 import PageClient from './page.client'
 import Scanner from './scanner'
@@ -57,82 +63,93 @@ async function Page() {
     redirect('/members')
   }
 
-  const operator = me.user as User
-
-  const [meeting, activeMembers] = await Promise.all([
-    getTodayMeeting(),
-    payload.count({
-      collection: 'users',
-      where: {
-        role: {
-          equals: 'active',
-        },
-      },
-    }),
-  ])
-
-  let checkedInCount = 0
-  let motivatedCount = 0
-
-  if (meeting) {
-    const [checkedInDocs, motivationDocs] = await Promise.all([
-      payload.count({
-        collection: 'attendance',
-        where: {
-          and: [
-            {
-              meeting: {
-                equals: meeting.id,
-              },
-            },
-            {
-              status: {
-                in: ['present', 'late'],
-              },
-            },
-          ],
-        },
-      }),
-      payload.count({
-        collection: 'absence-motivations',
-        where: {
-          and: [{ meeting: { equals: meeting.id } }, { status: { equals: 'accepted' } }],
-        },
-      }),
-    ])
-
-    checkedInCount = checkedInDocs.totalDocs
-    motivatedCount = motivationDocs.totalDocs
-  }
-  const expectedCount = Math.max(activeMembers.totalDocs - motivatedCount, 0)
-  const attendanceRate = getAttendanceRate(checkedInCount, expectedCount)
-
+  const reads = getMemberReads(payload, me.user as User)
   return (
-    <div className="halftone-background min-h-screen bg-background text-foreground">
-      <PageClient />
+    <MemberDataBoundary>
+      {async () => {
+        const payload = reads
+        const operator = me.user as User
 
-      <CheckInHero meeting={meeting} operator={operator} />
+        const [meeting, members] = await Promise.all([
+          getTodayMemberMeeting(payload),
+          payload.find({
+            collection: 'users',
+            depth: 0,
+            pagination: false,
+            select: { joinedAt: true },
+            where: {
+              role: {
+                in: meetingAttendanceMemberRoles,
+              },
+            },
+          }),
+        ])
 
-      <main className="container grid gap-4 py-8 lg:grid-cols-1 xl:grid-cols-[minmax(0,1fr)_460px]">
-        <Scanner
-          expectedCount={expectedCount}
-          hasMeeting={Boolean(meeting)}
-          initialCheckedInCount={checkedInCount}
-        />
+        let checkedInCount = 0
+        let motivatedCount = 0
+        let expectedCount = 0
 
-        <aside className="grid content-start gap-4">
-          <MeetingOverview
-            attendanceRate={attendanceRate}
-            checkedInCount={checkedInCount}
-            expectedCount={expectedCount}
-            meeting={meeting}
-            motivatedCount={motivatedCount}
-          />
-          {/* <OperatorPanel operator={operator} /> */}
-          {/* <QuickActionsPanel /> */}
-        </aside>
-      </main>
-    </div>
+        if (meeting) {
+          const [checkedInDocs, motivationDocs] = await Promise.all([
+            payload.find({
+              collection: 'attendance',
+              depth: 0,
+              pagination: false,
+              select: { member: true, status: true },
+              where: { meeting: { equals: meeting.id } },
+            }),
+            payload.find({
+              collection: 'absence-motivations',
+              depth: 0,
+              pagination: false,
+              select: { member: true, status: true },
+              where: {
+                and: [{ meeting: { equals: meeting.id } }, { status: { equals: 'accepted' } }],
+              },
+            }),
+          ])
+
+          const summary = getMeetingCheckInSummary({
+            meeting,
+            members: members.docs,
+            attendance: checkedInDocs.docs,
+            motivations: motivationDocs.docs,
+          })
+          checkedInCount = summary.checkedInCount
+          motivatedCount = summary.motivatedCount
+          expectedCount = summary.expectedCount
+        }
+        const attendanceRate = getAttendanceRate(checkedInCount, expectedCount)
+
+        return (
+          <div className="halftone-background min-h-screen bg-background text-foreground">
+            <PageClient />
+
+            <CheckInHero meeting={meeting} operator={operator} />
+
+            <main className="container grid gap-4 py-8 lg:grid-cols-1 xl:grid-cols-[minmax(0,1fr)_460px]">
+              <Scanner
+                expectedCount={expectedCount}
+                hasMeeting={Boolean(meeting)}
+                initialCheckedInCount={checkedInCount}
+              />
+
+              <aside className="grid content-start gap-4">
+                <MeetingOverview
+                  attendanceRate={attendanceRate}
+                  checkedInCount={checkedInCount}
+                  expectedCount={expectedCount}
+                  meeting={meeting}
+                  motivatedCount={motivatedCount}
+                />
+                {/* <OperatorPanel operator={operator} /> */}
+                {/* <QuickActionsPanel /> */}
+              </aside>
+            </main>
+          </div>
+        )
+      }}
+    </MemberDataBoundary>
   )
 }
 
@@ -252,7 +269,7 @@ function MeetingOverview(props: {
             <MetricCard
               icon={<UsersRound className="size-4" />}
               label="Rata"
-              value={`${Math.round((checkedInCount / expectedCount) * 100)}%`}
+              value={`${attendanceRate}%`}
             />
             {/* <MetricCard
               icon={<CheckCircle2 className="size-4" />}

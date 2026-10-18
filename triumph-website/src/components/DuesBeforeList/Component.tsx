@@ -6,6 +6,7 @@ import { usePayloadAPI } from '@payloadcms/ui'
 
 import type { Meeting, Payment, User } from '@/payload-types'
 import { getFirstMeetingDate, getMembersDuesSummary, MONTHLY_DUE } from '@/utilities/memberDues'
+import { isBoardMember } from '@/utilities/membersAccess'
 import {
   formatRotaryYearLabel,
   getRotaryYearEnd,
@@ -195,7 +196,10 @@ export default function DuesBeforeList() {
   )
 
   const members = useMemo(
-    () => (((usersData as UsersListResponse | undefined)?.docs ?? []) as User[]).filter(Boolean),
+    () =>
+      (((usersData as UsersListResponse | undefined)?.docs ?? []) as User[]).filter(
+        (member) => member && !isBoardMember(member),
+      ),
     [usersData],
   )
 
@@ -217,10 +221,14 @@ export default function DuesBeforeList() {
     [meetings, members, now, payments],
   )
 
-  const selectedPayments = useMemo(
-    () => payments.filter((payment) => isDateInRotaryYear(payment.month, selectedRotaryYear)),
-    [payments, selectedRotaryYear],
-  )
+  const selectedPayments = useMemo(() => {
+    const memberIds = new Set(members.map((member) => member.id))
+    return payments.filter(
+      (payment) =>
+        memberIds.has(getRelationId(payment.member)) &&
+        isDateInRotaryYear(payment.month, selectedRotaryYear),
+    )
+  }, [members, payments, selectedRotaryYear])
 
   const firstMeetingAt = useMemo(
     () => getFirstMeetingDate(meetings, now, selectedRotaryYear),

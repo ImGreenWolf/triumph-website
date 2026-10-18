@@ -1,12 +1,13 @@
 import type { Payload } from 'payload'
+import { getMemberYearMeetings } from './memberMeetings'
 
 import type { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
 import { getEffectiveMeetingAttendanceStatus } from '@/utilities/meetingAttendance'
-import { canCalculateMeetingAbsences, getMeetingAttendanceStatus } from '@/utilities/meetingTime'
+import { getMeetingAttendanceStatus } from '@/utilities/meetingTime'
 import { getRotaryYearQueryBounds, getRotaryYearStart } from '@/utilities/rotaryYear'
 
 export async function getMemberAttendanceSummary(
-  payload: Payload,
+  payload: Pick<Payload, 'find'>,
   member: User,
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
@@ -16,18 +17,7 @@ export async function getMemberAttendanceSummary(
   const start = memberJoinedAt > bounds.start ? memberJoinedAt : bounds.start
 
   const [meetingsDocs, attendanceDocs, motivationDocs] = await Promise.all([
-    payload.find({
-      collection: 'meetings',
-      where: {
-        meetingDate: {
-          greater_than_equal: start.toISOString(),
-          [bounds.endOperator]: bounds.end.toISOString(),
-        },
-      },
-      limit: 1000,
-      pagination: false,
-      sort: 'meetingDate',
-    }),
+    getMemberYearMeetings(payload, rotaryYearStart),
     payload.find({
       collection: 'attendance',
       where: {
@@ -35,7 +25,7 @@ export async function getMemberAttendanceSummary(
           equals: member.id,
         },
       },
-      depth: 1,
+      depth: 0,
       limit: 1000,
       pagination: false,
       sort: 'createdAt',
@@ -51,7 +41,12 @@ export async function getMemberAttendanceSummary(
     }),
   ])
 
-  const meetings = meetingsDocs.docs as Meeting[]
+  const meetings = (meetingsDocs.docs as Meeting[]).filter((meeting) => {
+    const date = new Date(meeting.meetingDate)
+    return (
+      date >= start && (bounds.endOperator === 'less_than' ? date < bounds.end : date <= bounds.end)
+    )
+  })
   const attendanceRecords = attendanceDocs.docs as Attendance[]
   const attendanceByMeeting = new Map(
     attendanceRecords.map((record) => [
@@ -65,45 +60,24 @@ export async function getMemberAttendanceSummary(
       motivation.status,
     ]),
   )
-  const records = meetings
-    .filter((meeting) => {
-      const existingRecord = attendanceByMeeting.get(meeting.id)
-      const effectiveStatus = getEffectiveMeetingAttendanceStatus(
-        existingRecord?.status,
-        motivationByMeeting.get(meeting.id),
-      )
-      const status = getMeetingAttendanceStatus(meeting, effectiveStatus, now)
+  const records = meetings.flatMap((meeting) => {
+    const existingRecord = attendanceByMeeting.get(meeting.id)
+    const effectiveStatus = getEffectiveMeetingAttendanceStatus(
+      existingRecord?.status,
+      motivationByMeeting.get(meeting.id),
+    )
 
-      return canCalculateMeetingAbsences(meeting, now) || status !== 'absent'
-    })
-    .map((meeting) => {
-      const existingRecord = attendanceByMeeting.get(meeting.id)
-      const effectiveStatus = getEffectiveMeetingAttendanceStatus(
-        existingRecord?.status,
-        motivationByMeeting.get(meeting.id),
-      )
+    const status = getMeetingAttendanceStatus(meeting, effectiveStatus, now)
+    return status ? [{ meeting, status }] : []
+  })
 
-      return {
-        meeting,
-        status: getMeetingAttendanceStatus(meeting, effectiveStatus, now) || ('absent' as const),
-      }
-    })
-
-  const historicalRecords = records.filter((record) =>
-    canCalculateMeetingAbsences(record.meeting, now),
-  )
-  const totalMeetings = historicalRecords.length
   const presentMeetings = records.filter((record) => record.status === 'present').length
   const lateMeetings = records.filter((record) => record.status === 'late').length
   const motivatedMeetings = records.filter((record) => record.status === 'motivated').length
   const absentMeetings = records.filter((record) => record.status === 'absent').length
-  const effectiveMeetings = historicalRecords.filter(
-    (record) => record.status !== 'motivated',
-  ).length
+  const totalMeetings = presentMeetings + lateMeetings + motivatedMeetings + absentMeetings
   const attendancePercentage =
-    effectiveMeetings <= 0
-      ? 100
-      : Math.round(((presentMeetings + lateMeetings) / effectiveMeetings) * 100)
+    totalMeetings <= 0 ? 0 : Math.round(((presentMeetings + lateMeetings) / totalMeetings) * 100)
   const absencePercentage =
     totalMeetings <= 0 ? 0 : Math.round((absentMeetings / totalMeetings) * 100)
 

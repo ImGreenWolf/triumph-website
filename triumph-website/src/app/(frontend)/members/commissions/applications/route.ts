@@ -1,6 +1,5 @@
 import payloadConfig from '@payload-config'
 import { randomBytes } from 'node:crypto'
-import { revalidateTag } from 'next/cache'
 import { getPayload, type Payload } from 'payload'
 
 import type { Application, AspirementConfig, Comission, User } from '@/payload-types'
@@ -25,7 +24,6 @@ import {
 } from '@/utilities/aspirementRecruitment'
 import { isBoardMember } from '@/utilities/membersAccess'
 import { getEndOfBucharestDay, getStartOfBucharestDay } from '@/utilities/recruitmentWorkflow'
-import { HR_RECRUITMENT_DATA_CACHE_TAG } from '@/utilities/hrRecruitmentCache'
 import { slugify } from 'payload/shared'
 
 type ExtendedReviewProcess = NonNullable<Application['reviewProcess']> & {
@@ -171,7 +169,6 @@ export async function PATCH(request: Request) {
     assertScopeActionAccess(action, user, scope)
 
     const response = await handleApplicationAction({ action, body, payload, request, scope, user })
-    if (response.ok) revalidateTag(HR_RECRUITMENT_DATA_CACHE_TAG, 'max')
     return response
   } catch (error) {
     return Response.json(
@@ -979,8 +976,6 @@ async function confirmFinalDecisions(args: {
     id: commission.id,
     overrideAccess: true,
   })) as ExtendedCommission
-
-  revalidateTag(HR_RECRUITMENT_DATA_CACHE_TAG, 'max')
 
   return Response.json({ commission: serializeCommissionUpdate(updated) })
 }

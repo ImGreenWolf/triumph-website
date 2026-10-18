@@ -15,6 +15,7 @@ import { Users } from './collections/Users'
 import { Footer } from './Footer/config'
 import { Header } from './Header/config'
 import { plugins } from './plugins'
+import { memberCachePlugin } from './hooks/memberCache'
 import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
 import { DEFAULT_CUSTOM_MAIL_SENDER } from './utilities/customCandidateMail'
@@ -151,7 +152,7 @@ export default buildConfig({
   // Payload appends serverURL automatically during config sanitization.
   csrf: allowedOrigins.filter((origin) => origin !== serverURL),
   globals: [Header, Footer, MembersDashboard, SiteConfig, AspirementConfig],
-  plugins,
+  plugins: [...plugins, memberCachePlugin],
   secret: process.env.PAYLOAD_SECRET,
   sharp,
   typescript: {

@@ -1,3 +1,5 @@
+import { MemberDataBoundary } from '@/app/(frontend)/members/_components/MemberDataBoundary'
+import { getMemberReads } from '@/utilities/memberReads'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
@@ -27,10 +29,18 @@ export default async function MemberProfilePage() {
     redirect('/members/login')
   }
 
-  const member = (await payload.findByID({
-    collection: 'users',
-    depth: 2,
-    id: (auth.user as User).id,
-  })) as User
-  return <ProfilePageClient member={member} />
+  const reads = getMemberReads(payload, auth.user as User)
+  return (
+    <MemberDataBoundary>
+      {async () => {
+        const payload = reads
+        const member = (await payload.findByID({
+          collection: 'users',
+          depth: 2,
+          id: (auth.user as User).id,
+        })) as User
+        return <ProfilePageClient member={member} />
+      }}
+    </MemberDataBoundary>
+  )
 }

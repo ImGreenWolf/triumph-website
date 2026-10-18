@@ -56,6 +56,17 @@ export function calculateMeetingMemberAttendance(args: {
 
   if (!canCalculateMeetingAbsences(meeting, now)) return []
 
+  return getMeetingMemberStatuses({ attendance, meeting, motivations, members })
+}
+
+function getMeetingMemberStatuses(args: {
+  attendance: MeetingAttendanceRecord[]
+  meeting: Pick<Meeting, 'meetingDate'>
+  motivations: MeetingMotivationRecord[]
+  members: MeetingMember[]
+}): MeetingMemberAttendance[] {
+  const { attendance, meeting, motivations, members } = args
+
   const attendanceByMember = new Map(
     attendance.map((record) => [getRelationId(record.member), record.status]),
   )
@@ -73,6 +84,16 @@ export function calculateMeetingMemberAttendance(args: {
           motivationByMember.get(member.id),
         ) ?? 'absent',
     }))
+}
+
+/** Live check-in counts use the same eligibility and motivation precedence as history. */
+export function getMeetingCheckInSummary(args: Parameters<typeof getMeetingMemberStatuses>[0]) {
+  const records = getMeetingMemberStatuses(args)
+  const checkedInCount = records.filter(
+    (record) => record.status === 'present' || record.status === 'late',
+  ).length
+  const motivatedCount = records.filter((record) => record.status === 'motivated').length
+  return { checkedInCount, motivatedCount, expectedCount: records.length }
 }
 
 export function calculateMeetingAbsenteeIds(args: {
@@ -100,6 +121,7 @@ export async function getMeetingAbsenteeIds(
       depth: 0,
       limit: 1000,
       pagination: false,
+      select: { joinedAt: true },
       where: {
         role: {
           in: meetingAttendanceMemberRoles,
@@ -111,6 +133,7 @@ export async function getMeetingAbsenteeIds(
       depth: 0,
       limit: 1000,
       pagination: false,
+      select: { member: true, status: true },
       where: {
         meeting: {
           equals: meeting.id,
@@ -122,6 +145,7 @@ export async function getMeetingAbsenteeIds(
       depth: 0,
       limit: 1000,
       pagination: false,
+      select: { member: true, status: true },
       where: {
         meeting: {
           equals: meeting.id,

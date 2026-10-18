@@ -1,3 +1,4 @@
+import { getMemberReads } from '@/utilities/memberReads'
 import payloadConfig from '@payload-config'
 import { getPayload, type Payload } from 'payload'
 
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
     return Response.json({ message: 'Doar boardul poate vedea aplicatiile.' }, { status: 403 })
   }
 
-  const applicationResult = await payload.find({
+  const applicationResult = await getMemberReads(payload, authentication.user).find({
     collection: 'applications',
     depth: 2,
     limit: 0,

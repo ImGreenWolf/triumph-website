@@ -37,7 +37,7 @@ const meetings = [
 ] as Meeting[]
 
 describe('getMemberAttendanceSummary', () => {
-  it('counts missing records as absences and excludes motivated absences from attendance percentage', async () => {
+  it('counts missing records as absences and keeps motivated absences separate from presence', async () => {
     const attendance = [
       {
         id: 'attendance-1',
@@ -63,7 +63,8 @@ describe('getMemberAttendanceSummary', () => {
     const payload = {
       find: vi.fn(({ collection }) => {
         return Promise.resolve({
-          docs: collection === 'meetings' ? meetings : attendance,
+          docs:
+            collection === 'meetings' ? meetings : collection === 'attendance' ? attendance : [],
         })
       }),
     } as unknown as Payload
@@ -77,9 +78,9 @@ describe('getMemberAttendanceSummary', () => {
     expect(summary).toMatchObject({
       absencePercentage: 25,
       absentMeetings: 1,
-      attendancePercentage: 67,
+      attendancePercentage: 50,
       lateMeetings: 1,
-      motivatedMeetings: 2,
+      motivatedMeetings: 1,
       presentMeetings: 1,
       totalMeetings: 4,
     })
@@ -88,7 +89,6 @@ describe('getMemberAttendanceSummary', () => {
       'late',
       'motivated',
       'absent',
-      'motivated',
     ])
   })
 
@@ -115,7 +115,7 @@ describe('getMemberAttendanceSummary', () => {
 
     expect(summary).toMatchObject({
       absentMeetings: 0,
-      attendancePercentage: 100,
+      attendancePercentage: 0,
       totalMeetings: 0,
     })
     expect(summary.records).toHaveLength(0)
@@ -165,7 +165,76 @@ describe('getMemberAttendanceSummary', () => {
       absentMeetings: 0,
       motivatedMeetings: 1,
       totalMeetings: 1,
+      absencePercentage: 0,
+      attendancePercentage: 0,
     })
     expect(summary.records[0]?.status).toBe('motivated')
   })
+
+  it('keeps the percentage bounded when a member checks in during an ongoing meeting', async () => {
+    const ongoing = {
+      ...meetings[0],
+      id: 'ongoing',
+      meetingDate: '2026-02-01T10:00:00Z',
+      durationMinutes: 60,
+    }
+    const payload = {
+      find: vi.fn(async ({ collection }) => ({
+        docs:
+          collection === 'meetings'
+            ? [meetings[0], ongoing]
+            : collection === 'attendance'
+              ? [
+                  { meeting: meetings[0].id, status: 'present' },
+                  { meeting: ongoing.id, status: 'late' },
+                ]
+              : [],
+      })),
+    } as unknown as Payload
+    const summary = await getMemberAttendanceSummary(
+      payload,
+      member,
+      new Date('2026-02-01T10:30:00Z'),
+    )
+    expect(summary).toMatchObject({
+      totalMeetings: 2,
+      attendancePercentage: 100,
+      absentMeetings: 0,
+    })
+  })
+
+  it.each([
+    { statuses: ['motivated', 'motivated'], total: 2, percentage: 0 },
+    { statuses: ['present', 'motivated'], total: 2, percentage: 50 },
+    {
+      statuses: ['present', 'present', 'present', 'present', 'present', 'motivated'],
+      total: 6,
+      percentage: 83,
+    },
+  ])(
+    'counts only present and late records as attendance ($statuses)',
+    async ({ statuses, total, percentage }) => {
+      const endedMeetings = meetings.slice(0, statuses.length)
+      const payload = {
+        find: vi.fn(async ({ collection }) => ({
+          docs:
+            collection === 'meetings'
+              ? endedMeetings
+              : collection === 'attendance'
+                ? statuses.map((status, index) => ({ meeting: endedMeetings[index].id, status }))
+                : [],
+        })),
+      } as unknown as Payload
+      const summary = await getMemberAttendanceSummary(
+        payload,
+        member,
+        new Date('2026-03-01T12:00:00Z'),
+      )
+      expect(summary).toMatchObject({
+        totalMeetings: total,
+        attendancePercentage: percentage,
+        motivatedMeetings: statuses.filter((status) => status === 'motivated').length,
+      })
+    },
+  )
 })

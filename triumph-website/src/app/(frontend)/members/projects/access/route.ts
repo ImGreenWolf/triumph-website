@@ -1,3 +1,4 @@
+import { getMemberReads } from '@/utilities/memberReads'
 import payloadConfig from '@payload-config'
 import { getPayload, type Payload } from 'payload'
 
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
     )
   }
 
-  const users = await payload.find({
+  const users = await getMemberReads(payload, authentication.user).find({
     collection: 'users',
     depth: 0,
     limit: 0,
@@ -46,8 +47,8 @@ export async function GET(request: Request) {
         not_in: [...boardRoles],
       },
       id: {
-        not_in: event.coordonators
-      }
+        not_in: event.coordonators,
+      },
     },
   })
   const candidates = (users.docs as User[]).map(serializeUser)
@@ -113,14 +114,12 @@ export async function PATCH(request: Request) {
             {
               id: {
                 in: memberIDs,
-                
               },
             },
             {
               role: {
                 not_in: [...boardRoles],
               },
-              
             },
           ],
         },

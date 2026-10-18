@@ -4,6 +4,7 @@ import type { Meeting } from '@/payload-types'
 import {
   calculateMeetingAbsenteeIds,
   calculateMeetingMemberAttendance,
+  getMeetingCheckInSummary,
 } from '@/utilities/meetingAttendance'
 
 const meeting = {
@@ -14,6 +15,26 @@ const meeting = {
 } as Pick<Meeting, 'id' | 'meetingDate' | 'durationMinutes' | 'endedBufferMinutes'>
 
 describe('meeting absentee calculation', () => {
+  it('keeps motivated members in the meeting total without counting them as present', () => {
+    expect(
+      getMeetingCheckInSummary({
+        meeting,
+        members: ['present', 'motivated', 'accepted', 'missing'].map((id) => ({
+          id,
+          joinedAt: '2026-01-01',
+        })),
+        attendance: [
+          { member: 'present', status: 'present' },
+          { member: 'motivated', status: 'motivated' },
+        ],
+        motivations: [
+          { member: 'present', status: 'accepted' },
+          { member: 'accepted', status: 'accepted' },
+          { member: 'outsider', status: 'accepted' },
+        ],
+      }),
+    ).toEqual({ checkedInCount: 1, motivatedCount: 2, expectedCount: 4 })
+  })
   it('lists only eligible members without attendance or an accepted motivation after the meeting ends', () => {
     const absentees = calculateMeetingAbsenteeIds({
       attendance: [

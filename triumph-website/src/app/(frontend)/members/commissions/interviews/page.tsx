@@ -1,3 +1,5 @@
+import { MemberDataBoundary } from '@/app/(frontend)/members/_components/MemberDataBoundary'
+import { getMemberReads } from '@/utilities/memberReads'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
@@ -54,71 +56,74 @@ export default async function CommissionInterviewsPage({ searchParams }: Args) {
   const auth = await payload.auth({ headers: await getPayloadAuthHeaders() })
   if (!auth.user) redirect('/members/login')
 
-  const user = (await payload.findByID({
-    collection: 'users',
-    depth: 1,
-    id: auth.user.id,
-    overrideAccess: false,
-    user: auth.user,
-  })) as User
-  const board = isBoardMember(user)
-  const commissionResult = await payload.find({
-    collection: 'comissions',
-    depth: 2,
-    limit: 0,
-    overrideAccess: true,
-    pagination: false,
-    sort: 'commissionNumber',
-    where: board ? undefined : { coordinators: { contains: user.id } },
-  })
-  const accessibleCommissions = commissionResult.docs as Comission[]
-  const coordinatedCommissions = accessibleCommissions.filter((commission) =>
-    commission.coordinators.some((coordinator) => getRelationshipID(coordinator) === user.id),
-  )
-  const canManageAllCommissions = user.role === 'hr-director' && coordinatedCommissions.length > 0
-  const commissions = accessibleCommissions
-  const manageableCommissionIds = canManageAllCommissions
-    ? commissions.map((commission) => commission.id)
-    : coordinatedCommissions.map((commission) => commission.id)
-  const commissionIDs = commissions.map((commission) => commission.id)
-  const applicationWhere: Where = {
-    'reviewProcess.comission': { in: commissionIDs },
-  }
-  const applicationResult = commissionIDs.length
-    ? await payload.find({
-        collection: 'applications',
-        depth: 2,
-        limit: 0,
-        overrideAccess: true,
-        pagination: false,
-        sort: 'reviewProcess.interviewDate',
-        where: applicationWhere,
-      })
-    : { docs: [] }
-  const config = (await payload.findGlobal({
-    slug: 'aspirementConfig',
-    depth: 1,
-    overrideAccess: true,
-  })) as AspirementConfigWithInterview
-  const params = await searchParams
-  const preferredCommissionID = coordinatedCommissions[0]?.id ?? commissions[0]?.id ?? ''
-  const selectedID = commissions.some((commission) => commission.id === params.commission)
-    ? (params.commission ?? '')
-    : preferredCommissionID
-
+  const reads = getMemberReads(payload, auth.user as User)
   return (
-    <CommissionInterviewWorkspace
-      applications={(applicationResult.docs as ApplicationWithInterviewScores[]).map(
-        serializeApplication,
-      )}
-      commissions={commissions.map(serializeCommission)}
-      defaultInterviewDate={normalizeDate(config.recruitment?.defaultInterviewDate)}
-      initialCommissionId={selectedID}
-      interviewQuestionsURL={getUploadURL(config.interview?.interviewQuestionsPDF)}
-      manageableCommissionIds={manageableCommissionIds}
-      schedulingDeadline={normalizeDate(config.recruitment?.interviewSchedulingDeadline)}
-      user={serializeUser(user)}
-    />
+    <MemberDataBoundary>
+      {async () => {
+        const payload = reads
+        const user = auth.user as User
+        const board = isBoardMember(user)
+        const commissionResult = await payload.find({
+          collection: 'comissions',
+          depth: 2,
+          limit: 0,
+          overrideAccess: true,
+          pagination: false,
+          sort: 'commissionNumber',
+          where: board ? undefined : { coordinators: { contains: user.id } },
+        })
+        const accessibleCommissions = commissionResult.docs as Comission[]
+        const coordinatedCommissions = accessibleCommissions.filter((commission) =>
+          commission.coordinators.some((coordinator) => getRelationshipID(coordinator) === user.id),
+        )
+        const canManageAllCommissions =
+          user.role === 'hr-director' && coordinatedCommissions.length > 0
+        const commissions = accessibleCommissions
+        const manageableCommissionIds = canManageAllCommissions
+          ? commissions.map((commission) => commission.id)
+          : coordinatedCommissions.map((commission) => commission.id)
+        const commissionIDs = commissions.map((commission) => commission.id)
+        const applicationWhere: Where = {
+          'reviewProcess.comission': { in: commissionIDs },
+        }
+        const applicationResult = commissionIDs.length
+          ? await payload.find({
+              collection: 'applications',
+              depth: 2,
+              limit: 0,
+              overrideAccess: true,
+              pagination: false,
+              sort: 'reviewProcess.interviewDate',
+              where: applicationWhere,
+            })
+          : { docs: [] }
+        const config = (await payload.findGlobal({
+          slug: 'aspirementConfig',
+          depth: 1,
+          overrideAccess: true,
+        })) as AspirementConfigWithInterview
+        const params = await searchParams
+        const preferredCommissionID = coordinatedCommissions[0]?.id ?? commissions[0]?.id ?? ''
+        const selectedID = commissions.some((commission) => commission.id === params.commission)
+          ? (params.commission ?? '')
+          : preferredCommissionID
+
+        return (
+          <CommissionInterviewWorkspace
+            applications={(applicationResult.docs as ApplicationWithInterviewScores[]).map(
+              serializeApplication,
+            )}
+            commissions={commissions.map(serializeCommission)}
+            defaultInterviewDate={normalizeDate(config.recruitment?.defaultInterviewDate)}
+            initialCommissionId={selectedID}
+            interviewQuestionsURL={getUploadURL(config.interview?.interviewQuestionsPDF)}
+            manageableCommissionIds={manageableCommissionIds}
+            schedulingDeadline={normalizeDate(config.recruitment?.interviewSchedulingDeadline)}
+            user={serializeUser(user)}
+          />
+        )
+      }}
+    </MemberDataBoundary>
   )
 }
 

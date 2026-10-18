@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
@@ -28,6 +29,7 @@ const INACTIVE_NOTICE: QrScannerNotice = {
 }
 
 export function Scanner(props: ScannerProps) {
+  const router = useRouter()
   const { expectedCount, hasMeeting, initialCheckedInCount } = props
   const [checkedInCount, setCheckedInCount] = useState(initialCheckedInCount)
   const [notice, setNotice] = useState<QrScannerNotice>(hasMeeting ? READY_NOTICE : INACTIVE_NOTICE)
@@ -61,34 +63,38 @@ export function Scanner(props: ScannerProps) {
     }, 6_500)
   }, [])
 
-  const handleScan = useCallback(async (value: string): Promise<QrScannerOverlayTone> => {
-    const response = await onCodeScanned(value)
+  const handleScan = useCallback(
+    async (value: string): Promise<QrScannerOverlayTone> => {
+      const response = await onCodeScanned(value)
 
-    if (response.user) {
-      if (response.counted) {
-        setCheckedInCount((current) => current + 1)
+      if (response.user) {
+        if (response.counted) {
+          setCheckedInCount((current) => current + 1)
+          router.refresh()
+        }
+
+        const isLate = response.status === 'late'
+        const tone = response.err || isLate ? 'warning' : 'success'
+
+        setNotice({
+          message: response.user.name || response.user.email,
+          title: response.err || (isLate ? 'Întârziere înregistrată' : 'Prezență confirmată'),
+          tone,
+        })
+
+        return tone
       }
 
-      const isLate = response.status === 'late'
-      const tone = response.err || isLate ? 'warning' : 'success'
-
       setNotice({
-        message: response.user.name || response.user.email,
-        title: response.err || (isLate ? 'Întârziere înregistrată' : 'Prezență confirmată'),
-        tone,
+        message: response.err || 'Codul scanat nu a putut fi validat.',
+        title: 'Scanare respinsă',
+        tone: 'error',
       })
 
-      return tone
-    }
-
-    setNotice({
-      message: response.err || 'Codul scanat nu a putut fi validat.',
-      title: 'Scanare respinsă',
-      tone: 'error',
-    })
-
-    return 'error'
-  }, [])
+      return 'error'
+    },
+    [router],
+  )
 
   return (
     <section className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-5">

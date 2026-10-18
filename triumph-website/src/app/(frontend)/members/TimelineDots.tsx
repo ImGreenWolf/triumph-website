@@ -8,7 +8,7 @@ import { cn } from '@/utilities/ui'
 
 const previewItemCount = 4
 
-type TimelineItem = {
+export type TimelineItem = {
   action?: {
     href: string
     label: string
@@ -25,8 +25,9 @@ export default function TimelineDots(props: {
   emptyLabel: string
   items: TimelineItem[]
   modalTitle: string
+  loading?: boolean
 }) {
-  const { emptyLabel, items, modalTitle } = props
+  const { emptyLabel, items, modalTitle, loading = false } = props
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
@@ -51,29 +52,42 @@ export default function TimelineDots(props: {
     }
   }, [isOpen])
 
-  if (!items.length) {
-    return (
-      <div className="mt-6 rounded-md border border-dashed border-border p-5 text-sm text-muted-foreground">
-        {emptyLabel}
-      </div>
-    )
-  }
-
   const previewItems = items.slice(-previewItemCount)
 
   return (
     <>
       <div className="mt-6 border-t border-border pt-5">
         <div className="flex items-center gap-2">
-          <div className="grid min-w-0 flex-1 grid-cols-4 gap-2">
-            {previewItems.map((item, index) => (
-              <TimelineDot item={item} key={`${item.label}-${item.date || index}-${index}`} />
-            ))}
-          </div>
+          {loading ? (
+            <div
+              aria-label="Se încarcă istoricul"
+              role="status"
+              className="grid h-8 min-w-0 flex-1 grid-cols-4 items-center gap-2"
+            >
+              {Array.from({ length: 4 }, (_, index) => (
+                <span
+                  aria-hidden="true"
+                  className="h-7 rounded-full bg-muted motion-safe:animate-pulse"
+                  key={index}
+                />
+              ))}
+            </div>
+          ) : items.length ? (
+            <div className="grid h-8 min-w-0 flex-1 grid-cols-4 items-center gap-2">
+              {previewItems.map((item, index) => (
+                <TimelineDot item={item} key={`${item.label}-${item.date || index}-${index}`} />
+              ))}
+            </div>
+          ) : (
+            <p className="flex h-8 min-w-0 flex-1 items-center overflow-hidden text-xs leading-4 text-muted-foreground">
+              {emptyLabel}
+            </p>
+          )}
 
           <button
+            disabled={loading || !items.length}
             aria-label={`Vezi toate înregistrările din ${modalTitle.toLowerCase()}`}
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-wait disabled:opacity-50"
             onClick={() => setIsOpen(true)}
             title="Vezi toate înregistrările"
             type="button"

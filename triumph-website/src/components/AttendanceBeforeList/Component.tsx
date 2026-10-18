@@ -97,10 +97,12 @@ const createEmptySummary = (): SummaryStats => ({
 
 const finalizeSummary = (summary: StatusCounts): SummaryStats => {
   const attended = summary.present + summary.late
+  const total = attended + summary.absent + summary.motivated
 
   return {
     ...summary,
-    attendanceRate: summary.total ? (attended / summary.total) * 100 : 0,
+    total,
+    attendanceRate: total ? (attended / total) * 100 : 0,
   }
 }
 
@@ -490,16 +492,17 @@ export default function AttendanceBeforeList() {
     ? meetingDateMap.get(getLocalDateKey(selectedMeetingDate)) || []
     : []
   const topMember = sortedMembers[0]
-  const averageMemberAttendance = memberRows.length
-    ? memberRows.reduce((sum, member) => sum + member.attendanceRate, 0) / memberRows.length
+  const countedMembers = memberRows.filter((member) => member.total > 0)
+  const averageMemberAttendance = countedMembers.length
+    ? countedMembers.reduce((sum, member) => sum + member.attendanceRate, 0) / countedMembers.length
     : 0
   const selectedGraphMember =
     sortedMembers.find((member) => member.id === selectedGraphMemberId) || null
 
   const rotaryYearTrend = useMemo<LineChartPoint[]>(() => {
-    const meetings = [...meetingRows].sort(
-      (left, right) => getMeetingTime(left.meetingDate) - getMeetingTime(right.meetingDate),
-    )
+    const meetings = meetingRows
+      .filter((meeting) => meeting.total > 0)
+      .sort((left, right) => getMeetingTime(left.meetingDate) - getMeetingTime(right.meetingDate))
 
     let cumulativeAttendance = 0
 
@@ -548,7 +551,7 @@ export default function AttendanceBeforeList() {
         detail: labelByStatus[record.status],
         label: formatMeetingDate(meeting?.meetingDate || null),
         status: record.status,
-        value: (attended / total) * 100,
+        value: total ? (attended / total) * 100 : 0,
       }
     })
   }, [filteredDocs, selectedGraphMemberId])
@@ -577,7 +580,7 @@ export default function AttendanceBeforeList() {
         <p style={{ margin: 0, color: 'var(--theme-error-500)' }}>
           Statisticile de prezență nu au putut fi încărcate.
         </p>
-      ) : yearStats.total === 0 ? (
+      ) : yearStats.total === 0 && yearStats.motivated === 0 ? (
         <p style={{ margin: 0 }}>
           Nu există încă înregistrări de prezență. Adăugați înregistrări pentru a urmări evoluția
           clubului.

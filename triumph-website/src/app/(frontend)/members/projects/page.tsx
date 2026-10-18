@@ -1,3 +1,5 @@
+import { MemberDataBoundary } from '@/app/(frontend)/members/_components/MemberDataBoundary'
+import { getMemberReads } from '@/utilities/memberReads'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
@@ -28,60 +30,72 @@ export default async function ProjectManagerPage() {
 
   if (!auth.user) redirect('/members/login')
 
-  const user = auth.user as User
-  const globalAccess = isBoardMember(user)
-  const eventResult = await payload.find({
-    collection: 'events',
-    depth: 1,
-    limit: 0,
-    overrideAccess: true,
-    pagination: false,
-    sort: '-updatedAt',
+  const reads = getMemberReads(payload, auth.user as User)
+  return (
+    <MemberDataBoundary>
+      {async () => {
+        const payload = reads
+        const user = auth.user as User
+        const globalAccess = isBoardMember(user)
+        const eventResult = await payload.find({
+          collection: 'events',
+          depth: 1,
+          limit: 0,
+          overrideAccess: true,
+          pagination: false,
+          sort: '-updatedAt',
 
-    where: globalAccess
-      ? undefined
-      : {
-          or: [
-            {
-              coordonators: {
-                contains: user.id,
+          where: globalAccess
+            ? undefined
+            : {
+                or: [
+                  {
+                    coordonators: {
+                      contains: user.id,
+                    },
+                  },
+                  {
+                    checkInMembers: {
+                      contains: user.id,
+                    },
+                  },
+                ],
               },
-            },
-            {
-              checkInMembers: {
-                contains: user.id,
+        })
+        const events = eventResult.docs as Event[]
+        const eventIDs = events.map((event) => event.id)
+        const registrationResult = eventIDs.length
+          ? await payload.find({
+              collection: 'event-registrations',
+              depth: 0,
+              limit: 0,
+              overrideAccess: true,
+              pagination: false,
+              sort: 'createdAt',
+              where: {
+                event: {
+                  in: eventIDs,
+                },
               },
-            },
-          ],
-        },
-  })
-  const events = eventResult.docs as Event[]
-  const eventIDs = events.map((event) => event.id)
-  const registrationResult = eventIDs.length
-    ? await payload.find({
-        collection: 'event-registrations',
-        depth: 0,
-        limit: 0,
-        overrideAccess: true,
-        pagination: false,
-        sort: 'createdAt',
-        where: {
-          event: {
-            in: eventIDs,
-          },
-        },
-      })
-    : { docs: [] }
-  const registrations = registrationResult.docs as EventRegistration[]
+            })
+          : { docs: [] }
+        const registrations = registrationResult.docs as EventRegistration[]
 
-  const managedEvents: ManagedEvent[] = events
-    .map((event) => serializeEvent(event, registrations, user))
-    .sort((left, right) => compareNullableDates(left.startTime, right.startTime))
+        const managedEvents: ManagedEvent[] = events
+          .map((event) => serializeEvent(event, registrations, user))
+          .sort((left, right) => compareNullableDates(left.startTime, right.startTime))
 
-  return <ProjectManagerDashboard events={managedEvents} userName={user.name || user.email} />
+        return <ProjectManagerDashboard events={managedEvents} userName={user.name || user.email} />
+      }}
+    </MemberDataBoundary>
+  )
 }
 
-function serializeEvent(event: Event, registrations: EventRegistration[], user: User): ManagedEvent {
+function serializeEvent(
+  event: Event,
+  registrations: EventRegistration[],
+  user: User,
+): ManagedEvent {
   const days: ManagedEventDay[] = (event.days ?? [])
     .filter((day): day is NonNullable<Event['days']>[number] & { eventDate: string; id: string } =>
       Boolean(day?.eventDate && day.id),
@@ -231,7 +245,9 @@ function getLocationName(value: Event['location']) {
 
 function getCheckInMembers(event: Event) {
   return ((event as Event & { checkInMembers?: unknown[] }).checkInMembers ?? [])
-    .filter((member): member is User => Boolean(member && typeof member === 'object' && 'id' in member))
+    .filter((member): member is User =>
+      Boolean(member && typeof member === 'object' && 'id' in member),
+    )
     .map((member) => ({
       email: member.email,
       id: String(member.id),

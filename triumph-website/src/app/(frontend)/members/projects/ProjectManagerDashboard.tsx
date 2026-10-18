@@ -635,6 +635,7 @@ function CheckIn(props: {
   onTogglePersonalData: () => void
   showPersonalData: boolean
 }) {
+  const router = useRouter()
   const { canManageEvent, event, onRegistrationCreate, onRegistrationUpdate, showPersonalData } =
     props
   const [query, setQuery] = useState('')
@@ -713,6 +714,7 @@ function CheckIn(props: {
       }
 
       onRegistrationUpdate(result.registration)
+      router.refresh()
       setDonationErrorIDs((current) => current.filter((id) => id !== args.registration.id))
       setEditing(null)
       if (args.status === 'present' && resumeScannerAfterCheckIn) {
@@ -750,6 +752,7 @@ function CheckIn(props: {
       }
 
       onRegistrationCreate(result.registration)
+      router.refresh()
       setWalkInOpen(false)
       setNotice({ kind: 'success', message: 'Participant adăugat și marcat prezent.' })
     } catch (error) {
@@ -783,6 +786,7 @@ function CheckIn(props: {
       }
 
       onRegistrationUpdate(result.registration)
+      router.refresh()
       setDonationErrorIDs((current) => current.filter((id) => id !== registration.id))
       setEditing(null)
       setResumeScannerAfterCheckIn(false)
@@ -1178,6 +1182,7 @@ function CheckInTeam(props: {
   event: ManagedEvent
   onMembersUpdate: (eventID: string, members: CheckInMember[]) => void
 }) {
+  const router = useRouter()
   const { event, onMembersUpdate } = props
   const [candidates, setCandidates] = useState<CheckInMember[]>([])
   const [selectedIDs, setSelectedIDs] = useState<string[]>(
@@ -1262,6 +1267,7 @@ function CheckInTeam(props: {
       }
 
       onMembersUpdate(event.id, result.members)
+      router.refresh()
       setSelectedIDs(result.members.map((member) => member.id))
       setNotice({ kind: 'success', message: 'Echipa de check-in a fost actualizată.' })
     } catch (error) {

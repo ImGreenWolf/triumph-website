@@ -1,3 +1,5 @@
+import { MemberDataBoundary } from '@/app/(frontend)/members/_components/MemberDataBoundary'
+import { getMemberReads } from '@/utilities/memberReads'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
@@ -80,117 +82,123 @@ export default async function CommissionCoordinatorPage() {
 
   if (!auth.user) redirect('/members/login')
 
-  const authUser = auth.user as User
-  const member = (await payload.findByID({
-    collection: 'users',
-    depth: 1,
-    id: authUser.id,
-    overrideAccess: false,
-    user: authUser,
-  })) as User
-  const hasBoardAccess = isBoardMember(member)
-
-  const commissionResult = await payload.find({
-    collection: 'comissions',
-    depth: 2,
-    limit: 0,
-    overrideAccess: true,
-    pagination: false,
-    sort: 'commissionNumber',
-    where: hasBoardAccess
-      ? undefined
-      : {
-          coordinators: {
-            contains: member.id,
-          },
-        },
-  })
-  const accessibleCommissions = commissionResult.docs as CommissionWithReviews[]
-  const coordinatedCommissions = accessibleCommissions.filter((commission) =>
-    commission.coordinators.some((coordinator) => getRelationshipID(coordinator) === member.id),
-  )
-  const canManageAllCommissions = member.role === 'hr-director' && coordinatedCommissions.length > 0
-  const commissions = accessibleCommissions
-  const preferredCommissionId = coordinatedCommissions[0]?.id ?? commissions[0]?.id ?? ''
-  const manageableCommissionIds = canManageAllCommissions
-    ? commissions.map((commission) => commission.id)
-    : coordinatedCommissions.map((commission) => commission.id)
-
-  if (!hasBoardAccess && commissions.length === 0) {
-    return (
-      <CommissionCoordinatorDashboard
-        applications={[]}
-        commissions={[]}
-        initialCommissionId=""
-        isBoard={false}
-        manageableCommissionIds={[]}
-        recruitmentPool={[]}
-        user={{
-          email: member.email,
-          id: member.id,
-          name: member.name || member.email,
-          role: member.role,
-        }}
-      />
-    )
-  }
-
-  const commissionIDs = commissions.map((commission) => commission.id)
-  const applicationWhere: Where | undefined = hasBoardAccess
-    ? undefined
-    : {
-        or: [
-          {
-            'reviewProcess.comission': {
-              in: commissionIDs,
-            },
-          },
-          {
-            'reviewProcess.status': {
-              equals: 'coordonator-review',
-            },
-          },
-        ],
-      }
-  const applicationResult = await payload.find({
-    collection: 'applications',
-    depth: 2,
-    limit: 0,
-    overrideAccess: true,
-    pagination: false,
-    sort: '-createdAt',
-    where: applicationWhere,
-  })
-  const applications = applicationResult.docs as ApplicationWithExtendedReview[]
-
-  const manageableCommissionIDSet = new Set(commissionIDs)
-  const managedApplications = applications
-    .filter((application) =>
-      hasBoardAccess
-        ? true
-        : manageableCommissionIDSet.has(getRelationshipID(application.reviewProcess?.comission)),
-    )
-    .map(serializeApplication)
-  const recruitmentPool = applications
-    .filter((application) => application.reviewProcess?.status === 'coordonator-review')
-    .map(serializeRecruitmentPoolApplicant)
-
+  const reads = getMemberReads(payload, auth.user as User)
   return (
-    <CommissionCoordinatorDashboard
-      applications={managedApplications}
-      commissions={commissions.map(serializeCommission)}
-      generalViewHref={hasBoardAccess ? '/members/recruitment' : undefined}
-      initialCommissionId={preferredCommissionId}
-      isBoard={hasBoardAccess}
-      manageableCommissionIds={manageableCommissionIds}
-      recruitmentPool={recruitmentPool}
-      user={{
-        email: member.email,
-        id: member.id,
-        name: member.name || member.email,
-        role: member.role,
+    <MemberDataBoundary>
+      {async () => {
+        const payload = reads
+        const member = auth.user as User
+        const hasBoardAccess = isBoardMember(member)
+
+        const commissionResult = await payload.find({
+          collection: 'comissions',
+          depth: 2,
+          limit: 0,
+          overrideAccess: true,
+          pagination: false,
+          sort: 'commissionNumber',
+          where: hasBoardAccess
+            ? undefined
+            : {
+                coordinators: {
+                  contains: member.id,
+                },
+              },
+        })
+        const accessibleCommissions = commissionResult.docs as CommissionWithReviews[]
+        const coordinatedCommissions = accessibleCommissions.filter((commission) =>
+          commission.coordinators.some(
+            (coordinator) => getRelationshipID(coordinator) === member.id,
+          ),
+        )
+        const canManageAllCommissions =
+          member.role === 'hr-director' && coordinatedCommissions.length > 0
+        const commissions = accessibleCommissions
+        const preferredCommissionId = coordinatedCommissions[0]?.id ?? commissions[0]?.id ?? ''
+        const manageableCommissionIds = canManageAllCommissions
+          ? commissions.map((commission) => commission.id)
+          : coordinatedCommissions.map((commission) => commission.id)
+
+        if (!hasBoardAccess && commissions.length === 0) {
+          return (
+            <CommissionCoordinatorDashboard
+              applications={[]}
+              commissions={[]}
+              initialCommissionId=""
+              isBoard={false}
+              manageableCommissionIds={[]}
+              recruitmentPool={[]}
+              user={{
+                email: member.email,
+                id: member.id,
+                name: member.name || member.email,
+                role: member.role,
+              }}
+            />
+          )
+        }
+
+        const commissionIDs = commissions.map((commission) => commission.id)
+        const applicationWhere: Where | undefined = hasBoardAccess
+          ? undefined
+          : {
+              or: [
+                {
+                  'reviewProcess.comission': {
+                    in: commissionIDs,
+                  },
+                },
+                {
+                  'reviewProcess.status': {
+                    equals: 'coordonator-review',
+                  },
+                },
+              ],
+            }
+        const applicationResult = await payload.find({
+          collection: 'applications',
+          depth: 2,
+          limit: 0,
+          overrideAccess: true,
+          pagination: false,
+          sort: '-createdAt',
+          where: applicationWhere,
+        })
+        const applications = applicationResult.docs as ApplicationWithExtendedReview[]
+
+        const manageableCommissionIDSet = new Set(commissionIDs)
+        const managedApplications = applications
+          .filter((application) =>
+            hasBoardAccess
+              ? true
+              : manageableCommissionIDSet.has(
+                  getRelationshipID(application.reviewProcess?.comission),
+                ),
+          )
+          .map(serializeApplication)
+        const recruitmentPool = applications
+          .filter((application) => application.reviewProcess?.status === 'coordonator-review')
+          .map(serializeRecruitmentPoolApplicant)
+
+        return (
+          <CommissionCoordinatorDashboard
+            applications={managedApplications}
+            commissions={commissions.map(serializeCommission)}
+            generalViewHref={hasBoardAccess ? '/members/recruitment' : undefined}
+            initialCommissionId={preferredCommissionId}
+            isBoard={hasBoardAccess}
+            manageableCommissionIds={manageableCommissionIds}
+            recruitmentPool={recruitmentPool}
+            user={{
+              email: member.email,
+              id: member.id,
+              name: member.name || member.email,
+              role: member.role,
+            }}
+          />
+        )
       }}
-    />
+    </MemberDataBoundary>
   )
 }
 

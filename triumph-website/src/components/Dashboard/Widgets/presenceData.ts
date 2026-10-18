@@ -1,4 +1,4 @@
-import type { Payload } from 'payload'
+import { getPayload, type Payload } from 'payload'
 
 import type { AbsenceMotivation, Attendance, Meeting, User } from '@/payload-types'
 import {
@@ -39,7 +39,7 @@ function emptyCounts(): PresenceStatusCounts {
   }
 }
 
-async function getPresenceSource(
+async function readPresenceSource(
   payload: Payload,
   now = new Date(),
   rotaryYearStart = getRotaryYearStart(now),
@@ -52,16 +52,12 @@ async function getPresenceSource(
       limit: 1000,
       pagination: false,
       sort: 'joinedAt',
+      select: { joinedAt: true },
       where: {
         role: {
           in: meetingAttendanceMemberRoles,
         },
       },
-      joins: {
-        attendance: {
-          limit: 100
-        }
-      }
     }),
     payload.find({
       collection: 'meetings',
@@ -69,29 +65,31 @@ async function getPresenceSource(
       limit: 1000,
       pagination: false,
       sort: 'meetingDate',
+      select: {
+        meetingDate: true,
+        durationMinutes: true,
+        endedBufferMinutes: true,
+      },
       where: {
         meetingDate: {
           greater_than_equal: bounds.start.toISOString(),
           [bounds.endOperator]: bounds.end.toISOString(),
         },
       },
-      joins: {
-        "Prezenți.attendance": {
-          limit: 100
-        }
-      }
     }),
     payload.find({
       collection: 'attendance',
       depth: 0,
       limit: 10000,
       pagination: false,
+      select: { member: true, meeting: true, status: true },
     }),
     payload.find({
       collection: 'absence-motivations',
       depth: 0,
       limit: 10000,
       pagination: false,
+      select: { member: true, meeting: true, status: true },
       where: {
         status: {
           equals: 'accepted',
@@ -110,13 +108,33 @@ async function getPresenceSource(
   }
 }
 
+async function getPresenceSource(payload: Payload, now: Date, rotaryYearStart: number) {
+  try {
+    return await readPresenceSource(payload, now, rotaryYearStart)
+  } catch (error) {
+    // Payload HMR closes the shared Mongo connection while existing widgets can
+    // still be reading. getPayload waits for that reload before returning it.
+    // Only retry this read once; production and persistent failures still surface.
+    if (
+      process.env.NODE_ENV !== 'development' ||
+      !(error instanceof Error) ||
+      error.name !== 'MongoTopologyClosedError'
+    ) {
+      throw error
+    }
+    const refreshed = await getPayload({ config: payload.config })
+    return readPresenceSource(refreshed, now, rotaryYearStart)
+  }
+}
+
 function calculateMeetingPoint(args: {
   attendance: Attendance[]
   meeting: Meeting
   members: User[]
   motivations: AbsenceMotivation[]
+  now: Date
 }): MeetingPresencePoint {
-  const { attendance, meeting, members, motivations } = args
+  const { attendance, meeting, members, motivations, now } = args
   const eligibleMembers = members.filter((member) => isMemberEligibleForMeeting(member, meeting))
   const counts = emptyCounts()
 
@@ -125,12 +143,13 @@ function calculateMeetingPoint(args: {
     meeting,
     members: eligibleMembers,
     motivations,
+    now,
   }).forEach((record) => {
     counts[record.status] += 1
   })
 
-  const effectiveTotal = Math.max(0, eligibleMembers.length - counts.motivated)
-  const rate = percentage(counts.present + counts.late, effectiveTotal)
+  const total = eligibleMembers.length
+  const rate = percentage(counts.present + counts.late, total)
 
   return {
     ...counts,
@@ -138,7 +157,7 @@ function calculateMeetingPoint(args: {
     id: meeting.id,
     label: formatShortDate(meeting.meetingDate),
     rate,
-    total: eligibleMembers.length,
+    total,
   }
 }
 
@@ -173,11 +192,9 @@ export async function getPresenceOverview(
     })
   })
 
-  const effectiveRecords = Math.max(0, expectedRecords - counts.motivated)
-
   return {
     ...counts,
-    attendanceRate: percentage(counts.present + counts.late, effectiveRecords),
+    attendanceRate: percentage(counts.present + counts.late, expectedRecords),
     expectedRecords,
     meetingCount: meetings.length,
     memberCount: members.length,
@@ -221,6 +238,7 @@ export async function getPresenceGraphData(
       meeting,
       members,
       motivations: motivationsByMeeting.get(getRelationId(meeting.id)) ?? [],
+      now,
     }),
   )
 }
