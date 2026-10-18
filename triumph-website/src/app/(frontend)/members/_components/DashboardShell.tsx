@@ -179,7 +179,7 @@ export default function DashboardShell(props: DashboardShellProps) {
                     className="h-10 whitespace-nowrap text-4xl font-bold leading-10 tabular-nums"
                     data-dashboard-slot="attendance-value"
                   >
-                    <span className="inline-block h-10 w-[3ch] align-top">
+                    <span className="inline-block h-10 align-top">
                       {slots.attendanceValue}
                     </span>
                     %
