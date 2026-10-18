@@ -4,7 +4,7 @@ import { EventsPageContent } from './EventsPageContent'
 import { queryEventsPage } from './queryEvents'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 
-export const dynamic = 'force-dynamic'
+// export const dynamic = 'force-dynamic'
 
 export default async function Page() {
   const eventsPage = await queryEventsPage()

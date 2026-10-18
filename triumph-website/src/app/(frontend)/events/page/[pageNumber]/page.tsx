@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { EventsPageContent } from '../../EventsPageContent'
 import { queryEventsPage } from '../../queryEvents'
 
-export const dynamic = 'force-dynamic'
+// export const dynamic = 'force-dynamic'
 
 type Args = {
   params: Promise<{

@@ -52,7 +52,7 @@ export const fancyFont = localFont({
   display: 'swap',
 })
 
-export const dynamic = 'force-dynamic'
+// export const dynamic = 'force-dynamic'
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { isEnabled } = await draftMode()
   const config = await getCachedGlobal('siteConfig', 1)()

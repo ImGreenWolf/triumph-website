@@ -44,7 +44,7 @@ import LocationVisual from './LocationVisual.client'
 import PageClient from './page.client'
 import SignupForm from './SignupForm'
 
-export const dynamic = 'force-dynamic'
+// export const dynamic = 'force-dynamic'
 
 type Args = {
   params: Promise<{

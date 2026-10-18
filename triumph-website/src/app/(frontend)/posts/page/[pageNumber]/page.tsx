@@ -9,7 +9,7 @@ import React from 'react'
 import PageClient from './page.client'
 import { notFound } from 'next/navigation'
 
-export const dynamic = 'force-dynamic'
+// export const dynamic = 'force-dynamic'
 
 type Args = {
   params: Promise<{

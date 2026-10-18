@@ -12,7 +12,7 @@ import { getPayloadAuthHeaders } from '@/utilities/payloadAuth'
 
 import GalleryPageClient, { type GalleryEventOption, type GalleryPhotoCard } from './page.client'
 
-export const dynamic = 'force-dynamic'
+// export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   description: 'Galeria foto al clubului Interact Bucuresti Triumph.',
