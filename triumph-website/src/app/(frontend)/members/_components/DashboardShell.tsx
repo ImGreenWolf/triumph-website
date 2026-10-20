@@ -89,10 +89,10 @@ export function MeetingDescription({
 }) {
   return (
     <>
-      <div className="h-12 overflow-hidden text-sm leading-6 text-muted-foreground">
+      <div className="max-h-12 overflow-hidden text-sm leading-6 text-muted-foreground">
         <div className="line-clamp-2">{message}</div>
       </div>
-      <div className="mt-3 h-18 overflow-hidden text-sm leading-6 text-foreground/80">
+      <div className="mt-3 max-h-18 overflow-hidden text-sm leading-6 text-foreground/80">
         <div className="line-clamp-3">{description}</div>
       </div>
     </>
@@ -271,7 +271,7 @@ export default function DashboardShell(props: DashboardShellProps) {
               </div>
             </header>
             <div className="border-y border-border bg-muted/25 px-5 py-4 sm:px-6">
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)] sm:gap-6">
+              <div className="grid gap-4 sm:grid-rows-2 h-30 sm:gap-6">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase text-muted-foreground">Program</p>
                   <div

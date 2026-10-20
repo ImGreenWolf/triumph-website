@@ -220,6 +220,49 @@ export interface Page {
       text?: string | null;
       media?: (string | null) | Media;
     };
+    /**
+     * Add words or short phrases in playback order. Leave the list empty to use the existing title. Buttons appear after the first entry finishes writing.
+     */
+    handwriting?: {
+      /**
+       * When disabled, plays all entries once, then fades to the existing title or title media. Without a title, the last entry stays visible.
+       */
+      loop?: boolean | null;
+      entries?:
+        | {
+            text: string;
+            id?: string | null;
+          }[]
+        | null;
+      /**
+       * With two or more entries, starts writing the next entry while the current one fades out, including between loops. Skips the gap between entries.
+       */
+      parallelReveal?: boolean | null;
+      /**
+       * Only before the first entry.
+       */
+      initialDelay?: number | null;
+      /**
+       * Extra time to hold the last entry before the closing title or next loop.
+       */
+      finalDelay?: number | null;
+      /**
+       * Duration of each complete entry.
+       */
+      writingDuration?: number | null;
+      holdDuration?: number | null;
+      fadeDuration?: number | null;
+      entryGap?: number | null;
+      buttonRevealDuration?: number | null;
+      desktopTextSize?: number | null;
+      mobileTextSize?: number | null;
+      /**
+       * Subtle emboldening around the calligraphic font’s natural thick and thin strokes.
+       */
+      strokeWidth?: number | null;
+      color?: string | null;
+      backgroundDarkening?: number | null;
+    };
     richText?: {
       root: {
         type: string;
@@ -293,6 +336,8 @@ export interface Page {
     | LogoLoopBlock
     | FullWidthBlock
     | AboutUsBlock
+    | TriumphIntroBlock
+    | InteractIntroBlock
     | DownloadFilesBlock
     | EventTimelineBlock
     | ContactBlock
@@ -1940,6 +1985,53 @@ export interface AboutUsBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TriumphIntroBlock".
+ */
+export interface TriumphIntroBlock {
+  eyebrow?: string | null;
+  title: string;
+  description: string;
+  /**
+   * Alege o fotografie a clubului și completează textul alternativ în Media. Fără fotografie, blocul afișează o compoziție grafică.
+   */
+  photo?: (string | null) | Media;
+  caption?: string | null;
+  highlights?:
+    | {
+        title: string;
+        description?: string | null;
+        icon: 'heart' | 'people' | 'spark';
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'triumphIntro';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "InteractIntroBlock".
+ */
+export interface InteractIntroBlock {
+  eyebrow?: string | null;
+  title: string;
+  introduction: string;
+  clubTitle: string;
+  clubDescription: string;
+  /**
+   * Alege o fotografie a clubului și completează textul alternativ în Media. Fără fotografie, blocul afișează doar textul.
+   */
+  photo?: (string | null) | Media;
+  /**
+   * Se afișează sub fotografie, doar când este aleasă o imagine.
+   */
+  caption?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'interactIntro';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "DownloadFilesBlock".
  */
 export interface DownloadFilesBlock {
@@ -2718,6 +2810,30 @@ export interface PagesSelect<T extends boolean = true> {
               text?: T;
               media?: T;
             };
+        handwriting?:
+          | T
+          | {
+              loop?: T;
+              entries?:
+                | T
+                | {
+                    text?: T;
+                    id?: T;
+                  };
+              parallelReveal?: T;
+              initialDelay?: T;
+              finalDelay?: T;
+              writingDuration?: T;
+              holdDuration?: T;
+              fadeDuration?: T;
+              entryGap?: T;
+              buttonRevealDuration?: T;
+              desktopTextSize?: T;
+              mobileTextSize?: T;
+              strokeWidth?: T;
+              color?: T;
+              backgroundDarkening?: T;
+            };
         richText?: T;
         links?:
           | T
@@ -2764,6 +2880,8 @@ export interface PagesSelect<T extends boolean = true> {
         logoLoopBlock?: T | LogoLoopBlockSelect<T>;
         fullWidthBlock?: T | FullWidthBlockSelect<T>;
         aboutUs?: T | AboutUsBlockSelect<T>;
+        triumphIntro?: T | TriumphIntroBlockSelect<T>;
+        interactIntro?: T | InteractIntroBlockSelect<T>;
         downloadFiles?: T | DownloadFilesBlockSelect<T>;
         eventTimeline?: T | EventTimelineBlockSelect<T>;
         contactBlock?: T | ContactBlockSelect<T>;
@@ -3112,6 +3230,42 @@ export interface AboutUsBlockSelect<T extends boolean = true> {
   relationshipContent?: T;
   image?: T;
   accentColor?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TriumphIntroBlock_select".
+ */
+export interface TriumphIntroBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  title?: T;
+  description?: T;
+  photo?: T;
+  caption?: T;
+  highlights?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        icon?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "InteractIntroBlock_select".
+ */
+export interface InteractIntroBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  title?: T;
+  introduction?: T;
+  clubTitle?: T;
+  clubDescription?: T;
+  photo?: T;
+  caption?: T;
   id?: T;
   blockName?: T;
 }

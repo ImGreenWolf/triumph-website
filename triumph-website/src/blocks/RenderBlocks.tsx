@@ -24,6 +24,8 @@ import {
 import { LogoLoopBlock } from './LogoLoop/Component'
 import { FullWidthBlock } from './FullWidthBlock/Component'
 import { AboutUsBlock } from './AboutUs/Component'
+import { TriumphIntroBlock } from './TriumphIntro/Component'
+import { InteractIntroBlock } from './InteractIntro/Component'
 import {DownloadFilesBlock} from './DownloadBlock/Component'
 import { TimelineBlock } from './TimelineHistory/Component'
 import { ContactBlock } from './ContactBlock/Component'
@@ -31,6 +33,9 @@ import { FAQBlock } from './FAQBlock/Component'
 import { TextLoopBlock } from './TextLoop/Component'
 import { AccordionGallery } from './AccordionGallery/Component'
 import { ScrollingGallery } from './ScrollingGallery/Component'
+import * as motion from 'motion/react-client'
+import { stagger } from 'framer-motion'
+
 
 const blockComponents: Partial<
   Record<Page['layout'][number]['blockType'], React.ComponentType<any>>
@@ -55,6 +60,8 @@ const blockComponents: Partial<
   sectionTitle: SectionTitleBlock,
   fullWidthBlock: FullWidthBlock,
   aboutUs: AboutUsBlock,
+  triumphIntro: TriumphIntroBlock,
+  interactIntro: InteractIntroBlock,
   downloadFiles: DownloadFilesBlock,
   eventTimeline: TimelineBlock,
   contactBlock: ContactBlock,
@@ -81,9 +88,14 @@ export const RenderBlocks: React.FC<{
 
             if (Block) {
               return (
-                <div className="my-16" key={index}>
+                <motion.div
+                initial={{opacity: 0}}
+                whileInView={{opacity: 1}}
+                viewport={{ once: true, amount: 'some' }}
+                  transition={{ duration: 0.6, ease: 'anticipate', }}
+                className="my-16" key={index}>
                   <Block {...block} disableInnerContainer />
-                </div>
+                </motion.div>
               )
             }
           }

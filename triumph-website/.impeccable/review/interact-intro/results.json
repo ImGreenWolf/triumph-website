@@ -1,0 +1,2086 @@
+{
+  "checks": 36,
+  "errors": [],
+  "results": [
+    {
+      "width": 320,
+      "scenario": "photo",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "scenario": "noPhoto",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "scenario": "unpopulated",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "scenario": "nonImage",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "scenario": "missingUrl",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "scenario": "noAlt",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Comunitatea Interact București Triumph"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "scenario": "minimal",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "scenario": "long",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "scenario": "repeated",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        },
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true,
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        },
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "scenario": "photo",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "scenario": "noPhoto",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "scenario": "unpopulated",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "scenario": "nonImage",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "scenario": "missingUrl",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "scenario": "noAlt",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Comunitatea Interact București Triumph"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "scenario": "minimal",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "scenario": "long",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "scenario": "repeated",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        },
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true,
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        },
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "36px",
+          "lineHeight": "38.88px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "20px",
+          "lineHeight": "27.5px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "scenario": "photo",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "scenario": "noPhoto",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "scenario": "unpopulated",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "scenario": "nonImage",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "scenario": "missingUrl",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "scenario": "noAlt",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Comunitatea Interact București Triumph"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "scenario": "minimal",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "scenario": "long",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 768,
+      "scenario": "repeated",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        },
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true,
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        },
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "60px",
+          "lineHeight": "64.8px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "scenario": "photo",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "scenario": "noPhoto",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "scenario": "unpopulated",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "scenario": "nonImage",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "scenario": "missingUrl",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "scenario": "noAlt",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Comunitatea Interact București Triumph"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "scenario": "minimal",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "scenario": "long",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "scenario": "repeated",
+      "visible": true,
+      "overflow": false,
+      "duplicateIds": [],
+      "images": [
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        },
+        {
+          "loaded": true,
+          "alt": "Fotografie de test pentru aspectul blocului"
+        }
+      ],
+      "order": [
+        true,
+        true
+      ],
+      "measured": [
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        },
+        {
+          "tag": "P",
+          "color": "rgb(212, 181, 93)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "20px"
+        },
+        {
+          "tag": "H2",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "72px",
+          "lineHeight": "77.76px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.85)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "18px",
+          "lineHeight": "32px"
+        },
+        {
+          "tag": "H3",
+          "color": "oklch(0.985 0 0)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "24px",
+          "lineHeight": "33px"
+        },
+        {
+          "tag": "P",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "16px",
+          "lineHeight": "28px"
+        },
+        {
+          "tag": "FIGCAPTION",
+          "color": "oklab(0.985 0 0 / 0.75)",
+          "font": "InteractFixture, system-ui, sans-serif",
+          "fontSize": "14px",
+          "lineHeight": "24px"
+        }
+      ]
+    }
+  ]
+}

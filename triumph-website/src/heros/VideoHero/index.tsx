@@ -10,6 +10,9 @@ import RichText from '@/components/RichText'
 import { ArrowDown } from 'lucide-react'
 import { cn } from '@/utilities/ui'
 import { getMediaUrl } from '@/utilities/getMediaUrl'
+import { HandwritingHeadline } from './HandwritingHeadline'
+import { observeHeroActivity } from './activity'
+import { resolveHandwriting } from './settings'
 
 type VideoHeroProps = Page['hero'] & {
   posterLandscape?: MediaType | string | null
@@ -22,16 +25,22 @@ type PosterAsset = {
   srcSet: string
 }
 
-function Title({ title }: any) {
+function Title({ title }: { title: Page['hero']['title'] }) {
   return (
     <>
       {title && title?.inputType == 'text' ? (
-        <h1 className="text-6xl w-3/4 lg:text-[8em] lg:leading-28 text-center italic mb-8 text-primary">
+        <h1 className="w-full text-center text-5xl leading-tight font-medium text-balance text-white italic [overflow-wrap:anywhere] md:text-7xl lg:text-8xl">
           {title.text}
         </h1>
-      ) : (
-        <Media resource={title?.media} className="not-lg:mx-auto not-lg:max-w-100 w-full" />
-      )}
+      ) : title?.media ? (
+        <Media
+          priority
+          resource={title.media}
+          htmlElement="h1"
+          className="mx-auto w-full max-w-100"
+          imgClassName="mx-auto max-h-[min(35svh,20rem)] w-auto max-w-full object-contain"
+        />
+      ) : null}
     </>
   )
 }
@@ -137,7 +146,11 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
   posterLandscape,
   posterVertical,
   richText,
+  handwriting,
 }) => {
+  const handwritingSettings = resolveHandwriting(handwriting)
+  const hasHandwriting = handwritingSettings.entries.length > 0
+  const hasTitle = title?.inputType === 'text' ? Boolean(title.text?.trim()) : Boolean(title?.media)
   const landscapeMedia = getVideoMedia(mediaLandscape)
   const verticalMedia = getVideoMedia(mediaVertical)
   const landscapePosterMedia = getImageMedia(posterLandscape)
@@ -153,6 +166,7 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
   const verticalPlaceholderUrl = verticalPosterAsset?.placeholderUrl || verticalPosterUrl
   const placeholderUrl = landscapePlaceholderUrl || verticalPlaceholderUrl
   const isDesktop = useDesktopHeroVideo()
+  const heroRef = useRef<HTMLElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const selectedSrc =
     isDesktop === null ? '' : isDesktop ? landscapeSrc || verticalSrc : verticalSrc || landscapeSrc
@@ -163,6 +177,7 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
         ? landscapePosterUrl || verticalPosterUrl
         : verticalPosterUrl || landscapePosterUrl
   const [isVideoReady, setIsVideoReady] = useState(false)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
   preloadHeroVideo(verticalMedia, mobileVideoQuery)
   preloadHeroVideo(landscapeMedia, desktopVideoQuery)
@@ -170,69 +185,115 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
   preloadHeroPoster(landscapePosterAsset, desktopVideoQuery)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- A responsive source change starts a new video load lifecycle.
     setIsVideoReady(false)
 
     const video = videoRef.current
-    if (!video || !selectedSrc) return
+    const hero = heroRef.current
+    if (!video || !hero || !selectedSrc) return
 
     video.load()
-    video.play().catch(() => {
-      // Muted autoplay can still be delayed by the browser; keep the poster visible.
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    let active = true
+    const update = () => {
+      setPrefersReducedMotion(motion.matches)
+      if (active && !motion.matches) {
+        video.play().catch(() => {
+          // Muted autoplay can still be delayed by the browser; keep the poster visible.
+        })
+      } else video.pause()
+    }
+    const stopObserving = observeHeroActivity(hero, (visible) => {
+      active = visible
+      update()
     })
+    motion.addEventListener('change', update)
+    return () => {
+      stopObserving()
+      motion.removeEventListener('change', update)
+      video.pause()
+    }
   }, [selectedSrc])
 
-  return (
-    <div className="relative b-0 text-text -pt-24 max-h-[100dvh] h-[100dvh] flex flex-col justify-center items-end">
-      <div className="lg:container h-full flex align-right items-center justify-end mx-auto">
-        <div
-          className={cn(
-            'mb-8 z-10 overflow-hidden relative',
-            'flex flex-col text-center justify-center items-center h-2/3',
-            'lg:text-right lg:items-end lg:justify-center lg:justify-items-end lg:h-1/2 lg:my-auto lg:w-1/3 lg:align-right lg:text-shadow-lg',
-          )}
-        >
-          <Title title={title} />
-
-          {richText && (
-            <RichText
-              className="mb-16 text-sm lg:text-md not-lg:mx-12"
-              data={richText}
-              enableGutter={false}
-              enableProse={false}
+  const description = richText ? (
+    <RichText
+      className="w-full max-w-xl text-base leading-relaxed text-pretty text-white [overflow-wrap:anywhere] [text-shadow:0_2px_12px_rgb(0_0_0_/_40%)] sm:text-lg"
+      data={richText}
+      enableGutter={false}
+      enableProse={false}
+    />
+  ) : null
+  const buttons =
+    Array.isArray(links) && links.length > 0 ? (
+      <ul
+        className="mx-auto flex w-full max-w-sm list-none flex-col items-stretch justify-center gap-3 p-0 sm:max-w-none sm:flex-row sm:flex-wrap"
+        data-hero-links=""
+      >
+        {links.map(({ link, id }, index) => (
+          <li key={id || index}>
+            <CMSLink
+              {...link}
+              appearance={link.appearance === 'outline' ? 'outline' : 'default'}
+              className={cn(
+                'h-auto min-h-13 w-full rounded-full border border-white/70 px-7 py-3 text-sm font-medium whitespace-normal shadow-none transition-[background-color,color,border-color] duration-200 [overflow-wrap:anywhere] focus-visible:ring-4 focus-visible:ring-black/75 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none sm:w-auto',
+                link.appearance === 'outline'
+                  ? 'bg-black/55 text-white hover:border-white hover:bg-white hover:text-primary-foreground active:bg-white/90'
+                  : 'bg-white text-primary-foreground hover:border-white/90 hover:bg-white/90 active:bg-white/80',
+              )}
             />
-          )}
+          </li>
+        ))}
+      </ul>
+    ) : null
 
-          {Array.isArray(links) && links.length > 0 && (
-            <ul className="flex justify-center gap-4">
-              {links.map(({ link }, i) => {
-                return (
-                  <li key={i}>
-                    <CMSLink
-                      {...link}
-                      className={cn(
-                        'rounded-full transition-50 px-4 h-8 lg:h-10 lg:px-6 text-xs xl:text-base border border-accent ',
-                        link.appearance == 'outline' &&
-                          'bg-foreground/25 text-primary backdrop-blur-xl ',
-                        link.appearance != 'outline' && 'bg-accent text-primary hover:text-accent',
-                      )}
-                    />
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-      </div>
-      <div className="absolute w-full top-1/2 inset-0 overflow-hidden bg-linear-to-t lg:bg-radial-[at_100%_100%] from-black to-60% to-transparent z-2">
-        <ArrowDown className="absolute w-full bottom-8" stroke="white" />
-      </div>
-
-      <div className="select-none w-full absolute inset-0 h-full overflow-hidden bg-black">
-        {(landscapePlaceholderUrl || verticalPlaceholderUrl) && (
-          <picture
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 h-full w-full"
+  return (
+    <section
+      className="relative isolate flex min-h-dvh items-center justify-center bg-black pt-[calc(8rem_+_env(safe-area-inset-top,0px))] pr-[max(1.5rem,env(safe-area-inset-right,0px))] pb-[calc(8rem_+_env(safe-area-inset-bottom,0px))] pl-[max(1.5rem,env(safe-area-inset-left,0px))] text-white selection:bg-white selection:text-primary-foreground lg:px-16"
+      ref={heroRef}
+    >
+      <div className="relative z-3 w-full max-w-6xl text-center">
+        {hasHandwriting && handwriting ? (
+          <HandwritingHeadline
+            actions={buttons}
+            config={handwriting}
+            finalTitle={!handwritingSettings.loop && hasTitle ? <Title title={title} /> : null}
+            key={JSON.stringify([handwriting, title])}
           >
+            {description}
+          </HandwritingHeadline>
+        ) : (
+          <div className="flex w-full flex-col items-center gap-6 sm:gap-8">
+            <Title title={title} />
+            {(description || buttons) && (
+              <div className="flex w-full flex-col items-center gap-6">
+                {description}
+                {buttons}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-1"
+        style={{ backgroundColor: `rgb(0 0 0 / ${handwritingSettings.backgroundDarkening}%)` }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-2 bg-linear-to-t from-black/60 via-transparent to-black/15"
+      >
+        <ArrowDown
+          className="absolute bottom-[calc(1.5rem_+_env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2"
+          stroke="white"
+        />
+      </div>
+
+      <div
+        aria-hidden="true"
+        className="select-none w-full absolute inset-0 h-full overflow-hidden bg-black"
+      >
+        {(landscapePlaceholderUrl || verticalPlaceholderUrl) && (
+          <picture className="pointer-events-none absolute inset-0 h-full w-full">
             {verticalPlaceholderUrl && (
               <source
                 media={landscapePlaceholderUrl ? mobileVideoQuery : undefined}
@@ -257,10 +318,9 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
 
         {(landscapePosterUrl || verticalPosterUrl) && (
           <picture
-            aria-hidden="true"
             className={cn(
-              'pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-500 ease-out',
-              isVideoReady ? 'opacity-0' : 'opacity-100',
+              'pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-500 ease-out motion-reduce:transition-none',
+              isVideoReady && !prefersReducedMotion ? 'opacity-0' : 'opacity-100',
             )}
           >
             {verticalPosterUrl && (
@@ -289,11 +349,14 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
 
         {selectedSrc && (
           <video
+            aria-hidden="true"
             key={selectedSrc}
-            autoPlay
+            autoPlay={!prefersReducedMotion}
             className={cn(
-              'pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out',
-              selectedPosterUrl && !isVideoReady ? 'opacity-0' : 'opacity-100',
+              'pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out motion-reduce:transition-none',
+              selectedPosterUrl && (!isVideoReady || prefersReducedMotion)
+                ? 'opacity-0'
+                : 'opacity-100',
             )}
             controls={false}
             loop
@@ -305,9 +368,10 @@ export const VideoHero: React.FC<VideoHeroProps> = ({
             preload="auto"
             ref={videoRef}
             src={selectedSrc}
+            tabIndex={-1}
           />
         )}
       </div>
-    </div>
+    </section>
   )
 }

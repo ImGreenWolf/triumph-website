@@ -29,6 +29,8 @@ import { homepageBlocks } from '@/blocks/HomepageBlocks/config'
 import { LogoLoopBlock } from '@/blocks/LogoLoop/config'
 import { FullWidthBlock } from '@/blocks/FullWidthBlock/config'
 import { AboutUs } from '@/blocks/AboutUs/config'
+import { TriumphIntro } from '@/blocks/TriumphIntro/config'
+import { InteractIntro } from '@/blocks/InteractIntro/config'
 import { DownloadFilesBlock } from '@/blocks/DownloadBlock/config'
 import { TimelineBlock } from '@/blocks/TimelineHistory/Component'
 import { EventTimeline } from '@/blocks/TimelineHistory/config'
@@ -119,6 +121,8 @@ export const Pages: CollectionConfig<'pages'> = {
                 LogoLoopBlock,
                 FullWidthBlock,
                 AboutUs,
+                TriumphIntro,
+                InteractIntro,
                 DownloadFilesBlock,
                 EventTimeline,
                 ContactBlock,

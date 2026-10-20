@@ -11,7 +11,7 @@ export const AccordionGallery: React.FC<AccordionGalleryProps> = (props) => {
     <section className="container my-16">
       {introContent && (
         <ServerRichText
-          className="mx-auto mb-10 max-w-3xl text-center [&_h2]:text-3xl [&_h2]:leading-tight [&_h2]:md:text-5xl [&_p]:text-base [&_p]:leading-7 [&_p]:text-muted-foreground"
+          className="mx-auto mb-10 [&_h2]:text-3xl [&_h2]:leading-tight [&_h2]:md:text-5xl [&_p]:text-base [&_p]:text-muted-foreground"
           data={introContent}
           enableGutter={false}
         />

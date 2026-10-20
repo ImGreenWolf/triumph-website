@@ -9,6 +9,7 @@ import {
 
 import { linkGroup } from '@/fields/linkGroup'
 import { textOrMediaField } from '@/fields/textOrMedia'
+import { handwritingField } from './VideoHero/fields'
 
 export const hero: Field = {
   name: 'hero',
@@ -58,6 +59,7 @@ export const hero: Field = {
       },
       required: true,
     }),
+    handwritingField,
     {
       name: 'richText',
       type: 'richText',

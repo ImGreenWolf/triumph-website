@@ -11,6 +11,8 @@ import { GallerySlideshow } from '@/components/Gallery/component'
 import { getPayload } from 'payload'
 import payloadConfig from '@payload-config'
 import { ArrowUpRightIcon, BanknoteIcon, CurrencyIcon, PersonStandingIcon, UserIcon } from 'lucide-react'
+import * as motion from 'motion/react-client'
+import { stagger } from 'motion/react'
 
 const hasMediaObject = (media: unknown) => typeof media === 'object' && media !== null
 
@@ -110,7 +112,11 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
       )}
       <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start">
         {statsItems.map((stat, index) => (
-          <article
+          <motion.article
+            initial={{y: 5, opacity: 0}}
+            whileInView={{y: 0, opacity: 1}}
+            viewport={{ once: true, amount: 'some' }}
+                  transition={{ duration: 0.6, ease: 'anticipate', delay: 0.1*(statsItems.length/(index+1)) }}
             className="min-w-0 rounded-lg border border-border/70 bg-card p-4 text-card-foreground shadow-sm sm:p-6"
             key={stat.id || index}
           >
@@ -136,7 +142,7 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
                 {stat.description}
               </p>
             )}
-          </article>
+          </motion.article>
         ))}
 
         {hasGallery && (
@@ -153,7 +159,7 @@ export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }
         {hasEventList && (
           <aside
             className={cn(
-              'min-w-0 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm h-full not-sm:mt-4',
+              'min-w-0 rounded-lg border not-md:hidden border-border bg-card p-4 text-card-foreground shadow-sm h-full not-sm:mt-4',
               hasGallery ? 'sm:col-span-2 lg:col-span-1' : 'sm:col-span-2 lg:col-span-2',
             )}
           >

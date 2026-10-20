@@ -68,7 +68,7 @@ export const ImageMedia: React.FC<MediaProps> = (props) => {
 
     width = fullWidth!
     height = fullHeight!
-    alt = altFromResource || ''
+    alt = altFromResource || altFromProps || ''
 
     const cacheTag = resource.updatedAt
 
@@ -92,7 +92,7 @@ export const ImageMedia: React.FC<MediaProps> = (props) => {
         fill={fill}
         height={!fill ? height : undefined}
         placeholder="blur"
-        blurDataURL={(src as string).startsWith("https") ? placeholderBlur : undefined}
+        blurDataURL={placeholderBlur}
         priority={priority}
         quality={75}
         loading={loading}

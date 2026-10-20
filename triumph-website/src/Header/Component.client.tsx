@@ -7,13 +7,14 @@ import type { Header } from '@/payload-types'
 
 import CardNav from './Nav/CardNav'
 import { UserIcon } from 'lucide-react'
+import Logo from '@/components/Logo'
 
 interface HeaderClientProps {
   data: Header
   links: any
 }
 
-export const HeaderClient: React.FC<HeaderClientProps> = ({ data, links }) => {
+export const HeaderClient: React.FC<HeaderClientProps> = ({ data, links}) => {
   /* Storing the value in a useState to avoid hydration errors */
   const [theme, setTheme] = useState<string | null>(null)
   const { headerTheme, setHeaderTheme } = useHeaderTheme()
@@ -30,6 +31,20 @@ export const HeaderClient: React.FC<HeaderClientProps> = ({ data, links }) => {
   }, [headerTheme])
 
   let header = useRef<HTMLDivElement>(null)
+
+  // return (
+  //   <header ref={header} className='w-full fixed top-0 h-25 z-100 grid grid-cols-[1fr_2fr_1fr] grid-rows-[75px] '>
+  //     <div className=' rounded-br-xl bg-card flex relative px-6 py-4'>
+  //       <Logo className='h-full'/>
+  //       <div className='bg-background absolute inset-0 -z-1'></div>
+  //     </div>
+  //     <div className='bg-background w-full px-6 py inset-0 flex justify-evenly items-center'>
+  //         {
+  //           data.navItems!.map(link => <a href={link.link.url!}>{link.link.label}</a>)
+  //         }
+  //     </div>
+  //   </header>
+  // )
   return (
     <header ref={header} className=" fixed z-20 bg-blur-md w-full px-10 lg:px-50 " {...(theme ? { 'data-theme': theme } : {})}>
       <div className="py-8 flex justify-between">
