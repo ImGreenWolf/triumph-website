@@ -51,10 +51,10 @@ export const Card: React.FC<{
       ref={card.ref}
     >
       <div className="relative w-full h-full">
-        {!metaImage && <div className="">No image</div>}
+
         {metaImage && typeof metaImage !== 'string' && <Media resource={metaImage} imgClassName='w-full h-full object-cover' className='h-full object-cover' />}
       </div>
-      <div className="p-4 absolute left-0 right-0 min-h-30  bottom-0 backdrop-blur-md bg-linear-to-t from-card/50 to-transparent text-shadow-lg ">
+      <div className="p-4 absolute left-0 right-0 min-h-28  bottom-0 bg-background/95 text-foreground ">
         {showCategories && hasCategories && (
           <div className="uppercase text-xs sm:text-sm mb-4 ">
             {categories?.map((category, index) => {
@@ -80,13 +80,13 @@ export const Card: React.FC<{
         {titleToUse && (
           <div className="prose">
             <h3>
-              <Link className="not-prose text-xs sm:text-lg leading-4 block" href={href} ref={link.ref}>
+              <Link className="not-prose text-lg font-semibold leading-snug block" href={href} ref={link.ref}>
                 {titleToUse}
               </Link>
             </h3>
           </div>
         )}
-        {description && <div className="mt-2">{description && <p>{sanitizedDescription}</p>}</div>}
+        {description && <div className="mt-3 line-clamp-3 text-sm leading-6 text-foreground/85">{description && <p>{sanitizedDescription}</p>}</div>}
       </div>
     </article>
   )

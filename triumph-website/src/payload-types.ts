@@ -1645,6 +1645,7 @@ export interface StatsBlock {
     };
     [k: string]: unknown;
   } | null;
+  showEvents?: boolean | null;
   stats?:
     | {
         value: number;
@@ -3074,6 +3075,7 @@ export interface FeatureGridBlockSelect<T extends boolean = true> {
  */
 export interface StatsBlockSelect<T extends boolean = true> {
   introContent?: T;
+  showEvents?: T;
   stats?:
     | T
     | {

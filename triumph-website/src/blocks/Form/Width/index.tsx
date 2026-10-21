@@ -13,12 +13,12 @@ export const Width: React.FC<{
 function getWidthClass(width?: number | string) {
   const value = typeof width === 'string' ? Number(width) : width
 
-  if (!value || Number.isNaN(value) || value >= 100) return 'md:col-span-12'
-  if (value <= 25) return 'md:col-span-3'
-  if (value <= 34) return 'md:col-span-4'
-  if (value <= 50) return 'md:col-span-6'
-  if (value <= 67) return 'md:col-span-8'
-  if (value <= 75) return 'md:col-span-9'
+  if (!value || Number.isNaN(value) || value >= 100) return '@2xl:col-span-12'
+  if (value <= 25) return '@2xl:col-span-3'
+  if (value <= 34) return '@2xl:col-span-4'
+  if (value <= 50) return '@2xl:col-span-6'
+  if (value <= 67) return '@2xl:col-span-8'
+  if (value <= 75) return '@2xl:col-span-9'
 
-  return 'md:col-span-12'
+  return '@2xl:col-span-12'
 }

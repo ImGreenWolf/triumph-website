@@ -47,8 +47,8 @@ export const ArchiveBlock: React.FC<
     posts = fetchedPosts.docs
   } else {
     if (selectedDocs?.length) {
-      const filteredSelectedPosts = selectedDocs.map((post) => {
-        if (typeof post.value === 'object') return post.value
+      const filteredSelectedPosts = selectedDocs.flatMap((post) => {
+        return typeof post.value === 'object' && post.value ? [post.value] : []
       }) as Post[]
 
       posts = filteredSelectedPosts
@@ -56,10 +56,10 @@ export const ArchiveBlock: React.FC<
   }
 
   return (
-    <div className="my-16" id={`block-${id}`}>
+    <div className="min-w-0" id={id ? `block-${id}` : undefined}>
       {introContent && (
-        <div className="container mb-16">
-          <RichText className="ms-0 max-w-[48rem]" data={introContent} enableGutter={false} />
+        <div className="container mb-8 sm:mb-10">
+          <RichText className="block-intro ms-0 max-w-4xl" data={introContent} enableGutter={false} />
         </div>
       )}
       <CollectionArchive posts={posts} />

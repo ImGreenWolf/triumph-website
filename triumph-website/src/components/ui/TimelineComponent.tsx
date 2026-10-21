@@ -80,12 +80,12 @@ export const EventTimeline: React.FC<EventTimelineProps> = ({
     return (
       <div className="py-12 text-center">
         <div className="inline-block size-8 animate-spin rounded-full border-2 border-accent/30 border-b-accent" />
-        <p className="mt-4 text-sm text-card-foreground/60">Se încarcă arhiva...</p>
+        <p className="mt-4 text-sm text-foreground/80">Se încarcă arhiva...</p>
       </div>
     )
   }
 
-  if (error) return <p className="py-10 text-center text-sm text-destructive">{error}</p>
+  if (error) return <p className="py-10 text-center text-sm text-red-300">{error}</p>
   if (completedEvents.length === 0) return null
 
   return (
@@ -94,7 +94,7 @@ export const EventTimeline: React.FC<EventTimelineProps> = ({
         <div className="mb-10 max-w-2xl md:mb-12">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Istoric</p>
           {title && <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">{title}</h2>}
-          {subtitle && <p className="mt-4 leading-7 text-card-foreground/65">{subtitle}</p>}
+          {subtitle && <p className="mt-4 leading-7 text-foreground/80">{subtitle}</p>}
         </div>
       )}
 
@@ -139,7 +139,7 @@ function ArchiveEventCard({
       className={cn(
         'group overflow-hidden rounded-2xl border border-card-foreground/10 bg-background/5 transition duration-300',
         'hover:-translate-y-1 hover:border-accent/70 hover:bg-background/10',
-        horizontal && 'w-[19rem] shrink-0 snap-start sm:w-[22rem]',
+        horizontal && 'w-[min(19rem,85vw)] shrink-0 snap-start sm:w-[22rem]',
       )}
       href={`/events/${event.slug}`}
     >
@@ -178,14 +178,14 @@ function ArchiveEventCard({
         </div>
 
         {location?.name && (
-          <p className="mt-3 flex items-start gap-2 text-sm leading-5 text-card-foreground/60">
+          <p className="mt-3 flex items-start gap-2 text-sm leading-5 text-foreground/80">
             <MapPin aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" />
             <span className="line-clamp-2">{location.name}</span>
           </p>
         )}
 
         {showStatistics && (
-          <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3 border-t border-card-foreground/10 pt-4 text-xs text-card-foreground/60">
+          <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3 border-t border-card-foreground/10 pt-4 text-xs text-foreground/80">
             <span className="inline-flex items-center gap-1.5">
               <Users aria-hidden className="size-4 text-accent" />
               {registrationsCount} participanți

@@ -176,19 +176,19 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
             </h2>
 
             <div className="mt-8 max-w-xl border-l border-card-foreground/20 pl-5">
-              <p className="text-sm font-semibold uppercase tracking-normal text-accent">
+              <p className="text-sm font-semibold uppercase tracking-normal text-[var(--block-accent-text)]">
                 Parteneriatul
               </p>
               <RichText
                 enableProse={false}
                 enableGutter={false}
                 data={relationshipContent}
-                className="mt-3 text-sm leading-6 text-card-foreground/75 [&_a]:text-accent [&_a]:underline-offset-4 [&_p]:my-0 [&_p+p]:mt-3 [&_strong]:text-white"
+                className="mt-3 text-sm leading-6 text-card-foreground/90 [&_a]:text-accent [&_a]:underline-offset-4 [&_p]:my-0 [&_p+p]:mt-3 [&_strong]:text-white"
               />
             </div>
           </div>
 
-          <figure className="relative aspect-[4/3] overflow-hidden rounded-lg border border-card-foreground/15 bg-card-foreground/10 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+          <figure className="relative aspect-[4/3] overflow-hidden rounded-xl bg-card-foreground/10">
             {typeof image !== 'string' && image && (
               <Media resource={image} fill imgClassName="h-full w-full object-cover" />
             )}
@@ -202,7 +202,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
           {organizationCards.map((card) => (
             <article
               className={cn(
-                'relative min-w-0 overflow-hidden rounded-lg border bg-white p-5 text-[#141e34] shadow-sm ring-1 transition duration-300 hover:-translate-y-1 hover:shadow-xl md:p-6',
+                'relative min-w-0 overflow-hidden rounded-xl border bg-white p-5 text-[#141e34] shadow-sm ring-1 transition duration-300 hover:-translate-y-1 hover:shadow-xl md:p-6',
                 card.accent.border,
                 card.accent.ring,
               )}
@@ -231,7 +231,7 @@ export const AboutUsBlock: React.FC<AboutUsBlockProps> = ({
                 enableProse={false}
                 enableGutter={false}
                 data={card.content}
-                className="text-sm leading-6 text-[#4f5b6e] [&_a]:font-semibold [&_a]:text-[#00a2e0] [&_a]:underline-offset-4 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold [&_p]:my-0 [&_p+p]:mt-3 [&_strong]:text-[#141e34]"
+                className="text-sm leading-6 text-[#4f5b6e] [&_a]:font-semibold [&_a]:text-[#006a8f] [&_a]:underline-offset-4 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold [&_p]:my-0 [&_p+p]:mt-3 [&_strong]:text-[#141e34]"
               />
             </article>
           ))}

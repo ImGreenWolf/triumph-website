@@ -4,15 +4,9 @@ import RichText from '@/components/RichText'
 import { CMSLink } from '@/components/Link'
 import { Media } from '@/components/Media'
 import { cn } from '@/utilities/ui'
-import CountUp from '@/components/ui/counterUp'
-import { SectionBlock as SectionIntroBlockProps, StatsBlock as StatsBlockTypes } from '@/payload-types'
+import { SectionBlock as SectionIntroBlockProps } from '@/payload-types'
 import { outlineFont } from '@/app/(frontend)/layout'
-import { GallerySlideshow } from '@/components/Gallery/component'
-import { getPayload } from 'payload'
-import payloadConfig from '@payload-config'
-import { ArrowUpRightIcon, BanknoteIcon, CurrencyIcon, PersonStandingIcon, UserIcon } from 'lucide-react'
-import * as motion from 'motion/react-client'
-import { stagger } from 'motion/react'
+import { ArrowUpRightIcon } from 'lucide-react'
 
 const hasMediaObject = (media: unknown) => typeof media === 'object' && media !== null
 
@@ -28,7 +22,7 @@ export const SectionIntroBlock: React.FC<SectionIntroBlockProps> = ({ alignment,
         })}
       >
         {eyebrow && (
-          <p className="mb-3 text-sm font-semibold uppercase tracking-normal text-muted-foreground">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-normal text-accent">
             {eyebrow}
           </p>
         )}
@@ -47,12 +41,12 @@ export const SectionTitleBlock: React.FC<any> = ({ alignment, eyebrow, title, se
         })}
       >
         {eyebrow && (
-          <p className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">
+          <p className="text-sm mb-6 font-semibold uppercase tracking-normal text-accent">
             {eyebrow}
           </p>
         )}
         <div className='whitespace-break-spaces'>
-           <h2 className={cn('-mb-8 text-4xl lg:text-6xl')}>
+           <h2 className={cn('-mb-8 md:-mb-6 text-4xl lg:text-6xl')}>
             {title}
           </h2>
           {/* <h2 className='absolute text-4xl'>
@@ -88,158 +82,7 @@ export const FeatureGridBlock: React.FC<any> = ({ features, introContent }) => {
   )
 }
 
-export const StatsBlock: React.FC<any> = async ({ introContent, stats, gallery }: StatsBlockTypes) => {
-  const payload = await getPayload({ config: payloadConfig })
-  const req = await payload.find({
-    collection: 'events',
-    limit: 5,
-    sort: '-days',
-    joins: {
-      registrations: {
-        count: true
-      }
-    }
-  })
-  const events = req.docs
-  const statsItems = stats || []
-  const hasGallery = Boolean(gallery?.some(hasMediaObject))
-  const hasEventList = events.length > 0
-
-  return (
-    <section className="container">
-      {introContent && (
-        <RichText className="mx-auto mb-10 max-w-3xl text-center" data={introContent} />
-      )}
-      <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start">
-        {statsItems.map((stat, index) => (
-          <motion.article
-            initial={{y: 5, opacity: 0}}
-            whileInView={{y: 0, opacity: 1}}
-            viewport={{ once: true, amount: 'some' }}
-                  transition={{ duration: 0.6, ease: 'anticipate', delay: 0.1*(statsItems.length/(index+1)) }}
-            className="min-w-0 rounded-lg border border-border/70 bg-card p-4 text-card-foreground shadow-sm sm:p-6"
-            key={stat.id || index}
-          >
-            <div className="flex min-w-0 flex-wrap items-end gap-x-2 gap-y-1 text-accent">
-              <CountUp
-                to={stat.value}
-                from={0}
-                separator=","
-                className="text-3xl font-bold leading-none tracking-normal tabular-nums sm:text-5xl"
-              />
-              {stat.unit && (
-                <span className="pb-1 text-xl font-semibold leading-none text-card-foreground/85 sm:text-2xl">
-                  {stat.unit}
-                </span>
-              )}
-            </div>
-
-            <div className="sm:mt-4 text-sm sm:text-base font-semibold leading-snug [overflow-wrap:anywhere]">
-              {stat.label}
-            </div>
-            {stat.description && (
-              <p className="mt-2 sm:mt-3 text-sm leading-6 text-card-foreground/70 [overflow-wrap:anywhere]">
-                {stat.description}
-              </p>
-            )}
-          </motion.article>
-        ))}
-
-        {hasGallery && (
-          <div
-            className={cn(
-              'min-w-0 overflow-hidden rounded-xl sm:col-span-2',
-              hasEventList ? 'lg:col-span-3' : 'lg:col-span-4',
-            )}
-          >
-            <GallerySlideshow gallery={gallery || []} />
-          </div>
-        )}
-
-        {hasEventList && (
-          <aside
-            className={cn(
-              'min-w-0 rounded-lg border not-md:hidden border-border bg-card p-4 text-card-foreground shadow-sm h-full not-sm:mt-4',
-              hasGallery ? 'sm:col-span-2 lg:col-span-1' : 'sm:col-span-2 lg:col-span-2',
-            )}
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
-              <h3 className="text-base font-semibold leading-tight">Evenimentele Noastre</h3>
-              <a
-                className="hidden min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-accent px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-accent/90 sm:inline-flex"
-                href="/events"
-              >
-                Toate
-                <ArrowUpRightIcon className="size-3.5" aria-hidden="true" />
-              </a>
-            </div>
-
-            <div className="mt-3 grid gap-2.5">
-              {events.map(event => {
-                const eventImage = event.meta?.image
-                const eventHref = event.slug ? `/events/${event.slug}` : '/events'
-
-                return (
-                  <article
-                    className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-2.5 rounded-md border border-border/60 bg-primary/5 p-2"
-                    key={event.id || event.slug}
-                  >
-                    {hasMediaObject(eventImage) ? (
-                      <Media
-                        resource={eventImage}
-                        className="aspect-[9/16] h-18 overflow-hidden rounded-md bg-primary/10 sm:h-20"
-                        imgClassName="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div
-                        className="aspect-[9/16] h-18 rounded-md bg-primary/10 sm:h-20"
-                        aria-hidden="true"
-                      />
-                    )}
-
-                    <div className="min-w-0 self-center">
-                      <h4 className="line-clamp-2 text-md font-semibold leading-snug text-card-foreground">
-                        {event.name}
-                      </h4>
-                      {(event.registrations ) && <p
-                          className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-primary/50 transition hover:text-primary"
-                        >
-                          <UserIcon className="size-3.5 shrink-0" aria-hidden="true" /> {event.registrations.totalDocs} participanți
-                        </p>}
-                        {(event.registrations && typeof event.donation == 'number') && <p
-                          className="my-0.5 flex items-center gap-1.5 text-xs font-semibold text-primary/50 transition hover:text-primary"
-                        >
-                          <BanknoteIcon className="size-3.5 shrink-0" aria-hidden="true" /> +{event.registrations.totalDocs!*(parseInt(event.donation))} RON strânşi
-                        </p>}
-                      <a
-                        href={eventHref}
-                        className="mt-1.5 inline-flex min-h-7 items-center gap-1.5 text-xs font-semibold text-accent transition hover:text-primary"
-                      >
-                        Mai multe
-                        <ArrowUpRightIcon className="size-3.5 shrink-0" aria-hidden="true" />
-                      </a>
-                      
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-
-            <a
-              className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-bold text-white transition hover:bg-accent/90 sm:hidden"
-              href="/events"
-            >
-              Toate Evenimentele
-              <ArrowUpRightIcon className="size-4" aria-hidden="true" />
-            </a>
-          </aside>
-        )}
-      </div>
-    </section>
-  )
-}
-
-
+export { StatsBlock } from '@/blocks/StatsBlock/Component'
 
 export const SplitMediaBlock: React.FC<any> = ({ links, media, mediaPosition, richText }) => {
   return (

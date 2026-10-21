@@ -12,12 +12,12 @@ export const HeroBlock: React.FC<HeroBlockProps> = (props) => {
   
 
   return (
-    <div className="container my-16">
-      <div className="grid grid-cols-4 lg:grid-cols-12 gap-y-8 gap-x-16">
+    <div className="container">
+      <div className="max-w-3xl">
         
         <div>
-          <h1>Interact Bucuresti Triumph</h1>
-          <p>Clubul Interact Bucuresti Triumph este un ONG din  Bucuresti care face parte dintr-o reţea globală, condus strict de tineri/e cu vârste sub 19 ani. Noi oferim oportunități și ajutor comunităților locale de tineri.</p>
+          <h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">Interact Bucuresti Triumph</h1>
+          <p className="mt-6 text-lg leading-8 text-foreground/85">Clubul Interact Bucuresti Triumph este un ONG din  Bucuresti care face parte dintr-o reţea globală, condus strict de tineri/e cu vârste sub 19 ani. Noi oferim oportunități și ajutor comunităților locale de tineri.</p>
         </div>
       </div>
     </div>

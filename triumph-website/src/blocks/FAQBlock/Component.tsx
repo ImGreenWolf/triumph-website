@@ -19,15 +19,13 @@ export const FAQBlock: React.FC<FAQBlockProps> = ({
 }) => {
   return (
     <section className="container">
-      <div className="relative overflow-hidden rounded-sm border border-border bg-card text-card-foreground shadow-[0_30px_100px_rgba(0,0,0,0.18)]">
-        <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-accent/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 left-12 size-72 rounded-full bg-accent/10 blur-3xl" />
+      <div className="relative overflow-hidden rounded-xl text-foreground">
 
-        <div className="relative grid gap-8 p-5 md:p-8 lg:grid-cols-[0.86fr_1.14fr] lg:gap-12 lg:p-12">
+        <div className="relative grid gap-10 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-16">
           <div className="flex flex-col justify-between gap-10">
             <div>
               {eyebrow && (
-                <p className="mb-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-normal text-accent">
+                <p className="mb-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-normal text-[var(--block-accent-text)]">
                   <span className="h-px w-8 bg-accent" />
                   {eyebrow}
                   <span className="h-px w-8 bg-accent" />
@@ -35,7 +33,7 @@ export const FAQBlock: React.FC<FAQBlockProps> = ({
               )}
               {introContent && (
                 <RichText
-                  className="max-w-xl [&_h2]:text-3xl [&_h2]:leading-tight [&_h2]:md:text-5xl [&_p]:text-base [&_p]:leading-7 [&_p]:text-muted-foreground"
+                  className="block-intro max-w-xl [&_h2]:text-3xl [&_h2]:leading-tight [&_h2]:md:text-5xl [&_p]:text-base [&_p]:leading-7 [&_p]:text-card-foreground/90"
                   data={introContent}
                   enableGutter={false}
                 />
@@ -43,14 +41,14 @@ export const FAQBlock: React.FC<FAQBlockProps> = ({
             </div>
 
             {(supportingText || supportingLinkLabel) && (
-              <aside className="max-w-md rounded-xl border-2 border-border bg-sidebar p-5 text-foreground backdrop-blur-sm">
+              <aside className="min-w-0 max-w-md rounded-xl border border-foreground/15 bg-sidebar p-5 text-foreground backdrop-blur-sm">
                 <MessageCircleQuestion aria-hidden className="size-6 text-accent" strokeWidth={1.8} />
                 {supportingText && (
-                  <p className="mt-4 text-sm leading-6 text-muted-foreground">{supportingText}</p>
+                  <p className="mt-4 text-sm leading-6 text-card-foreground/90">{supportingText}</p>
                 )}
                 {supportingLinkLabel && supportingLinkHref && (
                   <a
-                    className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-accent transition-opacity hover:opacity-75"
+                    className="mt-5 inline-flex items-center gap-2 min-h-11 text-sm font-semibold text-accent transition-opacity hover:opacity-75"
                     href={supportingLinkHref}
                     rel={isExternalHref(supportingLinkHref) ? 'noreferrer' : undefined}
                     target={isExternalHref(supportingLinkHref) ? '_blank' : undefined}

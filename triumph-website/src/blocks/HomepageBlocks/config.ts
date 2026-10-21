@@ -133,6 +133,12 @@ export const StatsBlock: Block = {
     fields: [
         introContent,
         {
+            name: 'showEvents',
+            type: 'checkbox',
+            label: 'Show events list',
+            defaultValue: true,
+        },
+        {
             name: 'stats',
             type: 'array',
             fields: [

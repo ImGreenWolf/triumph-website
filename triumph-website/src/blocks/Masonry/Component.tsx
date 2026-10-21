@@ -1,9 +1,5 @@
 'use client'
-import type { StaticImageData } from 'next/image'
-
-import { cn } from '@/utilities/ui'
 import React from 'react'
-import RichText from '@/components/RichText'
 
 import type { MasonryBlock as MasonryBlockProps } from '@/payload-types'
 
@@ -19,12 +15,13 @@ export const MasonryBlock: React.FC<Props> = (props) => {
   } = props
 
   return (
-    <div className='container flex h-auto'>
+    <div className='container min-w-0'>
       <Masonry
+      columnProps={[3, 3, 2, 2, 1]}
       animateFrom='random'
       colorShiftOnHover={true}
       items={
-        media.map((media, i) => {return (typeof media != 'string') ? {img: media.url!, caption: media.alt!, height: media.height!, width: media.width!, id: media.filename! || i.toFixed(), url: media.url!} : null}).filter((el) => el != null)
+        (media || []).map((media, i) => {return (media && typeof media === 'object' && media.url && media.mimeType?.startsWith('image/')) ? {img: media.url!, caption: media.alt!, height: media.height || 900, width: media.width || 1200, id: `${media.id || media.filename || i}-${i}`, url: media.url!} : null}).filter((el) => el != null)
       }
       />
     </div>

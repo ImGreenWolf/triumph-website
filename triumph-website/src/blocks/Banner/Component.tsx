@@ -12,7 +12,7 @@ export const BannerBlock: React.FC<Props> = ({ className, content, style }) => {
   return (
     <div className={cn('mx-auto my-8 w-full', className)}>
       <div
-        className={cn('border py-3 px-6 flex items-center rounded', {
+        className={cn('block-banner min-w-0 border px-5 py-5 text-base leading-7 flex items-center rounded-xl sm:px-6', {
           'border-border bg-card': style === 'info',
           'border-error bg-error/30': style === 'error',
           'border-success bg-success/30': style === 'success',

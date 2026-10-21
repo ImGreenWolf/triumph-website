@@ -17,6 +17,7 @@ import { FormBlock } from '../Form/config'
 import { LogoLoopBlock } from '../LogoLoop/config'
 import { MasonryBlock } from '../Masonry/config'
 import { MediaBlock } from '../MediaBlock/config'
+import { StatsBlock } from '../HomepageBlocks/config'
 
 const columnFields: Field[] = [
     {
@@ -65,6 +66,7 @@ const columnFields: Field[] = [
                             MediaBlock,
                             Archive,
                             FormBlock,
+                            StatsBlock,
                             MasonryBlock,
                             EventsBlock,
                             LogoLoopBlock,

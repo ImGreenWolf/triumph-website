@@ -16,7 +16,8 @@ import { BannerBlock } from '@/blocks/Banner/Component'
 import { CallToActionBlock } from '@/blocks/CallToAction/Component'
 import { CodeBlock } from '@/blocks/Code/Component'
 import { EventsBlock } from '@/blocks/EventsBlock/Component'
-import { FormBlock } from '@/blocks/Form/Component'
+import { EmbeddedFormBlock } from '@/blocks/Form/Embedded'
+import { StatsBlock } from '@/blocks/StatsBlock/Component'
 import { LogoLoopBlock } from '@/blocks/LogoLoop/Component'
 import { MasonryBlock } from '@/blocks/Masonry/Component'
 import type {
@@ -29,9 +30,11 @@ import type {
   LogoLoopBlock as LogoLoopBlockProps,
   MasonryBlock as MasonryBlockProps,
   MediaBlock as MediaBlockProps,
+  StatsBlock as StatsBlockProps,
 } from '@/payload-types'
 import { cn } from '@/utilities/ui'
 import { TypographyJSXConverters } from 'payload-lexical-typography/converters'
+import '@/blocks/blocks.css'
 
 type NodeTypes =
   | DefaultNodeTypes
@@ -45,6 +48,7 @@ type NodeTypes =
       | LogoLoopBlockProps
       | MasonryBlockProps
       | MediaBlockProps
+      | StatsBlockProps
     >
 
 const internalDocToHref = ({ linkNode }: { linkNode: SerializedLinkNode }) => {
@@ -72,7 +76,12 @@ const jsxConverters: JSXConvertersFunction<NodeTypes> = ({ defaultConverters }) 
     ),
     cta: ({ node }) => <CallToActionBlock {...node.fields} />,
     eventsBlock: ({ node }) => <EventsBlock {...node.fields} />,
-    formBlock: ({ node }) => <FormBlock {...(node.fields as React.ComponentProps<typeof FormBlock>)} />,
+    formBlock: ({ node }) => <EmbeddedFormBlock {...node.fields} />,
+    statsBlock: ({ node }) => (
+      <div className="cms-block cms-block--statsBlock not-prose my-8">
+        <StatsBlock {...node.fields} disableGutter />
+      </div>
+    ),
     logoLoopBlock: ({ node }) => <LogoLoopBlock {...node.fields} />,
     masonryBlock: ({ node }) => <MasonryBlock {...node.fields} />,
     mediaBlock: ({ node }) => (

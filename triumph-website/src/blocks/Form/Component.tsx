@@ -13,6 +13,7 @@ import { fields } from './fields'
 import { getClientSideURL } from '@/utilities/getURL'
 import { FormBlock as FormBlockProps } from '@/payload-types'
 import { Media } from '@/components/Media'
+import { cn } from '@/utilities/ui'
 
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './draftStorage'
 export type FormBlockType = {
@@ -26,10 +27,12 @@ export type FormBlockType = {
 export const FormBlock: React.FC<
   {
     id?: string
+    disableGutter?: boolean
     introMedia: FormBlockProps['introMedia']
   } & FormBlockType
 > = (props) => {
   const {
+    disableGutter = false,
     enableIntro,
     form: formFromProps,
     form: { id: formID, confirmationMessage, confirmationType, redirect, submitButtonLabel } = {},
@@ -271,39 +274,39 @@ export const FormBlock: React.FC<
   const hasIntro = enableIntro && introContent && !hasSubmitted
 
   return (
-    <section className="container py-12 sm:py-16">
+    <section className={cn('form-block @container min-w-0', !disableGutter && 'container')}>
       <div
         className={
           hasIntro
-            ? 'grid gap-8 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1fr)] lg:items-start'
+            ? 'grid gap-8 @4xl:grid-cols-[minmax(0,0.78fr)_minmax(0,1fr)] @4xl:items-start'
             : 'mx-auto max-w-3xl'
         }
       >
         {hasIntro && (
-          <div className="lg:sticky lg:top-28 flex flex-col gap-4">
+          <div className="@4xl:sticky @4xl:top-28 flex min-w-0 flex-col gap-4">
             {introMedia && <Media resource={introMedia} imgClassName="rounded-lg" />}
             <RichText
-              className="max-w-2xl rounded-lg border border-border bg-card/70 p-5 shadow-sm sm:p-6"
+              className="block-intro max-w-2xl pt-4"
               data={introContent}
               enableGutter={false}
             />
           </div>
         )}
 
-        <div className="rounded-lg border border-border bg-card text-card-foreground shadow-xl shadow-black/5">
-          <div className="border-b border-border px-5 py-5 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="min-w-0 rounded-xl border border-foreground/15 bg-card text-card-foreground">
+          <div className="rounded-t-xl bg-accent px-5 py-7 text-background sm:px-8 sm:py-8">
+            <p className="text-xs font-semibold uppercase tracking-wide text-background/80">
               Formular
             </p>
-            <h2 className="mt-2 text-2xl font-semibold leading-tight">{formFromProps.title}</h2>
+            <h2 className="mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{formFromProps.title}</h2>
           </div>
 
           <div className="p-5 sm:p-6">
             <FormProvider {...formMethods}>
               {!isLoading && hasSubmitted && confirmationType === 'message' && (
-                <div className="rounded-md border border-emerald-500/25 bg-emerald-500/10 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-600">
-                    <CheckCircle2 className="size-4" />
+                <div role="status" className="block-form-success rounded-md border border-emerald-500/25 bg-emerald-500/10 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-300">
+                    <CheckCircle2 aria-hidden className="block-success-mark size-4" />
                     Trimis
                   </div>
                   <RichText data={confirmationMessage} enableGutter={false} />
@@ -311,21 +314,21 @@ export const FormBlock: React.FC<
               )}
 
               {isLoading && !hasSubmitted && (
-                <div className="flex min-h-40 items-center justify-center rounded-md border border-border bg-sidebar/40 text-sm font-semibold text-muted-foreground">
-                  <LoaderCircle className="mr-2 size-4 animate-spin text-accent" />
+                <div role="status" className="flex min-h-40 items-center justify-center rounded-md border border-border bg-sidebar/40 text-sm font-semibold text-card-foreground/90">
+                  <LoaderCircle aria-hidden className="mr-2 size-4 animate-spin text-accent" />
                   Se trimite...
                 </div>
               )}
 
               {error && (
-                <div className="mb-5 flex items-start gap-3 rounded-md border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-600">
-                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                <div role="alert" className="mb-5 flex items-start gap-3 rounded-md border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-300">
+                  <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0" />
                   <span>{`${error.status || '500'}: ${error.message || ''}`}</span>
                 </div>
               )}
 
               {recruitmentWindow?.isRecruitmentForm && !recruitmentWindow.isOpen && (
-                <div className="rounded-md border border-amber-500/25 bg-amber-500/10 p-4 text-sm font-semibold text-amber-800">
+                <div className="rounded-md border border-amber-500/25 bg-amber-500/10 p-4 text-sm font-semibold text-amber-200">
                   {recruitmentWindow.message}
                 </div>
               )}
@@ -334,7 +337,7 @@ export const FormBlock: React.FC<
                 !hasSubmitted &&
                 !(recruitmentWindow?.isRecruitmentForm && !recruitmentWindow.isOpen) && (
                   <form id={formID} onSubmit={handleSubmit(onSubmit)}>
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-12">
+                    <div className="grid grid-cols-1 gap-5 @2xl:grid-cols-12">
                       {formFromProps.fields?.map((field, index) => {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const Field: React.FC<any> =
@@ -359,7 +362,7 @@ export const FormBlock: React.FC<
                     <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
                       {isRecruitmentForm && <DraftStatus status={draftStatus} />}
                       <Button
-                        className="h-11 min-w-36 px-5"
+                        className="min-h-14 w-full min-w-36 bg-accent px-6 text-base font-semibold text-background hover:bg-accent/90 sm:w-auto"
                         disabled={isLoading}
                         form={formID}
                         type="submit"
@@ -411,7 +414,7 @@ function DraftStatus(props: { status: 'error' | 'idle' | 'saved' | 'saving' }) {
 
   if (props.status === 'saving') {
     return (
-      <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground">
+      <span className="inline-flex items-center gap-2 text-sm font-medium text-card-foreground/90">
         <LoaderCircle className="size-4 animate-spin" />
         Se salvează ciorna...
       </span>
@@ -420,7 +423,7 @@ function DraftStatus(props: { status: 'error' | 'idle' | 'saved' | 'saving' }) {
 
   if (props.status === 'saved') {
     return (
-      <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600">
+      <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-300">
         <CheckCircle2 className="size-4" />
         Ciornă salvată pe acest dispozitiv
       </span>
@@ -428,7 +431,7 @@ function DraftStatus(props: { status: 'error' | 'idle' | 'saved' | 'saving' }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-2 text-sm font-medium text-red-600">
+    <span className="inline-flex items-center gap-2 text-sm font-medium text-red-300">
       <AlertCircle className="size-4" />
       Ciorna nu a putut fi salvată
     </span>

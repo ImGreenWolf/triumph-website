@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Media } from '@/components/Media'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
-import RichText from '@/components/RichText'
+import RichText from '@/components/RichText/server'
 import { EventHero } from '@/heros/EventHero'
 import type { Event, GalleryPhoto, Media as MediaType, User } from '@/payload-types'
 import {

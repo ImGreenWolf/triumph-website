@@ -1,24 +1,21 @@
-import { cn } from '@/utilities/ui'
 import React from 'react'
+
 import ServerRichText from '@/components/RichText/server'
-
-import type { FullWidthBlock as FullWidthBlockProps } from '@/payload-types'
-
-import { CMSLink } from '../../components/Link'
 import { Media } from '@/components/Media'
+import type { FullWidthBlock as FullWidthBlockProps } from '@/payload-types'
+import { cn } from '@/utilities/ui'
 
-export const FullWidthBlock: React.FC<FullWidthBlockProps> = (props) => {
-  const { content,media } = props
+export const FullWidthBlock: React.FC<FullWidthBlockProps> = ({ content, media }) => {
+  const image = media && typeof media === 'object' && media.url ? media : null
 
   return (
-    <div className="relative w-full my-32 min-h-200 grid lg:grid-cols-2 p-0 text-card! flex flex-col">
-      <div className="relative z-2">
-        <div className='h-full lg:rounded-e-[20] not-lg:rounded-t-[20] bg-primary lg:bg-primary/80 backdrop-blur-xl shadow-xl lg:-mr-10 not-lg:-mt-10 not-lg:mb-10 shadow-lg p-8 border-[#0194ce]/30 lg:border-r-1'>
-        <ServerRichText enableProse={false} enableGutter={false} className='z-1 px-8 relative lg:text-xl ' data={content}/>
-        </div>
+    <section className="relative isolate grid w-full lg:min-h-[40rem] lg:grid-cols-2">
+      {image && (
+        <Media className="relative aspect-[4/3] lg:absolute lg:inset-0 lg:aspect-auto" resource={image} fill imgClassName="object-cover" size="100vw" />
+      )}
+      <div className={cn('relative bg-primary px-5 py-10 text-primary-foreground sm:px-8 sm:py-12 lg:m-8 lg:rounded-xl lg:p-12', !image && 'lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-5xl')}>
+        <ServerRichText enableProse={false} enableGutter={false} className="block-intro relative max-w-prose" data={content} />
       </div>
-      <Media className='not-lg:order-first lg:absolute inset-0 lg:my-10' imgClassName='object-cover h-full' resource={media}/>
-      
-    </div>
+    </section>
   )
 }

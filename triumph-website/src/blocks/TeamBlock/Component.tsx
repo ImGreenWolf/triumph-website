@@ -4,11 +4,12 @@ import React from 'react'
 import type { TeamBlock as TeamBlockProps } from '@/payload-types'
 
 import Card from './MemberCard'
-import { motion, type Variants } from 'framer-motion'
+import { motion, useReducedMotion, type Variants } from 'framer-motion'
 
 
 export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
   const { mandates } = props
+  const reducedMotion = useReducedMotion()
 
 
   const mainVariants = {
@@ -32,9 +33,9 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
   } satisfies Variants
 
 
-  
+
   return (
-    <div className="relative overflow-hidden bg-position-[50%50%] bg-size-[4200] text-white">
+    <div className="relative overflow-hidden text-foreground">
       <div className="flex flex-col gap-20 md:gap-28">
         {mandates?.map((mandate, i) => {
           const isFourCols =
@@ -45,6 +46,7 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
             <div key={i} className="relative">
               {/* Background Year */}
               <div
+                aria-hidden="true"
                 className="
                   pointer-events-none absolute bottom-0 right-0
                   text-right font-bold leading-none text-card
@@ -62,27 +64,27 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
               <div className="container mx-auto relative z-10 px-4">
                 {/* Heading */}
                 <h2 className="mb-10 text-center">
-                  <div className="text-base font-bold sm:text-xl">
+                  <span className="block text-base font-medium sm:text-xl">
                     {i === 0 ? 'Meet the board' : 'Mandatul'}
-                  </div>
+                  </span>
 
-                  <div className="text-3xl font-bold text-accent sm:text-4xl md:text-6xl">
+                  <span className="mt-3 block text-3xl font-semibold text-accent sm:text-4xl md:text-5xl">
                     “{mandate.year} - {(mandate.year || 2026) + 1}”
-                  </div>
+                  </span>
                 </h2>
 
                 {/* Members Grid */}
-                <motion.main
+                <motion.div
                   className={`
-                    mx-auto grid justify-items-center gap-2
+                    team-members mx-auto grid justify-items-center gap-4
                     perspective-midrange
-                    not-sm:grid-cols-2!
+
                   `}
-                  style={{gridTemplateColumns: `repeat(${mandate.columns}, 1fr)`}}
+                  style={{ '--team-columns': Math.min(5, Math.max(1, mandate.columns || 3)) } as React.CSSProperties}
                   variants={mainVariants}
-                  initial="hidden"
+                  initial={false}
                   viewport={{ once: true, amount: 0.2 }}
-                  whileInView="visible"
+                  whileInView={reducedMotion ? undefined : "visible"}
                 >
                   {mandate.members?.map((member, memberIndex) => {
 	                    return (
@@ -96,7 +98,7 @@ export const TeamBlock: React.FC<TeamBlockProps> = (props) => {
 	                      /> : <div key={member.id || memberIndex}></div>
                     )
                   })}
-                </motion.main>
+                </motion.div>
 
                 {/* Footer */}
                 {/* <h2 className="m-6 text-center prose-xl">

@@ -22,7 +22,7 @@ const AccordionGallery = ({
   gap = 10,
   radius = 16,
   expandRatio = 0.52,
-  orientation = 'horizontal',
+  orientation = 'auto',
   duration = 0.6,
   ease = 'power3.out',
   parallax = 0.5,
@@ -41,20 +41,20 @@ const AccordionGallery = ({
   const tlRef = useRef(null);
   const firstRunRef = useRef(true);
   const mediaSizeRef = useRef(320);
+  const layoutRef = useRef(null);
 
-  const vertical = orientation === 'vertical';
   const count = items.length;
   const [active, setActive] = useState(Math.min(Math.max(defaultIndex, 0), count - 1));
-
-  const prefersReduced =
-    typeof window !== 'undefined' && window.matchMedia
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      : false;
 
   const applyLayout = useCallback(
     animate => {
       const panels = panelRefs.current;
-      if (!panels.length) return;
+      const root = rootRef.current;
+      if (!panels.length || !root) return;
+
+      // CSS owns the responsive axis, including the initial server-rendered layout.
+      const vertical = getComputedStyle(root).flexDirection === 'column';
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       const r = Math.min(Math.max(expandRatio, 0.2), 0.9);
       const grow = count > 1 ? (r * (count - 1)) / (1 - r) : 1;
@@ -71,14 +71,20 @@ const AccordionGallery = ({
         const bar = barRefs.current[i];
         const text = textRefs.current[i];
 
-        const rot = isActive ? 0 : i < active ? tilt : -tilt;
-        const rotProp = vertical ? { rotateX: -rot } : { rotateY: rot };
+        const rot = isActive || prefersReduced || (orientation === 'auto' && vertical)
+          ? 0 : i < active ? tilt : -tilt;
 
-        tl.to(panel, { flexGrow: isActive ? grow : 1, ...rotProp, duration: dur, ease }, 0);
+        tl.to(panel, {
+          flexGrow: isActive ? grow : 1,
+          rotateX: vertical ? -rot : 0,
+          rotateY: vertical ? 0 : rot,
+          duration: dur,
+          ease
+        }, 0);
 
         if (media) {
           const drift = Math.max(-1.5, Math.min(1.5, active - i));
-          const shift = drift * parallax * mediaSize * 0.06;
+          const shift = prefersReduced ? 0 : drift * parallax * mediaSize * 0.06;
           const gray = grayscale ? (isActive ? 0 : 1) : 0;
           tl.to(
             media,
@@ -98,13 +104,14 @@ const AccordionGallery = ({
 
         if (showLabels && bar && text) {
           if (isActive) {
-            tl.to([bar, text], { opacity: 1, x: 0, duration: dur, ease, stagger: prefersReduced ? 0 : stagger }, 0);
+            tl.to([bar, text], { opacity: 1, x: 0, duration: dur, ease, stagger: dur ? stagger : 0 }, 0);
           } else {
             tl.to([bar, text], { opacity: 0, x: -14, duration: dur * 0.6, ease }, 0);
           }
         }
       });
 
+      if (!dur) tl.progress(1);
       tlRef.current = tl;
     },
     [
@@ -113,15 +120,20 @@ const AccordionGallery = ({
       expandRatio,
       duration,
       ease,
-      vertical,
+      orientation,
       tilt,
       parallax,
       grayscale,
       showLabels,
-      stagger,
-      prefersReduced
+      stagger
     ]
   );
+
+  useEffect(() => {
+    layoutRef.current = applyLayout;
+    applyLayout(!firstRunRef.current);
+    firstRunRef.current = false;
+  }, [applyLayout]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -129,24 +141,29 @@ const AccordionGallery = ({
 
     const measure = () => {
       const rect = el.getBoundingClientRect();
+      const vertical = getComputedStyle(el).flexDirection === 'column';
       const total = vertical ? rect.height : rect.width;
-      const usable = Math.max(total - gap * (count - 1), 120);
+      const actualGap = parseFloat(getComputedStyle(el).gap) || 0;
+      const usable = Math.max(total - actualGap * (count - 1), 120);
       const size = Math.max(140, usable * Math.min(Math.max(expandRatio, 0.2), 0.9) * 1.22);
       mediaSizeRef.current = size;
       el.style.setProperty('--ag-media-size', `${size}px`);
-      applyLayout(!firstRunRef.current);
+      layoutRef.current?.(false);
     };
 
     measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [applyLayout, gap, count, expandRatio, vertical]);
-
-  useEffect(() => {
-    applyLayout(!firstRunRef.current);
-    firstRunRef.current = false;
-  }, [applyLayout]);
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    ro?.observe(el);
+    // Also catches breakpoint changes inside a fixed-width parent.
+    window.addEventListener('resize', measure);
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    preference.addEventListener('change', measure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', measure);
+      preference.removeEventListener('change', measure);
+    };
+  }, [gap, count, expandRatio, orientation, height]);
 
   useEffect(
     () => () => {
@@ -169,31 +186,39 @@ const AccordionGallery = ({
   const handleKeyDown = (i, e) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
-      setActive((i + 1) % count);
+      const next = (i + 1) % count;
+      setActive(next);
+      panelRefs.current[next]?.focus();
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
       e.preventDefault();
-      setActive((i - 1 + count) % count);
+      const next = (i - 1 + count) % count;
+      setActive(next);
+      panelRefs.current[next]?.focus();
     }
   };
+
+  if (!count) return null;
 
   return (
     <div
       ref={rootRef}
-      className={`accordion-gallery${vertical ? ' accordion-gallery--vertical' : ''}${className ? ` ${className}` : ''}`}
+      className={`accordion-gallery accordion-gallery--${orientation}${className ? ` ${className}` : ''}`}
       style={{
         '--ag-accent': accentColor,
         '--ag-overlay': overlayColor,
         '--ag-text': textColor,
         '--ag-gap': `${gap}px`,
         '--ag-radius': `${radius}px`,
-        height: vertical ? `${Math.round(height * 1.6)}px` : `${height}px`
+        '--ag-height': `${height}px`,
+        '--ag-vertical-height': `${Math.round(height * 1.6)}px`,
+        '--ag-compact-height': `${Math.max(Math.min(height, 560), 180 + Math.max(0, count - 1) * (44 + gap))}px`
       }}
-      role="list"
-      aria-label="Image accordion gallery"
+      role="group"
+      aria-label="Galerie foto"
     >
       {items.map((item, i) => {
         const isActive = i === active;
-        const Tag = item.link ? 'a' : 'div';
+        const Tag = item.link ? 'a' : 'button';
         return (
           <Tag
             key={i}
@@ -201,18 +226,18 @@ const AccordionGallery = ({
             className={`ag-panel${isActive ? ' ag-panel--active' : ''}`}
             style={{ borderRadius: `${radius}px` }}
             href={item.link || undefined}
+            type={item.link ? undefined : 'button'}
             onClick={e => handleClick(i, e)}
             onMouseEnter={() => handleEnter(i)}
             onFocus={() => setActive(i)}
             onKeyDown={e => handleKeyDown(i, e)}
-            role="listitem"
             tabIndex={0}
             aria-current={isActive ? 'true' : undefined}
             aria-label={item.label}
           >
             <span className="ag-panel__frame">
               <span className="ag-panel__media" ref={el => (mediaRefs.current[i] = el)}>
-                <img src={item.image} alt={item.alt || item.label || ''} draggable="false" />
+                <img loading="lazy" src={item.image} alt={item.alt || item.label || ''} draggable="false" />
               </span>
               <span className="ag-panel__overlay" aria-hidden="true" />
             </span>

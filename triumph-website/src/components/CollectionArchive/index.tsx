@@ -15,12 +15,12 @@ export const CollectionArchive: React.FC<Props> = (props) => {
     <div className={cn('container')}>
       <div>
         {/* <div className="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-12 gap-y-4 gap-x-4 lg:gap-y-8 lg:gap-x-8 xl:gap-x-8"> */}
-        <div className="flex flex-wrap gap-y-4 gap-x-4 lg:gap-y-8 lg:gap-x-8 xl:gap-x-8">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7">
 
           {posts?.map((result, index) => {
             if (typeof result === 'object' && result !== null) {
               return (
-                <div className="col-span-3 aspect-4/5 max-w-100" key={index}>
+                <div className="min-w-0" key={index}>
                   <Card className="h-full" doc={result} relationTo={relationTo} showCategories />
                 </div>
               )

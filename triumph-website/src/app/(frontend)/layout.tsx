@@ -67,7 +67,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html
-      className={cn(poppinsFont.variable, GeistMono.variable, poppinsFont.className)}
+      className={cn(
+        poppinsFont.variable,
+        GeistMono.variable,
+        poppinsFont.className,
+        'overscroll-y-none',
+      )}
       lang="en"
       suppressHydrationWarning
     >
@@ -76,7 +81,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link href={icoUrl || '/favicon.ico'} rel="icon" sizes="32x32" />
         {/* {svgUrl && <link href={svgUrl || '/favicon.svg'} rel="icon" type="image/svg+xml" />} */}
       </head>
-      <body suppressHydrationWarning>
+      <body className="isolate overscroll-y-none" suppressHydrationWarning>
         <GoogleAnalytics />
         <Providers siteConfig={siteConfig}>
           {/* <AdminBar
@@ -87,8 +92,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             }}
           /> */}
 
-          <Header />
-          {children}
+          <div className="relative z-10 min-h-svh shrink-0 bg-background [background-image:inherit] [background-size:inherit]">
+            <Header />
+            {children}
+          </div>
           <Footer />
         </Providers>
       </body>
@@ -104,4 +111,3 @@ export const metadata: Metadata = {
     creator: '@payloadcms',
   },
 }
-

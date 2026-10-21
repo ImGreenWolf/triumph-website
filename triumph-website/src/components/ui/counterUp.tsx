@@ -1,5 +1,5 @@
 'use client'
-import { useInView, useMotionValue, useSpring } from 'motion/react';
+import { useInView, useMotionValue, useSpring, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useRef } from 'react';
 
 interface CountUpProps {
@@ -28,6 +28,7 @@ export default function CountUp({
   onEnd
 }: CountUpProps) {
   const ref = useRef<HTMLSpanElement>(null);
+  const reducedMotion = useReducedMotion();
   const motionValue = useMotionValue(direction === 'down' ? to : from);
 
   const damping = 20 + 40 * (1 / duration);
@@ -72,11 +73,12 @@ export default function CountUp({
 
   useEffect(() => {
     if (ref.current) {
-      ref.current.textContent = formatValue(direction === 'down' ? to : from);
+      ref.current.textContent = formatValue(reducedMotion ? to : direction === 'down' ? to : from);
     }
-  }, [from, to, direction, formatValue]);
+  }, [from, to, direction, formatValue, reducedMotion]);
 
   useEffect(() => {
+    if (reducedMotion) return;
     if (isInView && startWhen) {
       if (typeof onStart === 'function') {
         onStart();
@@ -100,9 +102,10 @@ export default function CountUp({
         clearTimeout(durationTimeoutId);
       };
     }
-  }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart, onEnd, duration]);
+  }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart, onEnd, duration, reducedMotion]);
 
   useEffect(() => {
+    if (reducedMotion) return;
     const unsubscribe = springValue.on('change', (latest: number) => {
       if (ref.current) {
         ref.current.textContent = formatValue(latest);
@@ -110,7 +113,18 @@ export default function CountUp({
     });
 
     return () => unsubscribe();
-  }, [springValue, formatValue]);
+  }, [springValue, formatValue, reducedMotion]);
 
-  return <span className={className} ref={ref} />;
+  return (
+    <span className={`relative inline-grid whitespace-nowrap ${className}`}>
+      {/* Reserve both endpoints at their widest digit width throughout the count. */}
+      {[from, to].map((value, index) => (
+        <span aria-hidden className="invisible col-start-1 row-start-1" key={index}>
+          {formatValue(value).replace(/\d/g, '8')}
+        </span>
+      ))}
+      <span aria-hidden className="absolute inset-0" ref={ref}>{formatValue(to)}</span>
+      <span className="sr-only">{formatValue(to)}</span>
+    </span>
+  );
 }

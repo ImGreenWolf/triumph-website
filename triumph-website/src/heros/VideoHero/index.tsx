@@ -37,8 +37,8 @@ function Title({ title }: { title: Page['hero']['title'] }) {
           priority
           resource={title.media}
           htmlElement="h1"
-          className="mx-auto w-full max-w-100"
-          imgClassName="mx-auto max-h-[min(35svh,20rem)] w-auto max-w-full object-contain"
+          className="mx-auto w-full max-w-300"
+          imgClassName="mx-auto w-auto max-w-full object-contain"
         />
       ) : null}
     </>

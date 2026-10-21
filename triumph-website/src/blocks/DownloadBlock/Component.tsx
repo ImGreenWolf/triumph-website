@@ -1,44 +1,26 @@
-// components/blocks/DownloadFilesBlock.tsx
+import React from 'react'
+import { Download, FileText } from 'lucide-react'
 
-type FileItem = {
-  label?: string
-  file: {
-    url: string
-    filename: string
-  }
-}
+import type { DownloadFilesBlock as DownloadFilesBlockType } from '@/payload-types'
 
-type Props = {
-  title?: string
-  description?: string
-  files: FileItem[]
-}
-
-import { DownloadFilesBlock  as DownloadFilesBlockType } from "@/payload-types"
-
-export const DownloadFilesBlock: React.FC<DownloadFilesBlockType> = (props) => {
-  const {title, description, files} = props;
-    return (
-    <section className="container">
-      {title && <h2>{title}</h2>}
-      {description && <p>{description}</p>}
-
-      <ul className="flex flex-col gap-2">
-        {files.filter(item => typeof item.file === 'object').map((item, index) => (
-            typeof item.file == 'object' ?
-             <a href={item.file.url!} download className="text-accent underline">
-              {item.label || item.file.filename}
-            </a>
-
-            :
-
-          <li key={index}>
-            <a href={item.file} download className="text-accent underline">
-              {item.label || item.file}
+export const DownloadFilesBlock: React.FC<DownloadFilesBlockType> = ({ title, description, files }) => (
+  <section className="container">
+    {title && <h2 className="block-title max-w-4xl text-balance text-3xl font-bold leading-tight tracking-tight md:text-5xl">{title}</h2>}
+    {description && <p className="mt-4 max-w-prose text-base leading-7 text-foreground/80">{description}</p>}
+    <ul className="mt-10 grid border-t border-foreground/25">
+      {files?.map((item, index) => {
+        const file = typeof item.file === 'object' ? item.file : null
+        if (!file?.url) return null
+        return (
+          <li key={item.id || index}>
+            <a className="group flex min-h-24 items-center gap-4 border-b border-foreground/25 py-6 text-foreground transition-colors hover:bg-card/30 sm:gap-6 sm:px-4" download href={file.url}>
+              <FileText aria-hidden className="size-5 shrink-0 text-accent" />
+              <span className="min-w-0 flex-1 text-xl font-semibold sm:text-2xl">{item.label || file.filename}</span>
+              <Download aria-hidden className="size-7 shrink-0 text-accent" />
             </a>
           </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
+        )
+      })}
+    </ul>
+  </section>
+)

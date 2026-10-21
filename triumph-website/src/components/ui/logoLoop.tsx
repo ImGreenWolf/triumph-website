@@ -1,5 +1,7 @@
 'use client'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pause, Play } from 'lucide-react';
+import { observeMotionActivity } from '@/utilities/observeMotionActivity';
 
 export type LogoItem =
   | {
@@ -117,13 +119,15 @@ const useImageLoader = (
 };
 
 const useAnimationLoop = (
+  containerRef: React.RefObject<HTMLDivElement | null>,
   trackRef: React.RefObject<HTMLDivElement | null>,
   targetVelocity: number,
   seqWidth: number,
   seqHeight: number,
   isHovered: boolean,
   hoverSpeed: number | undefined,
-  isVertical: boolean
+  isVertical: boolean,
+  paused: boolean,
 ) => {
   const rafRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
@@ -132,12 +136,8 @@ const useAnimationLoop = (
 
   useEffect(() => {
     const track = trackRef.current;
-    if (!track) return;
-
-    const prefersReduced =
-      typeof window !== 'undefined' &&
-      window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const container = containerRef.current;
+    if (!track || !container) return;
 
     const seqSize = isVertical ? seqHeight : seqWidth;
 
@@ -147,13 +147,6 @@ const useAnimationLoop = (
         ? `translate3d(0, ${-offsetRef.current}px, 0)`
         : `translate3d(${-offsetRef.current}px, 0, 0)`;
       track.style.transform = transformValue;
-    }
-
-    if (prefersReduced) {
-      track.style.transform = isVertical ? 'translate3d(0, 0, 0)' : 'translate3d(0, 0, 0)';
-      return () => {
-        lastTimestampRef.current = null;
-      };
     }
 
     const animate = (timestamp: number) => {
@@ -183,16 +176,23 @@ const useAnimationLoop = (
       rafRef.current = requestAnimationFrame(animate);
     };
 
-    rafRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
+    const stopFrames = () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
       lastTimestampRef.current = null;
     };
-  }, [targetVelocity, seqWidth, seqHeight, isHovered, hoverSpeed, isVertical]);
+    const stop = observeMotionActivity(container, active => {
+      stopFrames();
+      if (active && !paused && seqSize > 0 && targetVelocity !== 0) {
+        rafRef.current = requestAnimationFrame(animate);
+      }
+    }, { pauseOnInteraction: hoverSpeed === 0 });
+
+    return () => {
+      stop();
+      stopFrames();
+    };
+  }, [containerRef, trackRef, targetVelocity, seqWidth, seqHeight, isHovered, hoverSpeed, isVertical, paused]);
 };
 
 export const LogoLoop = React.memo<LogoLoopProps>(
@@ -221,6 +221,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
     const [seqHeight, setSeqHeight] = useState<number>(0);
     const [copyCount, setCopyCount] = useState<number>(ANIMATION_CONFIG.MIN_COPIES);
     const [isHovered, setIsHovered] = useState<boolean>(false);
+    const [isPaused, setIsPaused] = useState(false);
 
     const effectiveHoverSpeed = useMemo(() => {
       if (hoverSpeed !== undefined) return hoverSpeed;
@@ -272,7 +273,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
 
     useImageLoader(seqRef, updateDimensions, [logos, gap, logoHeight, isVertical]);
 
-    useAnimationLoop(trackRef, targetVelocity, seqWidth, seqHeight, isHovered, effectiveHoverSpeed, isVertical);
+    useAnimationLoop(containerRef, trackRef, targetVelocity, seqWidth, seqHeight, isHovered, effectiveHoverSpeed, isVertical, isPaused);
 
     const cssVariables = useMemo(
       () =>
@@ -287,7 +288,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
     const rootClasses = useMemo(
       () =>
         cx(
-          'relative group',
+          'logo-loop relative group',
           isVertical ? 'overflow-hidden h-full inline-block' : 'overflow-x-hidden',
           '[--logoloop-gap:32px]',
           '[--logoloop-logoHeight:28px]',
@@ -409,6 +410,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
             key={`copy-${copyIndex}`}
             role="list"
             aria-hidden={copyIndex > 0}
+            inert={copyIndex > 0}
             ref={copyIndex === 0 ? seqRef : undefined}
           >
             {logos.map((item, itemIndex) => renderLogoItem(item, `${copyIndex}-${itemIndex}`))}
@@ -431,7 +433,8 @@ export const LogoLoop = React.memo<LogoLoopProps>(
     );
 
     return (
-      <div ref={containerRef} className={rootClasses} style={containerStyle} role="region" aria-label={ariaLabel}>
+      <>
+      <div ref={containerRef} className={rootClasses} style={containerStyle} role="region" aria-label={ariaLabel} tabIndex={0}>
         {fadeOut && (
           <>
             {isVertical ? (
@@ -478,7 +481,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
 
         <div
           className={cx(
-            'flex will-change-transform select-none relative z-0',
+            'logo-loop-track flex select-none relative z-0',
             'motion-reduce:transform-none',
             isVertical ? 'flex-col h-max w-full' : 'flex-row w-max'
           )}
@@ -489,6 +492,11 @@ export const LogoLoop = React.memo<LogoLoopProps>(
           {logoLists}
         </div>
       </div>
+      {speed !== 0 && <button type="button" className="block-loop-control" aria-label={isPaused ? 'Pornește mișcarea partenerilor' : 'Oprește mișcarea partenerilor'} aria-pressed={isPaused} onClick={() => setIsPaused(value => !value)}>
+        {isPaused ? <Play aria-hidden size={16} /> : <Pause aria-hidden size={16} />}
+        {isPaused ? 'Pornește mișcarea' : 'Oprește mișcarea'}
+      </button>}
+      </>
     );
   }
 );

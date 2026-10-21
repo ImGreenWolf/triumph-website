@@ -170,10 +170,10 @@ export const GallerySlideshow: React.FC<GallerySlideshowProps> = ({
         {isAutoPlaying && totalSlides > 1 && (
           <div className="absolute -bottom-2 left-0 right-0 h-1 bg-white/30 rounded-full ">
             <div 
-              className="h-full bg-gradient-to-r from-[#0194ce] to-[#f7a81b] rounded-full transition-all duration-100 linear"
+              className="h-full w-full origin-left bg-gradient-to-r from-[#0194ce] to-[#f7a81b] rounded-full transition-transform ease-linear motion-reduce:transition-none"
               style={{ 
-                width: `${((currentIndex + 1) / totalSlides) * 100}%`,
-                transition: `width ${autoPlayInterval}ms linear`
+                transform: `scaleX(${(currentIndex + 1) / totalSlides})`,
+                transitionDuration: `${autoPlayInterval}ms`
               }}
             />
           </div>

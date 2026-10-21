@@ -11,6 +11,6 @@ type Props = {
 
 export const TextLoopBlock: React.FC<TextLoopProps> = ({ color, textColor, curviness, fontSize, separator, text, width  }) => {
   return (
-    <TextLoop className='-my-24 lg:-my-32 xl:-my-64' pauseOnHover={false} ribbonColor={color} color={textColor} curviness={curviness} fontSize={fontSize} separator={separator} text={text} ribbonWidth={width}/>
+    <TextLoop className=' flex w-full '  pauseOnHover={false} ribbonColor={color} color={textColor} curviness={curviness} fontSize={fontSize} separator={separator} text={text} ribbonWidth={width}/>
   )
 }

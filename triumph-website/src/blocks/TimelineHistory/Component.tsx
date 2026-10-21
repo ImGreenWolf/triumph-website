@@ -1,15 +1,11 @@
-import {EventTimeline} from '@/components/ui/TimelineComponent'
-import { Block } from 'payload'
+import React from 'react'
+import { EventTimeline } from '@/components/ui/TimelineComponent'
+import type { EventTimelineBlock } from '@/payload-types'
 
-export const TimelineBlock: React.FC<Block> = ({}) => {
-  return (
-    <section className="container">
-      
+const accents = { blue: '#72d8ff', royal: '#9cc5ff', gold: 'var(--accent)' }
 
-      <EventTimeline
-      
-        
-      />
-    </section>
-  )
-}
+export const TimelineBlock: React.FC<EventTimelineBlock> = ({ title, subtitle, layout, limit, showPastYears, showStatistics, accentColor, customAccentColor }) => (
+  <section className="container">
+    <EventTimeline title={title ?? undefined} subtitle={subtitle ?? undefined} layout={layout ?? undefined} limit={limit ?? undefined} showPastYears={showPastYears ?? undefined} showStatistics={showStatistics ?? undefined} accentColor={customAccentColor || accents[accentColor || 'blue']} />
+  </section>
+)

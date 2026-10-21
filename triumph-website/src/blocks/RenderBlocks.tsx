@@ -33,10 +33,8 @@ import { FAQBlock } from './FAQBlock/Component'
 import { TextLoopBlock } from './TextLoop/Component'
 import { AccordionGallery } from './AccordionGallery/Component'
 import { ScrollingGallery } from './ScrollingGallery/Component'
+import './blocks.css'
 import * as motion from 'motion/react-client'
-import { stagger } from 'framer-motion'
-
-
 const blockComponents: Partial<
   Record<Page['layout'][number]['blockType'], React.ComponentType<any>>
 > = {
@@ -82,6 +80,7 @@ export const RenderBlocks: React.FC<{
       <Fragment>
         {blocks.map((block, index) => {
           const { blockType } = block
+          const compactSpacing = blockType === 'statsBlock' || blockType === 'eventsBlock'
 
           if (blockType && blockType in blockComponents) {
             const Block = blockComponents[blockType]
@@ -89,11 +88,13 @@ export const RenderBlocks: React.FC<{
             if (Block) {
               return (
                 <motion.div
-                initial={{opacity: 0}}
-                whileInView={{opacity: 1}}
-                viewport={{ once: true, amount: 'some' }}
-                  transition={{ duration: 0.6, ease: 'anticipate', }}
-                className="my-16" key={index}>
+                 className={`cms-block cms-block--${blockType} ${blockType === 'textLoop' ? 'my-0' : compactSpacing ? 'my-10 sm:my-12 lg:my-16' : 'my-16 sm:my-20 lg:my-24'}`} key={block.id || index}
+                 initial={{opacity:0, filter: 'blur(16px)'}}
+                 whileInView={{opacity: 1, filter: 'blur(0)'}}
+                  viewport={{once: true, amount: 'some'}}
+                  transition={{duration: 0.5}}
+                 >
+
                   <Block {...block} disableInnerContainer />
                 </motion.div>
               )

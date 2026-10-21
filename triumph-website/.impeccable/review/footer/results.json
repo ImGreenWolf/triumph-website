@@ -1,0 +1,812 @@
+[
+  {
+    "width": 1440,
+    "viewportHeight": 1000,
+    "reducedMotion": "no-preference",
+    "shouldReveal": true,
+    "partial": {
+      "height": 749.96875,
+      "top": 899.625,
+      "bottom": 1649.59375,
+      "panelTop": 250.03125,
+      "panelBottom": 1000,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 749.96875,
+      "top": 249.625,
+      "bottom": 999.59375,
+      "panelTop": 250.03125,
+      "panelBottom": 1000,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 912.625,
+      "bottom": 999.796875,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 51
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 51
+      },
+      {
+        "text": "Evenimente",
+        "height": 51
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 51
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "viewportHeight": 1000,
+    "reducedMotion": "reduce",
+    "shouldReveal": false,
+    "partial": {
+      "height": 749.96875,
+      "top": 899.625,
+      "bottom": 1649.59375,
+      "panelTop": 899.625,
+      "panelBottom": 1649.59375,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 749.96875,
+      "top": 249.625,
+      "bottom": 999.59375,
+      "panelTop": 249.625,
+      "panelBottom": 999.59375,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 912.625,
+      "bottom": 999.796875,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 51
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 51
+      },
+      {
+        "text": "Evenimente",
+        "height": 51
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 51
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 768,
+    "viewportHeight": 1024,
+    "reducedMotion": "no-preference",
+    "shouldReveal": true,
+    "partial": {
+      "height": 586.484375,
+      "top": 924.09375,
+      "bottom": 1510.578125,
+      "panelTop": 437.515625,
+      "panelBottom": 1024,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 586.484375,
+      "top": 437.09375,
+      "bottom": 1023.578125,
+      "panelTop": 437.515625,
+      "panelBottom": 1024,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 914.09375,
+      "bottom": 1001.265625,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 45
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 45
+      },
+      {
+        "text": "Evenimente",
+        "height": 45
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 45
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 768,
+    "viewportHeight": 1024,
+    "reducedMotion": "reduce",
+    "shouldReveal": false,
+    "partial": {
+      "height": 586.484375,
+      "top": 924.09375,
+      "bottom": 1510.578125,
+      "panelTop": 924.09375,
+      "panelBottom": 1510.578125,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 586.484375,
+      "top": 437.09375,
+      "bottom": 1023.578125,
+      "panelTop": 437.09375,
+      "panelBottom": 1023.578125,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 914.09375,
+      "bottom": 1001.265625,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 45
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 45
+      },
+      {
+        "text": "Evenimente",
+        "height": 45
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 45
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "viewportHeight": 844,
+    "reducedMotion": "no-preference",
+    "shouldReveal": false,
+    "partial": {
+      "height": 845.40625,
+      "top": 744.15625,
+      "bottom": 1589.5625,
+      "panelTop": 744.15625,
+      "panelBottom": 1589.5625,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 845.40625,
+      "top": -1.84375,
+      "bottom": 843.5625,
+      "panelTop": -1.84375,
+      "panelBottom": 843.5625,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 734.15625,
+      "bottom": 821.328125,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 45
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 45
+      },
+      {
+        "text": "Evenimente",
+        "height": 45
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 45
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "viewportHeight": 844,
+    "reducedMotion": "reduce",
+    "shouldReveal": false,
+    "partial": {
+      "height": 845.40625,
+      "top": 744.15625,
+      "bottom": 1589.5625,
+      "panelTop": 744.15625,
+      "panelBottom": 1589.5625,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 845.40625,
+      "top": -1.84375,
+      "bottom": 843.5625,
+      "panelTop": -1.84375,
+      "panelBottom": 843.5625,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 734.15625,
+      "bottom": 821.328125,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 45
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 45
+      },
+      {
+        "text": "Evenimente",
+        "height": 45
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 45
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "viewportHeight": 568,
+    "reducedMotion": "no-preference",
+    "shouldReveal": false,
+    "partial": {
+      "height": 857.59375,
+      "top": 467.625,
+      "bottom": 1325.21875,
+      "panelTop": 467.625,
+      "panelBottom": 1325.21875,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 857.59375,
+      "top": -289.375,
+      "bottom": 568.21875,
+      "panelTop": -289.375,
+      "panelBottom": 568.21875,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 457.625,
+      "bottom": 544.796875,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 45
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 45
+      },
+      {
+        "text": "Evenimente",
+        "height": 45
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 45
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "viewportHeight": 568,
+    "reducedMotion": "reduce",
+    "shouldReveal": false,
+    "partial": {
+      "height": 857.59375,
+      "top": 467.625,
+      "bottom": 1325.21875,
+      "panelTop": 467.625,
+      "panelBottom": 1325.21875,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 857.59375,
+      "top": -289.375,
+      "bottom": 568.21875,
+      "panelTop": -289.375,
+      "panelBottom": 568.21875,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 457.625,
+      "bottom": 544.796875,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 45
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 45
+      },
+      {
+        "text": "Evenimente",
+        "height": 45
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 45
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 844,
+    "viewportHeight": 390,
+    "reducedMotion": "no-preference",
+    "shouldReveal": false,
+    "partial": {
+      "height": 593.046875,
+      "top": 290.46875,
+      "bottom": 883.515625,
+      "panelTop": 290.46875,
+      "panelBottom": 883.515625,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 593.046875,
+      "top": -203.53125,
+      "bottom": 389.515625,
+      "panelTop": -203.53125,
+      "panelBottom": 389.515625,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 282.65625,
+      "bottom": 369.828125,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 45
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 45
+      },
+      {
+        "text": "Evenimente",
+        "height": 45
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 45
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  },
+  {
+    "width": 844,
+    "viewportHeight": 390,
+    "reducedMotion": "reduce",
+    "shouldReveal": false,
+    "partial": {
+      "height": 593.046875,
+      "top": 290.46875,
+      "bottom": 883.515625,
+      "panelTop": 290.46875,
+      "panelBottom": 883.515625,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "full": {
+      "height": 593.046875,
+      "top": -203.53125,
+      "bottom": 389.515625,
+      "panelTop": -203.53125,
+      "panelBottom": 389.515625,
+      "transform": "none",
+      "overflow": false,
+      "footerOverflow": false,
+      "foreground": "lab(98.26 0 0)",
+      "background": "rgb(10, 27, 32)"
+    },
+    "focus": {
+      "top": 282.65625,
+      "bottom": 369.828125,
+      "active": true
+    },
+    "touchTargets": [
+      {
+        "text": "Interact București Triumph — prima pagină",
+        "height": 87.171875
+      },
+      {
+        "text": "Instagram",
+        "height": 44
+      },
+      {
+        "text": "Facebook",
+        "height": 44
+      },
+      {
+        "text": "Echipa Noastră",
+        "height": 45
+      },
+      {
+        "text": "Înscrie-te",
+        "height": 45
+      },
+      {
+        "text": "Evenimente",
+        "height": 45
+      },
+      {
+        "text": "Contactează-ne",
+        "height": 45
+      },
+      {
+        "text": "Back to top",
+        "height": 44
+      },
+      {
+        "text": "Cookie Policy",
+        "height": 44
+      },
+      {
+        "text": "Privacy Policy",
+        "height": 44
+      },
+      {
+        "text": "Auto",
+        "height": 44
+      }
+    ]
+  }
+]

@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react'
 import { gsap } from 'gsap'
+import { useReducedMotion } from 'framer-motion'
 
 const useMedia = (
   queries: string[],
@@ -167,6 +168,7 @@ const Masonry: React.FC<MasonryProps> = ({
     1,
   )
 
+  const reducedMotion = useReducedMotion()
   const [containerRef, { width }] =
     useMeasure<HTMLDivElement>()
 
@@ -319,10 +321,10 @@ const Masonry: React.FC<MasonryProps> = ({
   const hasMounted = useRef(false)
 
   useLayoutEffect(() => {
-    if (!imagesReady) return
+    if (!imagesReady || !containerRef.current) return
 
     grid.forEach((item, index) => {
-      const selector = `[data-key="${item.id}"]`
+      const selector = Array.from(containerRef.current!.querySelectorAll<HTMLElement>('[data-key]')).find((element) => element.dataset.key === item.id)!
 
       const animProps = {
         x: item.x,
@@ -331,7 +333,7 @@ const Masonry: React.FC<MasonryProps> = ({
         height: item.h,
       }
 
-      if (!hasMounted.current) {
+      if (!hasMounted.current && !reducedMotion) {
         const start = getInitialPosition(item)
 
         gsap.fromTo(
@@ -360,7 +362,7 @@ const Masonry: React.FC<MasonryProps> = ({
       } else {
         gsap.to(selector, {
           ...animProps,
-          duration,
+          duration: reducedMotion ? 0 : duration,
           ease,
           overwrite: 'auto',
         })
@@ -376,14 +378,15 @@ const Masonry: React.FC<MasonryProps> = ({
     blurToFocus,
     duration,
     ease,
+    reducedMotion,
   ])
 
   const handleMouseEnter = (
     id: string,
     element: HTMLElement,
   ) => {
-    if (scaleOnHover) {
-      gsap.to(`[data-key="${id}"]`, {
+    if (scaleOnHover && !reducedMotion) {
+      gsap.to(element, {
         scale: hoverScale,
         duration: 0.3,
         ease: 'power2.out',
@@ -418,8 +421,8 @@ const Masonry: React.FC<MasonryProps> = ({
     id: string,
     element: HTMLElement,
   ) => {
-    if (scaleOnHover) {
-      gsap.to(`[data-key="${id}"]`, {
+    if (scaleOnHover && !reducedMotion) {
+      gsap.to(element, {
         scale: 1,
         duration: 0.3,
         ease: 'power2.out',
@@ -456,7 +459,11 @@ const Masonry: React.FC<MasonryProps> = ({
       className="relative w-full h-full overflow-hidden"
     >
       {grid.map((item) => (
-        <div
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={item.caption || 'Deschide fotografia'}
           key={item.id}
           data-key={item.id}
           className="absolute box-content"
@@ -464,15 +471,8 @@ const Masonry: React.FC<MasonryProps> = ({
             willChange:
               'transform, width, height, opacity',
           }}
-          onClick={() => {
-            if (typeof window !== 'undefined') {
-              window.open(
-                item.url,
-                '_blank',
-                'noopener',
-              )
-            }
-          }}
+          onFocus={(e) => handleMouseEnter(item.id, e.currentTarget)}
+          onBlur={(e) => handleMouseLeave(item.id, e.currentTarget)}
           onMouseEnter={(e) =>
             handleMouseEnter(
               item.id,
@@ -506,7 +506,7 @@ const Masonry: React.FC<MasonryProps> = ({
               </p>
             )}
           </div>
-        </div>
+        </a>
       ))}
     </div>
   )

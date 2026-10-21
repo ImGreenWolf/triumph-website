@@ -27,35 +27,37 @@ export const FAQAccordion: React.FC<Props> = ({ items, openFirstItem }) => {
       {items.map((item, index) => {
         const isOpen = openItem === index
         const contentID = `${accordionID}-answer-${item.id || index}`
+        const triggerID = `${accordionID}-trigger-${item.id || index}`
 
         return (
           <article
             className={cn(
-              'group overflow-hidden rounded-xl border-2 bg-background/75 text-foreground transition-all duration-300',
+              'group overflow-hidden rounded-xl border bg-card/70 text-foreground transition-colors duration-200',
               isOpen
                 ? 'border-accent/60 shadow-[0_18px_48px_rgba(0,0,0,0.12)]'
-                : 'border-primary-foreground hover:border-accent/35 hover:bg-background',
+                : 'border-foreground/20 hover:border-accent/60 hover:bg-background',
             )}
             key={item.id || index}
           >
             <h3>
               <button
+                id={triggerID}
                 aria-controls={contentID}
                 aria-expanded={isOpen}
-                className="flex w-full items-start gap-4 p-5 text-left md:gap-5 md:p-6"
+                className="flex min-h-14 w-full items-start gap-4 p-5 text-left md:gap-5 md:p-6"
                 onClick={() => setOpenItem(isOpen ? null : index)}
                 type="button"
               >
-                <span className="pt-0.5 text-xs font-semibold tabular-nums tracking-normal text-accent">
+                <span className="pt-0.5 text-lg font-semibold tabular-nums tracking-normal text-accent">
                   {String(index + 1).padStart(2, '0')}
                 </span>
-                <span className="flex-1 text-base font-semibold leading-6 md:text-lg">
+                <span className="min-w-0 flex-1 text-lg font-semibold leading-snug md:text-xl">
                   {item.question}
                 </span>
                 <span
                   className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-sidebar text-muted-foreground transition-all duration-300',
-                    isOpen && 'rotate-45 border-accent/40 bg-accent text-accent-foreground',
+                    'block-faq-indicator flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-sidebar text-muted-foreground',
+                    isOpen && 'rotate-45 border-accent/40 bg-accent text-background',
                   )}
                 >
                   <Plus aria-hidden className="size-4" strokeWidth={2} />
@@ -64,18 +66,18 @@ export const FAQAccordion: React.FC<Props> = ({ items, openFirstItem }) => {
             </h3>
 
             <div
+              inert={!isOpen}
+              role="region"
+              aria-labelledby={triggerID}
               aria-hidden={!isOpen}
               className={cn(
-                'grid transition-[grid-template-rows] duration-300 ease-out',
+                'block-faq-answer grid',
                 isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
               )}
               id={contentID}
             >
               <div className="overflow-hidden">
-                {/* <p className="border-t border-border/70 px-5 py-5 pl-14 text-sm leading-7 text-muted-foreground md:px-6 md:pl-[4.65rem]">
-                  {item.answer}
-                </p> */}
-                <RichText enableProse={false} enableGutter={false} className="link:text-accent border-t border-border/70 px-5 py-5 pl-14 text-sm leading-5 text-muted-foreground md:px-6 md:pl-[4.65rem]" data={item.answer}/>
+                <RichText enableProse={false} enableGutter={false} className="[&_a]:text-accent border-t border-foreground/15 px-5 py-5 text-sm leading-7 text-foreground/85 md:px-6" data={item.answer}/>
               </div>
             </div>
           </article>

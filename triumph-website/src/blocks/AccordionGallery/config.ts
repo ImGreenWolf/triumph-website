@@ -36,6 +36,8 @@ export const AccordionGalleryBlock: Block = {
     {
       name: 'oreintation',
       type: 'select',
+      // Preserve stored values while the frontend chooses the layout responsively.
+      admin: { hidden: true },
       defaultValue: 'horizontal',
       options: [
         {

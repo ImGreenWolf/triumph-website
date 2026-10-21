@@ -22,6 +22,7 @@ import { MasonryBlock } from '../Masonry/config'
 import { Content } from '../Content/config'
 import { Archive } from '../ArchiveBlock/config'
 import { Banner } from '../Banner/config'
+import { StatsBlock } from '../HomepageBlocks/config'
 import textStateConfig from './textStateConfig'
 
 export const OutlineFeature = TextStateFeature(textStateConfig)
@@ -47,6 +48,7 @@ export const FullWidthBlock: Block = {
                         MediaBlock,
                         Archive,
                         FormBlock,
+                        StatsBlock,
                         MasonryBlock,
                         EventsBlock,
                         LogoLoopBlock,

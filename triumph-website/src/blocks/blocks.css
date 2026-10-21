@@ -1,0 +1,469 @@
+@layer components {
+  .cms-block {
+    --block-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --block-accent-text: color-mix(in srgb, var(--accent) 75%, var(--foreground));
+    min-width: 0;
+    overflow-wrap: anywhere;
+    scroll-margin-top: 7rem;
+  }
+
+  .cms-block ::selection {
+    background: var(--accent);
+    color: var(--background);
+  }
+
+  .cms-block :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 4px;
+  }
+
+  .cms-block :where(a) {
+    text-underline-offset: 0.2em;
+  }
+
+  .cms-block :where(input, textarea) {
+    caret-color: var(--accent);
+  }
+
+  .cms-block :where(.payload-richtext) {
+    --tw-prose-body: currentColor;
+    --tw-prose-headings: currentColor;
+    --tw-prose-bold: currentColor;
+    --tw-prose-links: currentColor;
+    --tw-prose-invert-body: currentColor;
+    --tw-prose-invert-headings: currentColor;
+    --tw-prose-invert-bold: currentColor;
+    --tw-prose-invert-links: currentColor;
+    line-height: 1.75;
+  }
+
+  .cms-block :where(.payload-richtext h1, .payload-richtext h2) {
+    font-size: clamp(1.875rem, 1.25rem + 2vw, 3rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  .cms-block :where(.payload-richtext h3) {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .cms-block :where(.payload-richtext p + p) {
+    margin-top: 1rem;
+  }
+
+  .cms-block :where(.payload-richtext a) {
+    text-decoration-line: underline;
+  }
+
+  .cms-block :where([id]) {
+    scroll-margin-top: 7rem;
+  }
+
+  .cms-block :where(.overflow-x-auto) {
+    scrollbar-color: var(--accent) var(--background);
+    scrollbar-width: thin;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cms-block *,
+  .cms-block *::before,
+  .cms-block *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.team-members {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 48rem) {
+  .team-members {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .team-members {
+    grid-template-columns: repeat(var(--team-columns, 3), minmax(0, 1fr));
+  }
+}
+
+@layer components {
+  .cms-block :where([data-slot="button"]) {
+    min-height: 2.75rem;
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+/* Prose's theme variables otherwise override the color of light CMS panels. */
+.cms-block .payload-richtext {
+  color: inherit;
+  --tw-prose-body: currentColor;
+  --tw-prose-headings: currentColor;
+  --tw-prose-bold: currentColor;
+  --tw-prose-links: currentColor;
+  --tw-prose-invert-body: currentColor;
+  --tw-prose-invert-headings: currentColor;
+  --tw-prose-invert-bold: currentColor;
+  --tw-prose-invert-links: currentColor;
+}
+
+.cms-block .payload-richtext.prose :where(h1, h2) {
+  font-size: clamp(1.875rem, 1.25rem + 2vw, 3rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.cms-block .payload-richtext > :first-child { margin-top: 0; }
+.cms-block .payload-richtext > :last-child { margin-bottom: 0; }
+
+/* Amplify the existing type, gold surfaces, fine rules, and photography. */
+.cms-block .payload-richtext.block-intro :where(h1, h2) {
+  max-width: 16ch;
+  font-size: clamp(2.5rem, 1.8rem + 2.8vw, 4.5rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.cms-block .block-intro :where(p) {
+  max-width: 65ch;
+}
+
+.cms-block--sectionTitle h2,
+.cms-block--heroblock h1 {
+  max-width: 16ch;
+  font-size: clamp(2.75rem, 1.5rem + 4.5vw, 6rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.cms-block--sectionTitle .text-center h2 {
+  margin-inline: auto;
+}
+
+.cms-block--sectionIntro .text-center .block-intro :where(h1, h2, p) {
+  margin-inline: auto;
+}
+
+.cms-block--sectionIntro .text-right .block-intro :where(h1, h2, p) {
+  margin-inline-start: auto;
+}
+
+.cms-block--interactIntro h2 {
+  font-size: clamp(3rem, 1.5rem + 4.5vw, 6rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.cms-block--triumphIntro h2 {
+  max-width: 16ch;
+  font-size: clamp(2.25rem, 1.5rem + 2.5vw, 4rem);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+}
+
+.cms-block--aboutUs h2 {
+  max-width: 16ch;
+  font-size: clamp(2.5rem, 1.5rem + 3vw, 4.5rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+/* Organization cards keep their compact, supporting hierarchy. */
+.cms-block--aboutUs article h2 {
+  font-size: 1.125rem;
+  line-height: 1.4;
+  letter-spacing: normal;
+}
+
+.cms-block--content .payload-richtext.prose :where(h1, h2) {
+  font-size: clamp(2rem, 1.5rem + 2vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.block-cta ::selection {
+  color: var(--accent);
+  background: var(--background);
+}
+
+.cms-block .block-cta :where(a, button):focus-visible,
+.cms-block .contact-lead :where(a, button):focus-visible {
+  outline-color: var(--background);
+}
+
+.cms-block .block-feature:first-child {
+  background: var(--accent);
+  color: var(--background);
+  border-color: transparent;
+}
+
+.cms-block .block-feature:first-child :where(p, h3) {
+  color: var(--background);
+}
+
+.cms-block .block-stat {
+  padding: 2rem 0 1rem;
+  border: 0;
+  border-top: 1px solid var(--accent);
+  border-radius: 0;
+  background: transparent;
+}
+
+.block-stat-value {
+  font-size: var(--stat-value-size);
+}
+
+.stats-block {
+  container: stats / inline-size;
+}
+
+.block-stats-row {
+  --stat-value-size: clamp(3rem, 2rem + 2.5vw, 5rem);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1.5rem 3rem;
+}
+
+.block-stats-item {
+  flex: 1 1 12rem;
+  max-width: 100%;
+}
+
+.block-stats-media {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+
+.block-stats-gallery,
+.block-stats-event-slot { flex: 1 1 100%; }
+.block-stats-event-slot { position: relative; }
+
+@container stats (min-width: 56rem) {
+  .block-stats-media:has(.block-stats-gallery) .block-stats-gallery { flex: 2 1 0; }
+  .block-stats-media:has(.block-stats-gallery) .block-stats-event-slot { flex: 1 1 0; min-width: 18rem; }
+  .block-stats-media:has(.block-stats-gallery) .block-stats-events { position: absolute; inset: 0; max-height: none; }
+}
+
+.block-stat-figure { align-content: start; }
+
+@media (min-width: 40rem) {
+  .block-stat-figure { min-height: calc(var(--stat-value-size) + 2.25rem); }
+}
+
+.block-stats-events [role="region"] {
+  scrollbar-color: var(--accent) var(--card);
+}
+
+/* A ribbon touches its neighboring blocks instead of inheriting their section gaps. */
+.cms-block:has(+ .cms-block--textLoop) { margin-bottom: 0; }
+.cms-block--textLoop + .cms-block { margin-top: 0; }
+.cms-block--textLoop .block-loop-control { margin-block: 0; }
+
+.cms-block--downloadFiles .block-title {
+  font-size: clamp(2.5rem, 1.5rem + 3vw, 4.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.cms-block--teamBlock h2 > span:last-child {
+  font-size: clamp(2.5rem, 1.5rem + 3.5vw, 5rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+@media (min-width: 40rem) {
+  .cms-block .block-intro :where(p) {
+    font-size: 1.125rem;
+    line-height: 1.8;
+  }
+}
+
+/* Shared cards are amplified only when rendered inside the named CMS blocks. */
+.cms-block--archive article h3 a,
+.cms-block--relatedPosts article h3 a {
+  font-size: clamp(1.25rem, 1rem + 0.5vw, 1.5rem);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.cms-block--eventsBlock article h3,
+.cms-block--eventTimeline h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.cms-block--eventTimeline h2 {
+  max-width: 16ch;
+  font-size: clamp(2.5rem, 1.5rem + 3vw, 4.5rem);
+  line-height: 1.05;
+}
+
+.cms-block .payload-richtext.block-intro :where(h1, h2, h3) + p {
+  margin-top: 1.5rem;
+}
+
+/* Follow a visitor's intent: rules, arrows, and controls respond without moving the page. */
+.cms-block :is([data-slot="button"], .block-control, .block-loop-control) {
+  transition: color 180ms var(--block-ease), background-color 180ms var(--block-ease),
+    border-color 180ms var(--block-ease), transform 120ms var(--block-ease);
+}
+
+.cms-block :is([data-slot="button"], .block-control, .block-loop-control):active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.cms-block :is(a, button) :is(.lucide-arrow-up-right, .lucide-download, .lucide-send, .lucide-chevron-left, .lucide-chevron-right) {
+  transition: transform 220ms var(--block-ease), color 180ms var(--block-ease);
+}
+
+.cms-block :is(a, button):focus-visible .lucide-arrow-up-right {
+  transform: translate(2px, -2px);
+}
+
+.cms-block :is(a, button):focus-visible .lucide-download { transform: translateY(3px); }
+.cms-block :is(a, button):focus-visible .lucide-send { transform: translate(2px, -2px); }
+.cms-block :is(a, button):focus-visible .lucide-chevron-left { transform: translateX(-2px); }
+.cms-block :is(a, button):focus-visible .lucide-chevron-right { transform: translateX(2px); }
+
+.cms-block .payload-richtext a {
+  transition: text-decoration-color 180ms var(--block-ease), text-underline-offset 180ms var(--block-ease);
+}
+
+.cms-block .payload-richtext a:focus-visible {
+  text-decoration-color: currentColor;
+  text-underline-offset: 0.3em;
+}
+
+.cms-block--downloadFiles a:focus-visible { border-color: var(--accent); }
+
+.cms-block--archive article img,
+.cms-block--relatedPosts article img {
+  transition: transform 400ms var(--block-ease);
+}
+
+.cms-block--archive article:focus-within img,
+.cms-block--relatedPosts article:focus-within img {
+  transform: scale(1.025);
+}
+
+.cms-block .block-faq-indicator {
+  transition: transform 250ms var(--block-ease), color 180ms var(--block-ease),
+    background-color 180ms var(--block-ease), border-color 180ms var(--block-ease);
+}
+
+.cms-block .block-faq-answer {
+  transition: grid-template-rows 220ms var(--block-ease);
+}
+
+.cms-block .block-faq-answer[aria-hidden="false"] { transition-duration: 320ms; }
+
+.block-loop-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  margin: 1rem auto 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.block-loop-control[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--background);
+}
+
+.cms-block .block-gallery-dialog[open] {
+  animation: block-gallery-open 320ms var(--block-ease);
+}
+
+.cms-block .block-gallery-dialog[open]::backdrop {
+  animation: block-confirm 250ms ease-out;
+}
+
+.cms-block .block-form-success { animation: block-confirm 240ms ease-out; }
+.cms-block .block-form-success .block-success-mark path,
+.cms-block [data-copy-state="copied"] .lucide-check path {
+  stroke-dasharray: 24;
+  animation: block-check-draw 300ms var(--block-ease);
+}
+
+@keyframes block-gallery-open {
+  from { clip-path: inset(2% 2% 2% 2% round 0.75rem); opacity: 0.75; }
+  to { clip-path: inset(0% 0% 0% 0% round 0.75rem); opacity: 1; }
+}
+
+@keyframes block-check-draw {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes block-confirm {
+  from { opacity: 0.65; }
+  to { opacity: 1; }
+}
+
+@media (hover: hover) {
+  .cms-block :is(a, button):hover .lucide-arrow-up-right { transform: translate(2px, -2px); }
+  .cms-block :is(a, button):hover .lucide-download { transform: translateY(3px); }
+  .cms-block :is(a, button):hover .lucide-send { transform: translate(2px, -2px); }
+  .cms-block :is(a, button):hover .lucide-chevron-left { transform: translateX(-2px); }
+  .cms-block :is(a, button):hover .lucide-chevron-right { transform: translateX(2px); }
+  .cms-block .payload-richtext a:hover { text-underline-offset: 0.3em; }
+  .cms-block--downloadFiles a:hover { border-color: var(--accent); }
+  .cms-block--archive article:hover img,
+  .cms-block--relatedPosts article:hover img { transform: scale(1.025); }
+  .cms-block .block-loop-control:hover:not([aria-pressed="true"]) { background: var(--card); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cms-block :is([data-slot="button"], .block-control, input, textarea, select, .block-faq-indicator) {
+    transition-property: color, background-color, border-color !important;
+    transition-duration: 100ms !important;
+  }
+
+  .cms-block :is([data-slot="button"], .block-control):active,
+  .cms-block :is(a, button) :is(.lucide-arrow-up-right, .lucide-download, .lucide-send, .lucide-chevron-left, .lucide-chevron-right),
+  .cms-block--archive article img,
+  .cms-block--relatedPosts article img { transform: none !important; }
+
+  .cms-block .block-gallery-dialog[open],
+  .cms-block .block-form-success {
+    animation: block-confirm 120ms ease-out !important;
+  }
+
+  .cms-block .block-loop-control { display: none; }
+  .cms-block .logo-loop { overflow: auto; }
+  .cms-block .logo-loop-track { transform: none !important; }
+  .cms-block .logo-loop-track > ul[aria-hidden="true"] { display: none; }
+}

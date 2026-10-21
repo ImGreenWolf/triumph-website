@@ -1,0 +1,81 @@
+[
+  {
+    "width": 320,
+    "height": 568,
+    "reducedMotion": "reduce",
+    "initial": {
+      "position": "static",
+      "sticky": "false",
+      "top": 8107.625,
+      "bottom": 8965.53125,
+      "height": 857.90625,
+      "markerTop": 8107.625,
+      "filter": "none",
+      "transform": "none",
+      "scale": 1,
+      "scrollHeight": 8966,
+      "overflow": false,
+      "covered": true
+    },
+    "partial": {
+      "position": "static",
+      "sticky": "false",
+      "top": 511.625,
+      "bottom": 1369.53125,
+      "height": 857.90625,
+      "markerTop": 511.625,
+      "filter": "none",
+      "transform": "none",
+      "scale": 1,
+      "scrollHeight": 8966,
+      "overflow": false,
+      "covered": false
+    },
+    "full": {
+      "position": "static",
+      "sticky": "false",
+      "top": -290.375,
+      "bottom": 567.53125,
+      "height": 857.90625,
+      "markerTop": -290.375,
+      "filter": "none",
+      "transform": "none",
+      "scale": 1,
+      "scrollHeight": 8966,
+      "overflow": false,
+      "covered": false
+    },
+    "stretched": {
+      "position": "static",
+      "sticky": "false",
+      "top": -290.375,
+      "bottom": 567.53125,
+      "height": 857.90625,
+      "markerTop": -290.375,
+      "filter": "none",
+      "transform": "none",
+      "scale": 1,
+      "scrollHeight": 8966,
+      "overflow": false,
+      "covered": false
+    },
+    "released": {
+      "position": "static",
+      "sticky": "false",
+      "top": -290.375,
+      "bottom": 567.53125,
+      "height": 857.90625,
+      "markerTop": -290.375,
+      "filter": "none",
+      "transform": "none",
+      "scale": 1,
+      "scrollHeight": 8966,
+      "overflow": false,
+      "covered": false
+    },
+    "focus": {
+      "top": -0.375,
+      "bottom": 86.796875
+    }
+  }
+]
