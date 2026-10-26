@@ -1,3 +1,4 @@
+import { countActiveRegistrations } from '@/utilities/eventRegistrationStats'
 import configPromise from '@payload-config'
 import { draftMode } from 'next/headers'
 import { getPayload } from 'payload'
@@ -49,9 +50,7 @@ export async function getEventSignupData(event: Event) {
     EventRegistration,
     'day' | 'donation' | 'slot' | 'status'
   >[]
-  const participantsCount = docs.filter(
-    (registration) => registration.status !== 'cancelled',
-  ).length
+  const participantsCount = countActiveRegistrations(docs)
 
   return {
     participantsCount,

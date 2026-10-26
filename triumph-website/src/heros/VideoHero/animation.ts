@@ -96,9 +96,9 @@ export function createHandwritingTimeline(
   gsap.set(entries, { autoAlpha: 0 })
   if (completion.title) gsap.set(completion.title, { autoAlpha: 0 })
   if (paths.length) gsap.set(paths, { strokeDasharray: 1, strokeDashoffset: 1 })
-  gsap.set(actions, { autoAlpha: 0 })
-  actions.inert = true
-  actions.setAttribute('aria-hidden', 'true')
+  gsap.set(actions, { autoAlpha: 1 })
+  actions.inert = false
+  actions.removeAttribute('aria-hidden')
 
   const parallel = settings.parallelReveal && entries.length > 1
   const loop = parallel
@@ -153,23 +153,5 @@ export function createHandwritingTimeline(
 
   const timeline = gsap.timeline({ paused: true })
   timeline.add(loop, settings.initialDelay)
-  const revealAt = settings.initialDelay + settings.writingDuration
-  timeline.call(
-    () => {
-      actions.inert = false
-      actions.removeAttribute('aria-hidden')
-    },
-    [],
-    revealAt,
-  )
-  timeline.to(
-    actions,
-    {
-      autoAlpha: 1,
-      duration: settings.buttonRevealDuration,
-      ease: 'power2.out',
-    },
-    revealAt,
-  )
   return timeline
 }

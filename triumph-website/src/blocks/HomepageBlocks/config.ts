@@ -132,6 +132,8 @@ export const StatsBlock: Block = {
     interfaceName: 'StatsBlock',
     fields: [
         introContent,
+        { name: 'reportingPeriod', type: 'text', label: 'Perioada raportată', admin: { description: 'De exemplu, mandatul sau intervalul exact al cifrelor. Completează numai perioada verificată.' } },
+        { name: 'sourceNote', type: 'textarea', label: 'Sursa și contextul cifrelor' },
         {
             name: 'showEvents',
             type: 'checkbox',

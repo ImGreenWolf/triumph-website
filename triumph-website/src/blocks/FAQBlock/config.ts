@@ -32,18 +32,18 @@ export const FAQBlock: Block = {
     {
       name: 'eyebrow',
       type: 'text',
-      defaultValue: 'Questions, answered',
+      defaultValue: 'Întrebări și răspunsuri',
     },
     introContent,
     {
       name: 'supportingText',
       type: 'textarea',
-      defaultValue: 'Still curious? Send us a message and we will help you find the right answer.',
+      defaultValue: 'Mai ai întrebări? Scrie-ne și te ajutăm să găsești răspunsul.',
     },
     {
       name: 'supportingLinkLabel',
       type: 'text',
-      defaultValue: 'Get in touch',
+      defaultValue: 'Contactează-ne',
     },
     {
       name: 'supportingLinkHref',
@@ -70,7 +70,19 @@ export const FAQBlock: Block = {
       minRows: 1,
       fields: [
         { name: 'question', type: 'text', required: true },
-        { name: 'answer', type: 'richText', 
+        {
+          name: 'answerSource',
+          type: 'select',
+          defaultValue: 'manual',
+          label: 'Sursa răspunsului',
+          options: [
+            { label: 'Text editabil', value: 'manual' },
+            { label: 'Calendarul recrutării', value: 'recruitment' },
+          ],
+        },
+        {
+          name: 'answer',
+          type: 'richText',
           editor: lexicalEditor({
             features: ({ rootFeatures }) => {
               return [
@@ -81,7 +93,13 @@ export const FAQBlock: Block = {
               ]
             },
           }),
-          required: true },
+          required: false,
+          validate: (value, { siblingData }) =>
+            (siblingData as { answerSource?: string })?.answerSource === 'recruitment' ||
+            Boolean(value) ||
+            'Completează răspunsul.',
+          admin: { condition: (_, data) => data.answerSource !== 'recruitment' },
+        },
       ],
     },
   ],

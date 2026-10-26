@@ -1,13 +1,12 @@
 import { cn } from '@/utilities/ui'
 import React from 'react'
 
-import { EventCard } from '@/components/EventCard'
-import { Event } from '@/payload-types'
+import { EventCard, type EventCardData } from '@/components/EventCard'
 
 export type Props = {
   className?: string
   contained?: boolean
-  events: Event[]
+  events: EventCardData[]
   showDescription: boolean
   small: boolean
 }

@@ -8,12 +8,30 @@ import type { DefaultTypedEditorState } from '@payloadcms/richtext-lexical'
 const { find, findByID, getPayload } = vi.hoisted(() => {
   const find = vi.fn()
   const findByID = vi.fn()
-  return { find, findByID, getPayload: vi.fn(async () => ({ find, findByID })) }
+  return {
+    find,
+    findByID,
+    getPayload: vi.fn(async () => ({
+      find,
+      findByID,
+      count: vi.fn(async () => ({ totalDocs: 0 })),
+      logger: { error: vi.fn() },
+    })),
+  }
 })
 vi.mock('payload', () => ({ getPayload }))
 vi.mock('@payload-config', () => ({ default: {} }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('next/image', () => ({ default: () => null }))
+// Rendering tests use an available, ordinary form; recruitment scheduling has
+// separate tests and must not hold the form fields behind its loading state.
+vi.mock('@/components/RecruitmentStatus', () => ({
+  useRecruitmentStatus: () => ({
+    status: { isRecruitmentForm: false, isOpen: true },
+    error: false,
+    retry: vi.fn(),
+  }),
+}))
 
 import ServerRichText from '@/components/RichText/server'
 import { StatsBlock } from '@/blocks/StatsBlock/Component'
@@ -29,16 +47,17 @@ const stats = {
   blockType: 'statsBlock' as const,
   stats: [{ value: 1200, unit: 'ore de voluntariat', label: 'Timp oferit comunității' }],
 }
-const documentWith = (...blocks: Record<string, unknown>[]): DefaultTypedEditorState => ({
-  root: {
-    type: 'root',
-    version: 1,
-    format: '',
-    indent: 0,
-    direction: null,
-    children: blocks.map((fields) => ({ type: 'block', version: 2, format: '', fields })),
-  },
-}) as unknown as DefaultTypedEditorState
+const documentWith = (...blocks: Record<string, unknown>[]): DefaultTypedEditorState =>
+  ({
+    root: {
+      type: 'root',
+      version: 1,
+      format: '',
+      indent: 0,
+      direction: null,
+      children: blocks.map((fields) => ({ type: 'block', version: 2, format: '', fields })),
+    },
+  }) as unknown as DefaultTypedEditorState
 
 async function markup(element: React.ReactNode) {
   const output = new PassThrough()

@@ -334,5 +334,5 @@ function getBucharestOffset(value: Date) {
     Number(parts.second),
   )
 
-  return asUTC - value.getTime()
+  return asUTC - (value.getTime() - value.getUTCMilliseconds())
 }

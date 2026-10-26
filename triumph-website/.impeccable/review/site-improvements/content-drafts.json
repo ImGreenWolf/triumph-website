@@ -1,0 +1,536 @@
+{
+  "homepageID": "69f39ae3c3c77c4dd6f47e8c",
+  "homepage": {
+    "layout": [
+      {
+        "blockType": "interactIntro",
+        "eyebrow": "Descoperă Interact",
+        "title": "Ce este Interact?",
+        "introduction": "Interact reunește tineri cu vârste între 12 și 18 ani care se implică în proiecte de voluntariat și își dezvoltă abilitățile de leadership, cu sprijinul cluburilor Rotary.",
+        "clubTitle": "Dintr-o comunitate internațională, aici, în București.",
+        "clubDescription": "La Interact București Triumph, transformăm ideile în proiecte de voluntariat, învățăm împreună și construim prietenii. Clubul nostru este sponsorizat de Rotary Cișmigiu.",
+        "photo": "6ad7eabd0cd75c52d98ef47c",
+        "id": "6ad7ebe2b40a5c39e6e783a7"
+      },
+      {
+        "blockType": "sectionTitle",
+        "eyebrow": "impact",
+        "title": "Triumfăm\nPrin Numere",
+        "alignment": "left",
+        "Use id": false,
+        "id": "69fe59e3b800ba5008df1cbb"
+      },
+      {
+        "blockType": "statsBlock",
+        "introContent": {
+          "root": {
+            "children": [
+              {
+                "children": [],
+                "direction": null,
+                "format": "",
+                "indent": 0,
+                "type": "paragraph",
+                "version": 1,
+                "textFormat": 0,
+                "textStyle": ""
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "root",
+            "version": 1
+          }
+        },
+        "reportingPeriod": "Mandatul 2026–2027",
+        "showEvents": false,
+        "stats": [
+          {
+            "value": 80000,
+            "unit": "lei",
+            "label": "Fonduri Stranse",
+            "description": "",
+            "id": "69fb0508f02b507c9b8aa28a"
+          },
+          {
+            "value": 14,
+            "label": "Cauze Sprijinite",
+            "id": "69fb0722f02b507c9b8aa28c"
+          },
+          {
+            "value": 6,
+            "unit": "",
+            "label": "Deplasari Districtuale",
+            "id": "69fb0782f02b507c9b8aa290"
+          },
+          {
+            "value": 16,
+            "label": "Evenimente Realizate",
+            "id": "69fb0779f02b507c9b8aa28e"
+          }
+        ],
+        "gallery": [
+          "6a0e1bd1e17793bc7e43ba65",
+          "6a347a095e56ee248beb3032",
+          "6a0e1cdce17793bc7e43bad3",
+          "6a347a305e56ee248beb3067",
+          "69f3af169f60385c7177f1d5",
+          "6a0e1b8fe17793bc7e43b9fc"
+        ],
+        "id": "69fb0500f02b507c9b8aa288"
+      },
+      {
+        "blockType": "homepageEvents",
+        "title": "Evenimentele noastre",
+        "highlightedEvents": [
+          "69f7cccf508a544dc0f080e7",
+          "69ff1f2b563c11d43445b6f0",
+          "6a8c666c96d96d8b1cca6eba",
+          "6a313824cfa940809406d0c2"
+        ],
+        "archiveLabel": "Vezi toate evenimentele",
+        "id": "6ad92b9afc57c96e55a256d4"
+      },
+      {
+        "blockType": "cta",
+        "richText": {
+          "root": {
+            "children": [
+              {
+                "children": [
+                  {
+                    "detail": 0,
+                    "format": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "text": "Alătură-te familiei!",
+                    "type": "text",
+                    "version": 1
+                  }
+                ],
+                "direction": null,
+                "format": "",
+                "indent": 0,
+                "type": "heading",
+                "version": 1,
+                "tag": "h1"
+              },
+              {
+                "children": [
+                  {
+                    "detail": 0,
+                    "format": 0,
+                    "mode": "normal",
+                    "style": "",
+                    "text": "Dezvoltă-ți abilitățile de leadership, socializare și organizare într-un mediu prietenos și deschis!",
+                    "type": "text",
+                    "version": 1
+                  }
+                ],
+                "direction": null,
+                "format": "",
+                "indent": 0,
+                "type": "paragraph",
+                "version": 1,
+                "textFormat": 0,
+                "textStyle": ""
+              }
+            ],
+            "direction": null,
+            "format": "",
+            "indent": 0,
+            "type": "root",
+            "version": 1
+          }
+        },
+        "links": [
+          {
+            "link": {
+              "type": "reference",
+              "reference": {
+                "relationTo": "pages",
+                "value": "6a885f3b17f2cc6bdca31e14"
+              },
+              "label": "Înscrie-te",
+              "appearance": "default"
+            },
+            "id": "6a94522e7dfb8f4049cf55d6"
+          }
+        ],
+        "id": "6a9452067dfb8f4049cf55d5"
+      },
+      {
+        "blockType": "faqBlock",
+        "eyebrow": "Întrebări și răspunsuri",
+        "supportingText": "Mai ai întrebări? Scrie-ne și te ajutăm să găsești răspunsul.",
+        "supportingLinkLabel": "Contactează-ne",
+        "supportingLinkHref": "/contact",
+        "openFirstItem": true,
+        "faqs": [
+          {
+            "question": "Cum mă pot înscrie?",
+            "answerSource": "recruitment",
+            "answer": {
+              "root": {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "detail": 0,
+                        "format": 0,
+                        "mode": "normal",
+                        "style": "",
+                        "text": "Exista 2 perioade de inscriere in club, toamna, si primavara. Pâna pe 25 septembrie, este deschis formularul de recrutare de toamna.",
+                        "type": "text",
+                        "version": 1
+                      }
+                    ],
+                    "direction": null,
+                    "format": "",
+                    "indent": 0,
+                    "type": "paragraph",
+                    "version": 1,
+                    "textFormat": 0,
+                    "textStyle": ""
+                  }
+                ],
+                "direction": null,
+                "format": "",
+                "indent": 0,
+                "type": "root",
+                "version": 1
+              }
+            },
+            "id": "6a89c8bdd27a55886cc615aa"
+          },
+          {
+            "question": "Când se țin ședințele săptămânale?",
+            "answerSource": "manual",
+            "answer": {
+              "root": {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "detail": 0,
+                        "format": 0,
+                        "mode": "normal",
+                        "style": "",
+                        "text": "Ședințele săptămânale ale clubului se țin in fiecare duminica, la ora 13. In functie de disponibilitate, ședințele se țin la Hotel Cișmigiu.",
+                        "type": "text",
+                        "version": 1
+                      }
+                    ],
+                    "direction": null,
+                    "format": "",
+                    "indent": 0,
+                    "type": "paragraph",
+                    "version": 1,
+                    "textFormat": 0,
+                    "textStyle": ""
+                  }
+                ],
+                "direction": null,
+                "format": "",
+                "indent": 0,
+                "type": "root",
+                "version": 1
+              }
+            },
+            "id": "6a9450e97dfb8f4049cf55d3"
+          },
+          {
+            "question": "Ce discutăm la ședințele săptămânale?",
+            "answerSource": "manual",
+            "answer": {
+              "root": {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "detail": 0,
+                        "format": 0,
+                        "mode": "normal",
+                        "style": "",
+                        "text": "La ședințele săptămânale ale clubului discutăm despre update-uri legate de evenimentele clubului, noutăți din district, sau din club.",
+                        "type": "text",
+                        "version": 1
+                      }
+                    ],
+                    "direction": null,
+                    "format": "",
+                    "indent": 0,
+                    "type": "paragraph",
+                    "version": 1,
+                    "textFormat": 0,
+                    "textStyle": ""
+                  }
+                ],
+                "direction": null,
+                "format": "",
+                "indent": 0,
+                "type": "root",
+                "version": 1
+              }
+            },
+            "id": "6a94513c7dfb8f4049cf55d4"
+          }
+        ],
+        "id": "6a1b69abb38399ccd7c3073c"
+      }
+    ],
+    "movedHistory": [],
+    "movedRotary": [],
+    "removedDecoration": []
+  },
+  "header": {
+    "navItems": [
+      {
+        "link": {
+          "type": "custom",
+          "reference": {
+            "relationTo": "pages",
+            "value": "69f39ae3c3c77c4dd6f47e8c"
+          },
+          "url": "/",
+          "label": "Acasa"
+        },
+        "id": "69f3b330027bf876a8a3751c"
+      },
+      {
+        "link": {
+          "type": "custom",
+          "reference": {
+            "relationTo": "pages",
+            "value": "69f3db68177f47a07215cc7c"
+          },
+          "url": "/events",
+          "label": "Proiecte"
+        },
+        "id": "69f3d5488c9139b938314ba7"
+      },
+      {
+        "link": {
+          "type": "reference",
+          "reference": {
+            "relationTo": "pages",
+            "value": "69f3dc00177f47a07215cec3"
+          },
+          "label": "Blog"
+        },
+        "id": "69f3d54a8c9139b938314ba9"
+      },
+      {
+        "link": {
+          "type": "reference",
+          "reference": {
+            "relationTo": "pages",
+            "value": "69f3dc31177f47a07215cf75"
+          },
+          "label": "Echipa"
+        },
+        "id": "69f3d54c8c9139b938314bab"
+      },
+      {
+        "link": {
+          "type": "reference",
+          "reference": {
+            "relationTo": "pages",
+            "value": "69f7b143b3a85fe262bf0fc4"
+          },
+          "label": "Galerie"
+        },
+        "id": "69f7b1776e354c369b84b637"
+      }
+    ],
+    "navCategory": [
+      {
+        "link": {
+          "type": "custom",
+          "label": "Despre club",
+          "url": "/istoria-clubului"
+        },
+        "reference": [
+          {
+            "link": {
+              "type": "custom",
+              "label": "Istoria clubului",
+              "url": "/istoria-clubului"
+            }
+          },
+          {
+            "link": {
+              "type": "custom",
+              "label": "Echipa noastră",
+              "url": "/echipa-noastra"
+            }
+          },
+          {
+            "link": {
+              "type": "custom",
+              "label": "Familia Rotary",
+              "url": "/familia-rotary"
+            }
+          }
+        ]
+      },
+      {
+        "link": {
+          "type": "custom",
+          "label": "Participă",
+          "url": "/events"
+        },
+        "reference": [
+          {
+            "link": {
+              "type": "custom",
+              "label": "Evenimente",
+              "url": "/events"
+            }
+          },
+          {
+            "link": {
+              "type": "custom",
+              "label": "Înscrie-te în club",
+              "url": "/inscrie-te"
+            }
+          },
+          {
+            "link": {
+              "type": "custom",
+              "label": "Galerie",
+              "url": "/gallery"
+            }
+          },
+          {
+            "link": {
+              "type": "custom",
+              "label": "Contact",
+              "url": "/contact"
+            }
+          }
+        ]
+      },
+      {
+        "link": {
+          "type": "custom",
+          "label": "Membri",
+          "url": "/members"
+        },
+        "reference": [
+          {
+            "link": {
+              "type": "custom",
+              "label": "Contul meu",
+              "url": "/members"
+            }
+          },
+          {
+            "link": {
+              "type": "custom",
+              "label": "Profilul meu",
+              "url": "/members/profile"
+            }
+          }
+        ]
+      }
+    ],
+    "_status": "draft",
+    "updatedAt": "2026-10-21T21:31:26.927Z",
+    "createdAt": "2026-04-30T19:53:26.225Z",
+    "globalType": "header",
+    "id": "69f3b3369f60385c7177f235"
+  },
+  "footer": {
+    "description": "Interact București Triumph aduce adolescenți împreună pentru a servi mai presus de sine și pentru evenimente caritabile în București.",
+    "wordmarkText": "Triumph",
+    "copyrightText": "Interact București Triumph",
+    "backToTopLabel": "Înapoi sus",
+    "navItems": [
+      {
+        "link": {
+          "type": "reference",
+          "reference": {
+            "relationTo": "pages",
+            "value": "69f3dc31177f47a07215cf75"
+          },
+          "label": "Echipa Noastră"
+        },
+        "id": "6ad795a3f840346d94d3381d"
+      },
+      {
+        "link": {
+          "type": "reference",
+          "reference": {
+            "relationTo": "pages",
+            "value": "6a885f3b17f2cc6bdca31e14"
+          },
+          "label": "Înscrie-te"
+        },
+        "id": "6ad795b1f840346d94d3381f"
+      },
+      {
+        "link": {
+          "type": "custom",
+          "reference": {
+            "relationTo": "pages",
+            "value": "69f3dc31177f47a07215cf75"
+          },
+          "url": "/events",
+          "label": "Evenimente"
+        },
+        "id": "6ad795b4f840346d94d33821"
+      },
+      {
+        "link": {
+          "type": "reference",
+          "reference": {
+            "relationTo": "pages",
+            "value": "69fef572ae001ccf17244924"
+          },
+          "label": "Contactează-ne"
+        },
+        "id": "6ad90dee41b30987064aa298"
+      }
+    ],
+    "socialLinks": [
+      {
+        "label": "Instagram",
+        "url": "https://www.instagram.com/interacttriumph/",
+        "icon": "instagram",
+        "newTab": true,
+        "id": "6a19db402dec5daf86429a74"
+      },
+      {
+        "label": "Facebook",
+        "url": "https://www.facebook.com/interact.triumph",
+        "icon": "facebook",
+        "newTab": true,
+        "id": "6a38542f1c25817f30af1e92"
+      }
+    ],
+    "legalLinks": [
+      {
+        "label": "Politica de cookie-uri",
+        "url": "/politica-cookies",
+        "id": "6a1be5748f286e2b4272fc20"
+      },
+      {
+        "label": "Confidențialitate",
+        "url": "/politica-confidentialitate",
+        "id": "6a1be5748f286e2b4272fc21"
+      }
+    ],
+    "_status": "draft",
+    "updatedAt": "2026-10-21T21:31:27.379Z",
+    "createdAt": "2026-05-28T20:27:17.364Z",
+    "globalType": "footer",
+    "id": "6a18a525ae9b4cd434feb2f3"
+  },
+  "editorialNotes": [
+    "Perioada cifrelor de impact confirmată de club: Mandatul 2026–2027.",
+    "Selectează evenimentul viitor evidențiat, când există unul.",
+    "Publică pagina Familia Rotary înaintea navigației care o referă."
+  ]
+}

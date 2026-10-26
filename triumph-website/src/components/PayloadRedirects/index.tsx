@@ -7,11 +7,12 @@ import { notFound, redirect } from 'next/navigation'
 
 interface Props {
   disableNotFound?: boolean
+  fallbackUrl?: string
   url: string
 }
 
 /* This component helps us with SSR based dynamic redirects */
-export const PayloadRedirects: React.FC<Props> = async ({ disableNotFound, url }) => {
+export const PayloadRedirects: React.FC<Props> = async ({ disableNotFound, fallbackUrl, url }) => {
   const redirects = await getCachedRedirects()()
 
   const redirectItem = redirects.find((redirect) => redirect.from === url)
@@ -41,6 +42,8 @@ export const PayloadRedirects: React.FC<Props> = async ({ disableNotFound, url }
 
     if (redirectUrl) redirect(redirectUrl)
   }
+
+  if (fallbackUrl) redirect(fallbackUrl)
 
   if (disableNotFound) return null
 

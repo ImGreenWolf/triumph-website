@@ -33,13 +33,13 @@ const DEFAULT_DUES_INFO_TEXT =
 const roleLabels: Record<User['role'], string> = {
   aspirer: 'Membru Aspirant',
   active: 'Membru Activ',
-  'vice-president': 'Vice Președinte',
+  'vice-president': 'Vicepreședinte',
   president: 'Președinte',
-  'pr-director': 'PR Director',
-  'hr-director': 'HR Director',
+  'pr-director': 'Director PR',
+  'hr-director': 'Director HR',
   secretary: 'Secretar',
   treasurer: 'Trezorier',
-  'past-president': 'Past President',
+  'past-president': 'Fost președinte',
   passive: 'Membru Pasiv',
 }
 
@@ -89,10 +89,10 @@ export function MeetingDescription({
 }) {
   return (
     <>
-      <div className="max-h-12 overflow-hidden text-sm leading-6 text-muted-foreground">
+      <div className="h-12 overflow-hidden text-sm leading-6 text-muted-foreground">
         <div className="line-clamp-2">{message}</div>
       </div>
-      <div className="mt-3 max-h-18 overflow-hidden text-sm leading-6 text-foreground/80">
+      <div className="mt-3 h-18 overflow-hidden text-sm leading-6 text-foreground/80">
         <div className="line-clamp-3">{description}</div>
       </div>
     </>
@@ -162,7 +162,67 @@ export default function DashboardShell(props: DashboardShellProps) {
           />
         )}
         <MemberSummary member={member} capabilities={capabilities} avatar={slots.avatar} />
-        <div className="grid gap-4 lg:auto-rows-fr lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_420px]">
+        <div className="grid gap-4 lg:auto-rows-fr lg:grid-cols-2 xl:grid-cols-[420px_minmax(0,1fr)_minmax(0,1fr)]">
+          <section
+            data-dashboard-panel="meeting"
+            className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm"
+          >
+            <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent">
+                  <CalendarDays className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-sm font-semibold leading-5 text-muted-foreground">
+                    Următoarea întâlnire
+                  </h2>
+                  <div
+                    data-dashboard-slot="meeting-relative"
+                    className="mt-1 h-14 overflow-hidden text-xl font-semibold leading-7 sm:h-16 sm:text-2xl sm:leading-8"
+                  >
+                    <div className="line-clamp-2">{slots.meetingRelative}</div>
+                  </div>
+                </div>
+              </div>
+              <div
+                className="flex h-14 w-28 shrink-0 flex-col items-end gap-2"
+                data-dashboard-slot="meeting-status"
+              >
+                {slots.meetingStatus}
+              </div>
+            </header>
+            <div className="border-y border-border bg-muted/25 px-5 py-4 sm:px-6">
+              <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">Program</p>
+                  <div
+                    data-dashboard-slot="meeting-date"
+                    className="mt-1 h-12 overflow-hidden text-base font-semibold leading-6"
+                  >
+                    <div className="line-clamp-2">{slots.meetingDate}</div>
+                  </div>
+                </div>
+                <div className="min-w-0 border-border sm:border-l sm:pl-6">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">Detalii</p>
+                  <div className="mt-1 flex h-10 items-start gap-2 text-sm font-medium leading-5 text-muted-foreground">
+                    <Clock3 className="mt-0.5 size-4 shrink-0 text-accent" />
+                    <div className="line-clamp-2">{slots.meetingTiming}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              data-dashboard-slot="meeting-description"
+              className="flex flex-1 flex-col px-5 py-4 sm:px-6"
+            >
+              {slots.meetingDescription}
+            </div>
+            <MemberCodeActions
+              member={{ id: member.id, name: member.name, email: member.email, role: member.role }}
+            >
+              {slots.meetingLink}
+            </MemberCodeActions>
+          </section>
           <DashboardPanel
             data-dashboard-panel="attendance"
             className="flex h-full min-w-0 flex-col"
@@ -242,66 +302,7 @@ export default function DashboardShell(props: DashboardShellProps) {
               {slots.duesTimeline}
             </div>
           </DashboardPanel>
-          <section
-            data-dashboard-panel="meeting"
-            className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm"
-          >
-            <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
-              <div className="flex min-w-0 flex-1 items-start gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent/12 text-accent">
-                  <CalendarDays className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-sm font-semibold leading-5 text-muted-foreground">
-                    Următoarea întâlnire
-                  </h2>
-                  <div
-                    data-dashboard-slot="meeting-relative"
-                    className="mt-1 h-14 overflow-hidden text-xl font-semibold leading-7 sm:h-16 sm:text-2xl sm:leading-8"
-                  >
-                    <div className="line-clamp-2">{slots.meetingRelative}</div>
-                  </div>
-                </div>
-              </div>
-              <div
-                className="flex h-14 w-32 shrink-0 flex-col items-end gap-2"
-                data-dashboard-slot="meeting-status"
-              >
-                {slots.meetingStatus}
-              </div>
-            </header>
-            <div className="border-y border-border bg-muted/25 px-5 py-4 sm:px-6">
-              <div className="grid gap-4 sm:grid-rows-2 h-30 sm:gap-6">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">Program</p>
-                  <div
-                    data-dashboard-slot="meeting-date"
-                    className="mt-1 h-12 overflow-hidden text-base font-semibold leading-6"
-                  >
-                    <div className="line-clamp-2">{slots.meetingDate}</div>
-                  </div>
-                </div>
-                <div className="min-w-0 border-border sm:border-l sm:pl-6">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">Detalii</p>
-                  <div className="mt-1 flex h-10 items-start gap-2 text-sm font-medium leading-5 text-muted-foreground">
-                    <Clock3 className="mt-0.5 size-4 shrink-0 text-accent" />
-                    <div className="line-clamp-2">{slots.meetingTiming}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div
-              data-dashboard-slot="meeting-description"
-              className="flex flex-1 flex-col px-5 py-4 sm:px-6"
-            >
-              {slots.meetingDescription}
-            </div>
-            <MemberCodeActions
-              member={{ id: member.id, name: member.name, email: member.email, role: member.role }}
-            >
-              {slots.meetingLink}
-            </MemberCodeActions>
-          </section>
+
         </div>
         {member.clubMail && <EmailCard member={member} hasWebmail={hasWebmail} slots={slots} />}
       </main>
@@ -443,58 +444,58 @@ function MemberSummary({
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
           {hasManagedEvents && (
             <Link
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-white transition hover:bg-accent"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-foreground transition hover:bg-accent"
               href="/members/projects"
             >
               <ClipboardCheck className="size-4" />
-              Panou PM
+              Proiectele mele
             </Link>
           )}
 
           {hasManagedCommissions && (
             <Link
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-white transition hover:bg-accent"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-foreground transition hover:bg-accent"
               href="/members/commissions"
             >
               <BriefcaseBusiness className="size-4" />
-              Panou Comisii
+              Comisiile mele
             </Link>
           )}
 
           {hasHRPanelAccess && (
             <Link
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-white transition hover:bg-accent"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-accent px-3 text-sm font-semibold text-foreground transition hover:bg-accent"
               href="/members/recruitment"
             >
               <UserCheck className="size-4" />
-              Panou HR
+              Recrutare
             </Link>
           )}
 
           <Link
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-foreground transition hover:bg-sidebar hover:text-foreground"
             href="/members/profile"
           >
             <SettingsIcon className="size-4" />
-            Profile
+            Profil
           </Link>
 
           {hasHRPanelAccess && (
             <Link
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-white transition hover:bg-sidebar hover:text-foreground"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-foreground transition hover:bg-sidebar hover:text-foreground"
               href="/admin"
             >
               <ShieldCheck className="size-4" />
-              Club Admin
+              Administrare club
             </Link>
           )}
 
           <Link
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-sidebar hover:text-foreground"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-sidebar/60 px-3 text-sm font-semibold text-muted-foreground transition hover:bg-sidebar hover:text-foreground"
             href="/members/logout"
           >
             <LogOut className="size-4" />
-            Logout
+            Deconectare
           </Link>
         </div>
       </DashboardPanel>
@@ -562,7 +563,7 @@ function EmailCard({
 
             {canOpenWebmail ? (
               <Link
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90 sm:w-fit"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-accent/90 sm:w-fit"
                 href="/members/webmail"
                 rel="noreferrer"
                 target="_blank"

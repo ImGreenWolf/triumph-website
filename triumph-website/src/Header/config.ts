@@ -6,6 +6,7 @@ import { linkGroup } from '@/fields/linkGroup'
 
 export const Header: GlobalConfig = {
   slug: 'header',
+  versions: { drafts: true, max: 20 },
   access: {
     read: () => true,
   },

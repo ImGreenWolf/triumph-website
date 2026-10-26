@@ -1,4 +1,5 @@
 import React, { Fragment } from 'react'
+import { BlockReveal } from './BlockReveal.client'
 
 import type { Page } from '@/payload-types'
 
@@ -26,7 +27,7 @@ import { FullWidthBlock } from './FullWidthBlock/Component'
 import { AboutUsBlock } from './AboutUs/Component'
 import { TriumphIntroBlock } from './TriumphIntro/Component'
 import { InteractIntroBlock } from './InteractIntro/Component'
-import {DownloadFilesBlock} from './DownloadBlock/Component'
+import { DownloadFilesBlock } from './DownloadBlock/Component'
 import { TimelineBlock } from './TimelineHistory/Component'
 import { ContactBlock } from './ContactBlock/Component'
 import { FAQBlock } from './FAQBlock/Component'
@@ -34,7 +35,7 @@ import { TextLoopBlock } from './TextLoop/Component'
 import { AccordionGallery } from './AccordionGallery/Component'
 import { ScrollingGallery } from './ScrollingGallery/Component'
 import './blocks.css'
-import * as motion from 'motion/react-client'
+import { HomepageEventsBlockComponent } from './HomepageEvents/Component'
 const blockComponents: Partial<
   Record<Page['layout'][number]['blockType'], React.ComponentType<any>>
 > = {
@@ -46,6 +47,7 @@ const blockComponents: Partial<
   teamBlock: TeamBlock,
   masonryBlock: MasonryBlock,
   eventsBlock: EventsBlock,
+  homepageEvents: HomepageEventsBlockComponent,
   sectionIntro: SectionIntroBlock,
   featureGrid: FeatureGridBlock,
   statsBlock: StatsBlock,
@@ -65,7 +67,7 @@ const blockComponents: Partial<
   contactBlock: ContactBlock,
   textLoop: TextLoopBlock,
   accordionGallery: AccordionGallery,
-  scrollingGallery: ScrollingGallery
+  scrollingGallery: ScrollingGallery,
 }
 
 export const RenderBlocks: React.FC<{
@@ -87,16 +89,13 @@ export const RenderBlocks: React.FC<{
 
             if (Block) {
               return (
-                <motion.div
-                 className={`cms-block cms-block--${blockType} ${blockType === 'textLoop' ? 'my-0' : compactSpacing ? 'my-10 sm:my-12 lg:my-16' : 'my-16 sm:my-20 lg:my-24'}`} key={block.id || index}
-                 initial={{opacity:0, filter: 'blur(16px)'}}
-                 whileInView={{opacity: 1, filter: 'blur(0)'}}
-                  viewport={{once: true, amount: 'some'}}
-                  transition={{duration: 0.5}}
-                 >
-
+                <BlockReveal
+                  blockType={blockType}
+                  className={`cms-block cms-block--${blockType} ${blockType === 'textLoop' ? 'my-0' : compactSpacing ? 'my-10 sm:my-12 lg:my-16' : 'my-16 sm:my-20 lg:my-24'}`}
+                  key={block.id || index}
+                >
                   <Block {...block} disableInnerContainer />
-                </motion.div>
+                </BlockReveal>
               )
             }
           }

@@ -1,20 +1,23 @@
 import React from 'react'
+import { StaggeredStats } from './StaggeredStats.client'
+import { withPublicEventCounts } from '@/utilities/publicEventStats'
+import { registrationCountLabel } from '@/utilities/eventRegistrationStats'
 import Link from 'next/link'
-import * as motion from 'motion/react-client'
 import { getPayload } from 'payload'
 import payloadConfig from '@payload-config'
-import { ArrowUpRightIcon, BanknoteIcon, UserIcon } from 'lucide-react'
+import { ArrowUpRightIcon, UserIcon } from 'lucide-react'
 
 import type { StatsBlock as StatsBlockProps } from '@/payload-types'
 import RichText from '@/components/RichText'
 import { Media } from '@/components/Media'
 import { GallerySlideshow } from '@/components/Gallery/component'
-import CountUp from '@/components/ui/counterUp'
 import { cn } from '@/utilities/ui'
 import '../blocks.css'
 
 export const StatsBlock = async ({
   introContent,
+  reportingPeriod,
+  sourceNote,
   stats,
   gallery,
   showEvents = true,
@@ -22,16 +25,20 @@ export const StatsBlock = async ({
 }: StatsBlockProps & { disableGutter?: boolean }) => {
   const events =
     showEvents !== false
-      ? (
-          await (
-            await getPayload({ config: payloadConfig })
-          ).find({
-            collection: 'events',
-            limit: 5,
-            sort: '-days',
-            joins: { registrations: { count: true } },
-          })
-        ).docs
+      ? await withPublicEventCounts(
+          (
+            await (
+              await getPayload({ config: payloadConfig })
+            ).find({
+              collection: 'events',
+              limit: 5,
+              sort: '-days',
+              overrideAccess: false,
+              draft: false,
+              where: { _status: { equals: 'published' } },
+            })
+          ).docs,
+        )
       : []
   const statsItems = stats || []
   const photos =
@@ -55,27 +62,23 @@ export const StatsBlock = async ({
         />
       )}
       {statsItems.length > 0 && (
-        <div className="block-stats-row gap-4! sm:gap-5!">
+        <div className="mb-6 max-w-prose text-sm leading-6 text-foreground/85">
+          <p className="font-semibold">{reportingPeriod || 'Perioadă neprecizată'}</p>
+          {sourceNote && <p className="mt-1">{sourceNote}</p>}
+        </div>
+      )}
+      {statsItems.length > 0 && (
+        <StaggeredStats>
           {statsItems.map((stat, index) => (
-            <motion.article
-              initial={{ y: 5, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              viewport={{ once: true, amount: 'some' }}
-              transition={{
-                duration: 0.6,
-                ease: 'anticipate',
-                delay: 0.1 * (statsItems.length / (index + 1)),
-              }}
+            <article
+              data-stat
               className="block-stats-item min-w-0 rounded-lg border border-border/70 bg-card p-3 text-card-foreground shadow-sm sm:p-4"
               key={stat.id || index}
             >
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-accent">
-                <CountUp
-                  to={stat.value}
-                  from={0}
-                  separator=","
-                  className="shrink-0 text-3xl font-bold leading-none tracking-normal tabular-nums sm:text-5xl"
-                />
+                <span className="shrink-0 text-3xl font-bold leading-none tracking-normal tabular-nums sm:text-5xl">
+                  {new Intl.NumberFormat('ro-RO').format(stat.value)}
+                </span>
                 {stat.unit && (
                   <span className="whitespace-nowrap text-base font-semibold leading-snug text-card-foreground/85 sm:text-lg">
                     {stat.unit}
@@ -90,9 +93,9 @@ export const StatsBlock = async ({
                   {stat.description}
                 </p>
               )}
-            </motion.article>
+            </article>
           ))}
-        </div>
+        </StaggeredStats>
       )}
 
       {(hasGallery || hasEventList) && (
@@ -145,14 +148,7 @@ export const StatsBlock = async ({
                               {event.registrations && (
                                 <p className="flex items-center gap-1">
                                   <UserIcon className="size-3.5 shrink-0" aria-hidden />
-                                  {event.registrations.totalDocs} participanți
-                                </p>
-                              )}
-                              {event.registrations && typeof event.donation === 'number' && (
-                                <p className="flex items-center gap-1">
-                                  <BanknoteIcon className="size-3.5 shrink-0" aria-hidden />+
-                                  {(event.registrations.totalDocs || 0) * event.donation} RON
-                                  strânşi
+                                  {registrationCountLabel(event.registrations.totalDocs ?? 0)}
                                 </p>
                               )}
                             </div>

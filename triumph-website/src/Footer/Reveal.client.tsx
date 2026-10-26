@@ -1,21 +1,19 @@
 'use client'
 
 import { ArrowUp } from 'lucide-react'
-import { motion, useReducedMotion, useScroll, useSpring, useTransform } from 'motion/react'
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react'
 import { usePathname } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
 
 export function FooterReveal({ children }: { children: React.ReactNode }) {
-  const markerRef = useRef<HTMLDivElement>(null)
+  const anchorRef = useRef<HTMLDivElement>(null)
+  const blur = useMotionValue(0)
+  const filter = useTransform(blur, (value) => `blur(${value}px)`)
   const footerRef = useRef<HTMLElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [focused, setFocused] = useState(false)
-  const [clearAt, setClearAt] = useState(0.5)
   const reducedMotion = useReducedMotion()
   const pathname = usePathname()
-  // This marker stays in document flow even while the footer sticks behind the page.
-  const { scrollYProgress } = useScroll({ target: markerRef, offset: ['start end', 'start start'] })
-  const filter = useTransform(scrollYProgress, [0, clearAt], ['blur(16px)', 'blur(0px)'])
   const stretch = useSpring(0, { stiffness: 280, damping: 28, mass: 0.55 })
   const scaleY = useTransform(stretch, [0, 120], [1, 1.08])
 
@@ -24,28 +22,52 @@ export function FooterReveal({ children }: { children: React.ReactNode }) {
     const panel = panelRef.current
     if (!footer || !panel) return
 
+    let frame = 0
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const updateBlur = () => {
+      frame = 0
+      const anchor = anchorRef.current
+      const atBottom =
+        window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2
+      if (!anchor || preference.matches || footer.dataset.sticky !== 'true' || atBottom) {
+        blur.set(0)
+        return
+      }
+      // The zero-height flow anchor stays still while the footer sticks behind
+      // the page, so reveal progress does not depend on transformed geometry.
+      const revealed = Math.max(
+        0,
+        Math.min(1, (window.innerHeight - anchor.getBoundingClientRect().top) / panel.offsetHeight),
+      )
+      blur.set(16 * (1 - revealed))
+    }
+    const onRevealScroll = () => {
+      if (!frame) frame = requestAnimationFrame(updateBlur)
+    }
     const updateSize = () => {
       // Read untransformed height so stretching cannot change sticky eligibility.
       const height = panel.offsetHeight
       footer.dataset.sticky = String(!preference.matches && height < window.innerHeight - 32)
-      setClearAt(Math.min(0.55, (height / window.innerHeight) * 0.55))
       if (preference.matches) stretch.jump(0)
+      updateBlur()
     }
 
     const resizeObserver = new ResizeObserver(updateSize)
     resizeObserver.observe(panel)
     window.addEventListener('resize', updateSize)
+    window.addEventListener('scroll', onRevealScroll, { passive: true })
     preference.addEventListener('change', updateSize)
     updateSize()
 
     return () => {
       resizeObserver.disconnect()
+      cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', onRevealScroll)
       window.removeEventListener('resize', updateSize)
       preference.removeEventListener('change', updateSize)
       delete footer.dataset.sticky
     }
-  }, [pathname, stretch])
+  }, [blur, pathname, stretch])
 
   useEffect(() => {
     const footer = footerRef.current
@@ -135,7 +157,7 @@ export function FooterReveal({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div aria-hidden className="pointer-events-none h-0 shrink-0" ref={markerRef} />
+      <div ref={anchorRef} aria-hidden="true" className="h-0 shrink-0" data-footer-anchor />
       <footer
         className="relative z-0 mt-auto shrink-0 bg-sidebar text-sidebar-foreground selection:bg-accent selection:text-sidebar data-[sticky=true]:sticky data-[sticky=true]:bottom-0 focus-within:static! motion-reduce:static! [&_:is(a,button):focus-visible]:outline-2 [&_:is(a,button):focus-visible]:outline-offset-4 [&_:is(a,button):focus-visible]:outline-accent"
         data-footer
@@ -154,8 +176,8 @@ export function FooterReveal({ children }: { children: React.ReactNode }) {
           data-footer-panel
           ref={panelRef}
           style={{
-            filter: reducedMotion || focused ? 'none' : filter,
             scaleY: reducedMotion || focused ? 1 : scaleY,
+            filter: reducedMotion || focused ? 'none' : filter,
           }}
         >
           {children}

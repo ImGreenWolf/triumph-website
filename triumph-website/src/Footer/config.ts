@@ -18,6 +18,7 @@ const socialIconOptions = [
 
 export const Footer: GlobalConfig = {
   slug: 'footer',
+  versions: { drafts: true, max: 20 },
   access: {
     read: () => true,
   },
@@ -29,7 +30,7 @@ export const Footer: GlobalConfig = {
       name: 'description',
       type: 'textarea',
       defaultValue:
-        'Interact Bucuresti Triumph brings students together for service, leadership, and community projects across Bucharest.',
+        'Interact București Triumph aduce adolescenți împreună pentru voluntariat și proiecte în comunitatea bucureșteană.',
       label: 'Footer Description',
     },
     {
@@ -41,7 +42,7 @@ export const Footer: GlobalConfig = {
     {
       name: 'copyrightText',
       type: 'text',
-      defaultValue: 'Interact Bucuresti Triumph',
+      defaultValue: 'Interact București Triumph',
       label: 'Copyright Text',
       admin: {
         description: 'Displayed after the current year.',
@@ -50,7 +51,7 @@ export const Footer: GlobalConfig = {
     {
       name: 'backToTopLabel',
       type: 'text',
-      defaultValue: 'Back to top',
+      defaultValue: 'Înapoi sus',
       label: 'Back to Top Label',
     },
     {
@@ -119,12 +120,12 @@ export const Footer: GlobalConfig = {
       },
       defaultValue: [
         {
-          label: 'Cookie Policy',
-          url: '/cookie-policy',
+          label: 'Politica de cookie-uri',
+          url: '/politica-cookies',
         },
         {
-          label: 'Privacy Policy',
-          url: '/privacy-policy',
+          label: 'Confidențialitate',
+          url: '/politica-confidentialitate',
         },
       ],
       maxRows: 6,

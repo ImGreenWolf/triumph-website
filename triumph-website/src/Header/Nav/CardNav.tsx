@@ -1,266 +1,206 @@
 'use client'
-import React, { ReactElement, useLayoutEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
-// use your own icon import if react-icons is not available
-import { ArrowUpRight as GoArrowUpRight } from 'lucide-react';
-import { CMSLink } from '@/components/Link';
-import { Logo } from '@/components/Logo';
-import Link from 'next/link';
 
-type CardNavLink = {
-  label: string;
-  href: string;
-  ariaLabel: string;
-};
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { ArrowUpRight, UserRound } from 'lucide-react'
+import { Logo } from '@/components/Logo'
+import Link from 'next/link'
 
 export type CardNavItem = {
-  label: string;
-  bgColor: string;
-  textColor: string;
-  link: string;
-  links: CardNavLink[];
-};
-
+  label: string
+  bgColor: string
+  textColor: string
+  link: string
+  links: { label: string; href: string; ariaLabel: string }[]
+}
 export interface CardNavProps {
-  logo?: string;
-  logoAlt?: string;
-  items: CardNavItem[];
-  className?: string;
-  ease?: string;
-  baseColor?: string;
-  menuColor?: string;
-  buttonBgColor?: string;
-  buttonTextColor?: string;
-  buttonUrl: string;
-  buttonText: string | ReactElement;
+  logo?: string
+  logoAlt?: string
+  items: CardNavItem[]
+  className?: string
+  baseColor?: string
+  menuColor?: string
+  buttonTextColor?: string
+  buttonUrl: string
+  buttonText: string | ReactElement
+  pathname?: string
 }
 
-const CardNav: React.FC<CardNavProps> = ({
+function isCurrent(href: string, pathname?: string) {
+  if (!pathname || !href.startsWith('/') || href.includes('#')) return false
+  const path = href.split('?')[0].replace(/\/$/, '') || '/'
+  return path === pathname || (path === '/home' && pathname === '/')
+}
+
+export default function CardNav({
   logo,
-  logoAlt = 'Logo',
+  logoAlt = 'Interact București Triumph',
   items,
   className = '',
-  ease = 'power3.out',
-  baseColor = '#fff',
+  baseColor,
   menuColor,
-  buttonBgColor,
-  buttonTextColor,
   buttonUrl,
-  buttonText
-}) => {
-  const [isHamburgerOpen, setIsHamburgerOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const navRef = useRef<HTMLDivElement | null>(null);
-  const cardsRef = useRef<HTMLDivElement[]>([]);
-  const tlRef = useRef<gsap.core.Timeline | null>(null);
+  buttonText,
+  pathname,
+}: CardNavProps) {
+  const [open, setOpen] = useState(false)
+  const menuID = useId()
+  const toggle = useRef<HTMLButtonElement>(null)
+  const nav = useRef<HTMLElement>(null)
 
-  const calculateHeight = () => {
-    const navEl = navRef.current;
-    if (!navEl) return 260;
-
-    const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    if (isMobile) {
-      const contentEl = navEl.querySelector('.card-nav-content') as HTMLElement;
-      if (contentEl) {
-        const wasVisible = contentEl.style.visibility;
-        const wasPointerEvents = contentEl.style.pointerEvents;
-        const wasPosition = contentEl.style.position;
-        const wasHeight = contentEl.style.height;
-
-        contentEl.style.visibility = 'visible';
-        contentEl.style.pointerEvents = 'auto';
-        contentEl.style.position = 'static';
-        contentEl.style.height = 'auto';
-
-        contentEl.offsetHeight;
-
-        const topBar = 60;
-        const padding = 16;
-        const contentHeight = contentEl.scrollHeight;
-
-        contentEl.style.visibility = wasVisible;
-        contentEl.style.pointerEvents = wasPointerEvents;
-        contentEl.style.position = wasPosition;
-        contentEl.style.height = wasHeight;
-
-        return topBar + contentHeight + padding;
-      }
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (event: PointerEvent) => {
+      if (!nav.current?.contains(event.target as Node)) setOpen(false)
     }
-    return 260;
-  };
+    document.addEventListener('pointerdown', onPointer)
+    return () => document.removeEventListener('pointerdown', onPointer)
+  }, [open])
 
-  const createTimeline = () => {
-    const navEl = navRef.current;
-    if (!navEl) return null;
-
-    gsap.set(navEl, { height: 60, overflow: 'hidden' });
-    gsap.set(cardsRef.current, { y: 50, opacity: 0 });
-
-    const tl = gsap.timeline({ paused: true });
-
-    tl.to(navEl, {
-      height: calculateHeight,
-      duration: 0.4,
-      ease
-    });
-
-    tl.to(cardsRef.current, { y: 0, opacity: 1, duration: 0.4, ease, stagger: 0.08 }, '-=0.1');
-
-    return tl;
-  };
-
-  useLayoutEffect(() => {
-    const tl = createTimeline();
-    tlRef.current = tl;
-
-    return () => {
-      tl?.kill();
-      tlRef.current = null;
-    };
-  }, [ease, items]);
-
-  useLayoutEffect(() => {
-    const handleResize = () => {
-      if (!tlRef.current) return;
-
-      if (isExpanded) {
-        const newHeight = calculateHeight();
-        gsap.set(navRef.current, { height: newHeight });
-
-        tlRef.current.kill();
-        const newTl = createTimeline();
-        if (newTl) {
-          newTl.progress(1);
-          tlRef.current = newTl;
-        }
-      } else {
-        tlRef.current.kill();
-        const newTl = createTimeline();
-        if (newTl) {
-          tlRef.current = newTl;
-        }
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isExpanded]);
-
-  const toggleMenu = () => {
-    const tl = tlRef.current;
-    if (!tl) return;
-    if (!isExpanded) {
-      setIsHamburgerOpen(true);
-      setIsExpanded(true);
-      tl.play(0);
-    } else {
-      setIsHamburgerOpen(false);
-      tl.eventCallback('onReverseComplete', () => setIsExpanded(false));
-      tl.reverse();
-    }
-  };
-
-  const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
-    if (el) cardsRef.current[i] = el;
-  };
-
+  const columns = items.length > 4 ? 3 : Math.max(1, items.length)
   return (
     <div
-      className={`card-nav-container absolute left-1/2 -translate-x-1/2 w-[90%] max-w-[1000px] z-[99] top-[1.2em] md:top-[1em] ${className}`}
+      className={`club-header absolute inset-x-3 top-3 mx-auto max-w-[1200px] text-foreground selection:bg-accent selection:text-background md:inset-x-4 md:top-4 [&_:is(a,button):focus-visible]:outline-2 [&_:is(a,button):focus-visible]:outline-offset-4 [&_:is(a,button):focus-visible]:outline-accent motion-reduce:[&_*]:transition-none! motion-reduce:[&_*]:duration-0! motion-reduce:[&_*]:delay-0! ${className}`}
     >
       <nav
-        ref={navRef}
-        className={`card-nav ${isExpanded ? 'open backdrop-blur-md' : 'backdrop-blur-2xl'} block h-[60px] p-0 duration-250 rounded-xl shadow-md relative overflow-hidden will-change-[height]`}
-        style={{ backgroundColor: baseColor }}
+        ref={nav}
+        aria-label="Navigare principală"
+        data-open={open}
+        style={{ '--header-surface': baseColor, '--header-columns': columns } as CSSProperties}
+        className="club-header__nav group/header overflow-hidden rounded-2xl bg-[var(--header-surface,var(--card))] shadow-[0_8px_28px_rgb(0_0_0/0.18)]"
+        onClick={(event) => {
+          if ((event.target as Element).closest('a')) setOpen(false)
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && open) {
+            event.preventDefault()
+            setOpen(false)
+            toggle.current?.focus()
+          }
+        }}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false)
+        }}
       >
-        <div className="card-nav-top absolute inset-x-0 top-0 h-[60px] flex items-center justify-between p-2 pl-[1.1rem] z-[2]">
-          <div
-            className={`hamburger-menu ${isHamburgerOpen ? 'open' : ''} group h-full flex flex-col items-center justify-center cursor-pointer gap-[6px] order-2 md:order-none`}
-            onClick={toggleMenu}
-            role="button"
-            aria-label={isExpanded ? 'Close menu' : 'Open menu'}
-            tabIndex={0}
-            style={{ color: menuColor || '#000' }}
-          >
-            <div
-              className={`hamburger-line w-[30px] h-[2px] bg-current transition-[transform,opacity,margin] duration-300 ease-linear [transform-origin:50%_50%] ${
-                isHamburgerOpen ? 'translate-y-[4px] rotate-45' : ''
-              } group-hover:opacity-75`}
-            />
-            <div
-              className={`hamburger-line w-[30px] h-[2px] bg-current transition-[transform,opacity,margin] duration-300 ease-linear [transform-origin:50%_50%] ${
-                isHamburgerOpen ? '-translate-y-[4px] -rotate-45' : ''
-              } group-hover:opacity-75`}
-            />
-          </div>
-
-          <div
-            className="logo-container flex items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 order-1 md:order-none"
+        <div className="club-header__bar flex min-h-17 items-center gap-3 px-3 py-1.5 md:min-h-20 md:gap-6 md:px-5 md:py-2">
+          <Link
+            href="/"
+            aria-label="Interact București Triumph — prima pagină"
             data-theme="dark"
+            className="club-header__brand flex min-h-11 min-w-0 flex-[0_1_148px] items-center rounded-sm md:basis-44"
           >
-            <Link href={'/'}>
             {logo ? (
-              <img src={logo} alt={logoAlt} className="logo h-[28px]" />
+              // Runtime CMS logos can use hosts outside the Next image allowlist.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logo}
+                alt={logoAlt}
+                className="club-header__logo h-[54px] w-[148px] max-w-full object-contain object-left md:h-15 md:w-44"
+              />
             ) : (
-              
-              <Logo className="logo max-h-[48px] w-auto" />
+              <Logo
+                loading="eager"
+                priority="high"
+                className="club-header__logo h-[54px] w-[148px] max-w-full object-contain object-left md:h-15 md:w-44"
+              />
             )}
-            </Link>
+          </Link>
+          <div className="club-header__shortcuts hidden min-w-0 flex-1 justify-center gap-1 min-[1200px]:flex">
+            {items.map((item, index) => (
+              <Link
+                key={`${item.label}-${index}`}
+                href={item.link || '/'}
+                aria-current={isCurrent(item.link, pathname) ? 'page' : undefined}
+                title={item.label}
+                className="club-header__shortcut relative flex min-h-11 min-w-0 items-center rounded-sm px-3 py-2 text-[13px] font-semibold hover:text-accent [&_span]:truncate aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-3 aria-[current=page]:after:bottom-1 aria-[current=page]:after:h-0.5 aria-[current=page]:after:rounded-[1px] aria-[current=page]:after:bg-accent aria-[current=page]:after:content-['']"
+              >
+                <span>{item.label}</span>
+              </Link>
+            ))}
           </div>
-
-          {/* <button
-            type="button"
-            className="card-nav-cta-button hidden md:inline-flex border-0 rounded-[calc(0.75rem-0.2rem)] px-4 items-center h-full font-medium cursor-pointer transition-colors duration-300"
-            style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
-          >
-            Get Started
-          </button> */}
-          <CMSLink 
-            className={`card-nav-cta-button bg-${buttonBgColor} text-[${buttonTextColor}] hidden md:inline-flex border-0 rounded-[calc(0.75rem-0.2rem)] px-4 items-center h-full font-medium cursor-pointer transition-colors duration-300 `}
-            appearance={'ghost'}
-            type={'custom'}
-            url={buttonUrl}
-          >{buttonText}</CMSLink>
-        </div>
-
-        <div
-          className={`card-nav-content absolute left-0 right-0 top-[60px] bottom-0 p-2 flex flex-col items-stretch gap-2 justify-start z-[1] ${
-            isExpanded ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
-          } md:flex-row md:items-end md:gap-[12px]`}
-          aria-hidden={!isExpanded}
-        >
-          {(items || []).map((item, idx) => ( // add slice(0,3) to limit
-            <div
-              key={`${item.label}-${idx}`}
-              className="nav-card select-none relative bg-${buttonBgColor} flex flex-col gap-2 p-[12px_16px] rounded-sm min-w-0 flex-[1_1_auto] h-auto min-h-[60px] md:h-full md:min-h-0 md:flex-[1_1_0%]"
-              ref={setCardRef(idx)}
-              style={{ backgroundColor: item.bgColor, color: item.textColor }}
-              
+          <div className="club-header__actions ml-auto flex shrink-0 items-center gap-2 md:gap-3">
+            <Link
+              href={buttonUrl}
+              aria-label={typeof buttonText === 'string' ? undefined : 'Contul meu'}
+              aria-current={isCurrent(buttonUrl, pathname) ? 'page' : undefined}
+              className="club-header__account inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-2.5 py-2.5 text-xs font-semibold text-background transition-colors duration-[160ms] hover:bg-[color-mix(in_srgb,var(--accent)_82%,var(--foreground))] md:px-4 md:text-[13px] aria-[current=page]:underline aria-[current=page]:decoration-accent aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-[6px]"
             >
-              <a className="nav-card-label font-normal tracking-[-0.5px] text-[18px] md:text-[22px] w-max group relative" href={item.link}>
-                {item.label}
-                <div className='border-b border-primary w-auto not-group-hover:w-0 w-full duration-250'></div>
-                <GoArrowUpRight className='shrink-0 nav-card-link-icon group-hover:delay-150 not-group-hover:opacity-0 duration-150 absolute right-0 translate-x-full h-full top-0 bottom-0'/>
-              </a>
-              <div className="nav-card-links mt-auto flex flex-col gap-[2px]">
-                {item.links?.map((lnk, i) => (
-                  <a
-                    key={`${lnk.label}-${i}`}
-                    className="nav-card-link inline-flex items-center gap-[6px] no-underline cursor-pointer transition-opacity duration-300 hover:opacity-75 text-[15px] md:text-[16px]"
-                    href={lnk.href}
-                    aria-label={lnk.ariaLabel}
+              <UserRound
+                aria-hidden="true"
+                className="club-header__user-icon hidden size-4 md:block"
+              />
+              {typeof buttonText === 'string' ? buttonText : 'Contul meu'}
+            </Link>
+            {items.length > 0 && (
+              <button
+                ref={toggle}
+                type="button"
+                aria-label={open ? 'Închide meniul' : 'Deschide meniul'}
+                aria-expanded={open}
+                aria-controls={menuID}
+                onClick={() => setOpen((value) => !value)}
+                style={{ color: menuColor }}
+                className="club-header__toggle inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-3 rounded-lg p-2.5 text-[13px] font-semibold transition-colors duration-[160ms] hover:bg-foreground/10 md:min-w-[108px] md:px-3"
+              >
+                <span className="club-header__toggle-label hidden md:inline">
+                  {open ? 'Închide' : 'Meniu'}
+                </span>
+                <span
+                  className="club-header__menu-icon relative h-[18px] w-[22px] shrink-0"
+                  aria-hidden="true"
+                >
+                  <span className="absolute top-2 left-0 h-0.5 w-[22px] rounded-[1px] bg-current transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] [transform:translateY(-4px)] group-data-[open=true]/header:[transform:rotate(45deg)]" />
+                  <span className="absolute top-2 left-0 h-0.5 w-[22px] rounded-[1px] bg-current transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] [transform:translateY(4px)] group-data-[open=true]/header:[transform:rotate(-45deg)]" />
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+        <div
+          id={menuID}
+          inert={!open}
+          aria-hidden={!open}
+          className="club-header__reveal invisible grid grid-rows-[0fr] [transition:grid-template-rows_220ms_cubic-bezier(0.16,1,0.3,1),visibility_0s_220ms] group-data-[open=true]/header:visible group-data-[open=true]/header:grid-rows-[1fr] group-data-[open=true]/header:[transition:grid-template-rows_360ms_cubic-bezier(0.16,1,0.3,1),visibility_0s]"
+        >
+          <div className="club-header__clip min-h-0 overflow-hidden">
+            <div className="club-header__directory max-h-[calc(100svh-104px)] overflow-y-auto overscroll-contain bg-background px-5 pt-2 pb-6 [scrollbar-width:thin] [scrollbar-color:var(--accent)_var(--background)] md:max-h-[calc(100svh-128px)] md:p-8">
+              <div className="club-header__groups grid grid-cols-1 gap-4 md:grid-cols-[repeat(var(--header-columns),minmax(0,1fr))] md:gap-8">
+                {items.map((item, index) => (
+                  <div
+                    key={`${item.label}-${index}`}
+                    className="club-header__group min-w-0 border-t border-foreground/24 pt-4"
                   >
-                    <GoArrowUpRight className="nav-card-link-icon shrink-0" aria-hidden="true" />
-                    {lnk.label}
-                  </a>
+                    <Link
+                      href={item.link || '/'}
+                      aria-current={isCurrent(item.link, pathname) ? 'page' : undefined}
+                      className="club-header__group-link flex min-h-11 items-start justify-between gap-3 rounded-xs text-[22px] leading-[1.35] font-semibold [overflow-wrap:anywhere] hover:text-accent [&_svg]:mt-1 [&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:text-accent [&_svg]:transition-transform [&_svg]:duration-[220ms] [&_svg]:ease-[cubic-bezier(0.16,1,0.3,1)] hover:[&_svg]:translate-x-0.5 hover:[&_svg]:-translate-y-0.5 md:text-[clamp(18px,1.7vw,24px)] aria-[current=page]:underline aria-[current=page]:decoration-accent aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-[6px]"
+                    >
+                      <span>{item.label}</span>
+                      <ArrowUpRight aria-hidden="true" />
+                    </Link>
+                    {item.links.length > 0 && (
+                      <ul className="club-header__links mt-0 grid list-none p-0 md:mt-2">
+                        {item.links.map((link, linkIndex) => (
+                          <li key={`${link.href}-${linkIndex}`}>
+                            <Link
+                              href={link.href}
+                              aria-label={link.ariaLabel}
+                              aria-current={isCurrent(link.href, pathname) ? 'page' : undefined}
+                              className="club-header__link flex min-h-11 items-center justify-between gap-3 rounded-xs text-sm leading-normal text-foreground/84 [overflow-wrap:anywhere] hover:text-accent [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:transition-transform [&_svg]:duration-[220ms] [&_svg]:ease-[cubic-bezier(0.16,1,0.3,1)] hover:[&_svg]:translate-x-0.5 hover:[&_svg]:-translate-y-0.5 aria-[current=page]:underline aria-[current=page]:decoration-accent aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-[6px]"
+                            >
+                              <span>{link.label}</span>
+                              <ArrowUpRight aria-hidden="true" />
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
-          ))}
+          </div>
         </div>
       </nav>
     </div>
-  );
-};
-
-export default CardNav;
+  )
+}

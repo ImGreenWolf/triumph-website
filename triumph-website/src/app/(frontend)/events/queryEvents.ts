@@ -1,3 +1,4 @@
+import { withPublicEventCounts } from '@/utilities/publicEventStats'
 import type { Event } from '@/payload-types'
 import {
   getEventEndDate,
@@ -25,11 +26,10 @@ export async function queryEventsPage(page = 1) {
       location: true,
       meta: true,
       name: true,
-      registrations: true,
       slug: true,
     },
   })
-  const allEvents = (result.docs as Event[]).map(toDisplayEvent)
+  const allEvents = (await withPublicEventCounts(result.docs as Event[])).map(toDisplayEvent)
   const upcomingEvents = allEvents.filter((event) => !isEventCompleted(event)).sort(sortUpcomingEvents)
   const completedEvents = allEvents.filter((event) => isEventCompleted(event)).sort(sortCompletedEvents)
   const totalPages = Math.ceil(upcomingEvents.length / EVENTS_PER_PAGE)

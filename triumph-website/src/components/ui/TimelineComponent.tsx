@@ -1,5 +1,6 @@
 'use client'
 
+import { registrationCountLabel } from '@/utilities/eventRegistrationStats'
 import { Media } from '@/components/Media'
 import type { Event } from '@/payload-types'
 import {
@@ -131,7 +132,7 @@ function ArchiveEventCard({
   showStatistics: boolean
 }) {
   const location = getEventLocation(event.location)
-  const registrationsCount = event.registrations?.totalDocs ?? event.registrations?.docs?.length ?? 0
+  const registrationsCount = event.registrations?.totalDocs
   const cause = typeof event.cause === 'object' ? event.cause : null
 
   return (
@@ -184,11 +185,11 @@ function ArchiveEventCard({
           </p>
         )}
 
-        {showStatistics && (
+        {showStatistics && registrationsCount !== undefined && (
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3 border-t border-card-foreground/10 pt-4 text-xs text-foreground/80">
             <span className="inline-flex items-center gap-1.5">
               <Users aria-hidden className="size-4 text-accent" />
-              {registrationsCount} participanți
+              {registrationCountLabel(registrationsCount!)}
             </span>
             {cause?.name && (
               <span className="inline-flex items-center gap-1.5">

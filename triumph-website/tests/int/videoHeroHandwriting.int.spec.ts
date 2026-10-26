@@ -286,16 +286,16 @@ describe('video hero handwriting timeline', () => {
     expect(completed).toHaveBeenCalledTimes(1)
     timeline.kill()
   })
-  it('reveals the entire phrase with one linear offset and then reveals the actions', () => {
+  it('reveals the entire phrase with one linear offset while actions remain available', () => {
     const { entries, actions, settings, timeline } = animationFixture(2)
-    expect(actions.inert).toBe(true)
+    expect(actions.inert).toBe(false)
     timeline.totalTime(settings.initialDelay + 0.25, false)
     const paths = entries[0].querySelectorAll('path')
     expect(paths).toHaveLength(1)
     expect(Number(gsap.getProperty(paths[0], 'strokeDashoffset'))).toBeCloseTo(0.875)
     timeline.totalTime(settings.initialDelay + settings.writingDuration / 2, false)
     expect(Number(gsap.getProperty(paths[0], 'strokeDashoffset'))).toBeCloseTo(0.5)
-    expect(actions.inert).toBe(true)
+    expect(actions.inert).toBe(false)
     timeline.totalTime(
       settings.initialDelay + settings.writingDuration + settings.buttonRevealDuration,
       false,

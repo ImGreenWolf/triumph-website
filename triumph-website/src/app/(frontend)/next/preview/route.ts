@@ -28,17 +28,18 @@ export async function GET(req: NextRequest): Promise<Response> {
     return new Response('Insufficient search params', { status: 404 })
   }
 
-  if (!path.startsWith('/')) {
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) {
     return new Response('This endpoint can only be used for relative previews', { status: 500 })
   }
 
   let user
 
   try {
-    user = await payload.auth({
+    const authentication = await payload.auth({
       req: req as unknown as PayloadRequest,
       headers: req.headers,
     })
+    user = authentication.user
   } catch (error) {
     payload.logger.error({ err: error }, 'Error verifying token for live preview')
     return new Response('You are not allowed to preview this page', { status: 403 })

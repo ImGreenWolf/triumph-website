@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useId, useState } from 'react'
+import { RecruitmentNotice } from '@/components/RecruitmentStatus'
 import { Plus } from 'lucide-react'
 
 import { cn } from '@/utilities/ui'
@@ -8,7 +9,8 @@ import RichText from '@/components/RichText'
 import { DefaultTypedEditorState } from '@payloadcms/richtext-lexical'
 
 type FAQItem = {
-  answer: DefaultTypedEditorState
+  answer?: DefaultTypedEditorState | null
+  answerSource?: 'manual' | 'recruitment' | null
   id?: string | null
   question: string
 }
@@ -77,7 +79,9 @@ export const FAQAccordion: React.FC<Props> = ({ items, openFirstItem }) => {
               id={contentID}
             >
               <div className="overflow-hidden">
-                <RichText enableProse={false} enableGutter={false} className="[&_a]:text-accent border-t border-foreground/15 px-5 py-5 text-sm leading-7 text-foreground/85 md:px-6" data={item.answer}/>
+                <div className="border-t border-foreground/15 px-5 py-5 text-sm leading-7 text-foreground/85 md:px-6">
+                  {item.answerSource === 'recruitment' ? <RecruitmentNotice showLink /> : item.answer ? <RichText enableProse={false} enableGutter={false} className="[&_a]:text-accent" data={item.answer} /> : null}
+                </div>
               </div>
             </div>
           </article>

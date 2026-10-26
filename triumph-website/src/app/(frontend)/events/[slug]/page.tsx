@@ -418,8 +418,8 @@ function getMinimumDetails(event: Pick<Event, 'donation' | 'minimumConsumation'>
   const donation = formatDonationMinimum(event.donation)
   const consumation = formatCurrencyMinimum(event.minimumConsumation)
 
-  if (donation) details.push({ label: 'Donație minimă', value: donation })
-  if (consumation) details.push({ label: 'Consumație minimă', value: consumation })
+  if (donation) details.push({ label: 'Donație minimă / persoană', value: donation })
+  if (consumation) details.push({ label: 'Consumație minimă / persoană', value: consumation })
 
   return details
 }

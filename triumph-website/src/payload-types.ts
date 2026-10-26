@@ -324,6 +324,7 @@ export interface Page {
     | TeamBlock
     | MasonryBlock
     | EventsBlock
+    | HomepageEventsBlock
     | SectionBlock
     | FeatureGridBlock
     | StatsBlock
@@ -1153,6 +1154,9 @@ export interface Event {
       }[]
     | null;
   cause?: (string | null) | Cause;
+  /**
+   * Donație minimă per persoană (RON).
+   */
   donation?: string | null;
   minimumConsumation?: number | null;
   signupMessage?: string | null;
@@ -1229,12 +1233,17 @@ export interface EventRegistration {
   day: string;
   slot: string;
   email?: string | null;
+  ageGroup?: ('minor' | 'adult') | null;
   name: string;
   phone?: string | null;
   questions?: string | null;
   emailConsent?: boolean | null;
   minimumsAcknowledged?: boolean | null;
   donation: number;
+  /**
+   * Separată de donație la confirmarea participării.
+   */
+  consumptionAmount?: number | null;
   guests: number;
   timeOfArrival?: string | null;
   status: 'registered' | 'present' | 'absent' | 'cancelled';
@@ -1564,6 +1573,69 @@ export interface EventsBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HomepageEventsBlock".
+ */
+export interface HomepageEventsBlock {
+  title: string;
+  description?: string | null;
+  introContent?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  presentation?: ('gallery' | 'cards') | null;
+  highlightGallery?: {
+    showLabels?: boolean | null;
+    expandRatio?: number | null;
+    items?:
+      | {
+          label?: string | null;
+          link: {
+            type?: ('reference' | 'custom') | null;
+            newTab?: boolean | null;
+            reference?:
+              | ({
+                  relationTo: 'pages';
+                  value: string | Page;
+                } | null)
+              | ({
+                  relationTo: 'posts';
+                  value: string | Post;
+                } | null);
+            url?: string | null;
+            label: string;
+            /**
+             * Choose how the link should be rendered.
+             */
+            appearance?: ('default' | 'outline') | null;
+          };
+          image?: (string | null) | Media;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  /**
+   * Este afișat numai înainte de începere. Fără selecție, apare următorul eveniment viitor publicat. Dacă nu există unul, galeria și butonul către arhivă rămân vizibile.
+   */
+  featuredEvent?: (string | null) | Event;
+  highlightedEvents?: (string | Event)[] | null;
+  archiveLabel?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'homepageEvents';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "SectionBlock".
  */
 export interface SectionBlock {
@@ -1645,6 +1717,11 @@ export interface StatsBlock {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * De exemplu, mandatul sau intervalul exact al cifrelor. Completează numai perioada verificată.
+   */
+  reportingPeriod?: string | null;
+  sourceNote?: string | null;
   showEvents?: boolean | null;
   stats?:
     | {
@@ -1854,7 +1931,8 @@ export interface FAQBlock {
   faqs?:
     | {
         question: string;
-        answer: {
+        answerSource?: ('manual' | 'recruitment') | null;
+        answer?: {
           root: {
             type: string;
             children: {
@@ -1868,7 +1946,7 @@ export interface FAQBlock {
             version: number;
           };
           [k: string]: unknown;
-        };
+        } | null;
         id?: string | null;
       }[]
     | null;
@@ -2869,6 +2947,7 @@ export interface PagesSelect<T extends boolean = true> {
         teamBlock?: T | TeamBlockSelect<T>;
         masonryBlock?: T | MasonryBlockSelect<T>;
         eventsBlock?: T | EventsBlockSelect<T>;
+        homepageEvents?: T | HomepageEventsBlockSelect<T>;
         sectionIntro?: T | SectionBlockSelect<T>;
         featureGrid?: T | FeatureGridBlockSelect<T>;
         statsBlock?: T | StatsBlockSelect<T>;
@@ -3041,6 +3120,44 @@ export interface EventsBlockSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HomepageEventsBlock_select".
+ */
+export interface HomepageEventsBlockSelect<T extends boolean = true> {
+  title?: T;
+  description?: T;
+  introContent?: T;
+  presentation?: T;
+  highlightGallery?:
+    | T
+    | {
+        showLabels?: T;
+        expandRatio?: T;
+        items?:
+          | T
+          | {
+              label?: T;
+              link?:
+                | T
+                | {
+                    type?: T;
+                    newTab?: T;
+                    reference?: T;
+                    url?: T;
+                    label?: T;
+                    appearance?: T;
+                  };
+              image?: T;
+              id?: T;
+            };
+      };
+  featuredEvent?: T;
+  highlightedEvents?: T;
+  archiveLabel?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "SectionBlock_select".
  */
 export interface SectionBlockSelect<T extends boolean = true> {
@@ -3075,6 +3192,8 @@ export interface FeatureGridBlockSelect<T extends boolean = true> {
  */
 export interface StatsBlockSelect<T extends boolean = true> {
   introContent?: T;
+  reportingPeriod?: T;
+  sourceNote?: T;
   showEvents?: T;
   stats?:
     | T
@@ -3194,6 +3313,7 @@ export interface FAQBlockSelect<T extends boolean = true> {
     | T
     | {
         question?: T;
+        answerSource?: T;
         answer?: T;
         id?: T;
       };
@@ -3710,12 +3830,14 @@ export interface EventRegistrationsSelect<T extends boolean = true> {
   day?: T;
   slot?: T;
   email?: T;
+  ageGroup?: T;
   name?: T;
   phone?: T;
   questions?: T;
   emailConsent?: T;
   minimumsAcknowledged?: T;
   donation?: T;
+  consumptionAmount?: T;
   guests?: T;
   timeOfArrival?: T;
   status?: T;
@@ -4378,6 +4500,7 @@ export interface Header {
         id?: string | null;
       }[]
     | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4450,6 +4573,7 @@ export interface Footer {
         id?: string | null;
       }[]
     | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4648,6 +4772,7 @@ export interface HeaderSelect<T extends boolean = true> {
             };
         id?: T;
       };
+  _status?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -4692,6 +4817,7 @@ export interface FooterSelect<T extends boolean = true> {
         newTab?: T;
         id?: T;
       };
+  _status?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

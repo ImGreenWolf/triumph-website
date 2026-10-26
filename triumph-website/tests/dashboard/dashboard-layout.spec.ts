@@ -70,8 +70,8 @@ for (const width of [390, 768, 1024, 1440]) {
         expect(before['slot:avatar'].height).toBe(80)
         expect(before['slot:attendance-value'].height).toBe(40)
         expect(before['slot:attendance-progress'].height).toBe(8)
-        await expect(page.getByRole('link', { name: 'Profile', exact: true })).toBeVisible()
-        await expect(page.getByRole('link', { name: 'Logout', exact: true })).toBeVisible()
+        await expect(page.getByRole('link', { name: 'Profil', exact: true })).toBeVisible()
+        await expect(page.getByRole('link', { name: 'Deconectare', exact: true })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Arată codul QR' })).toBeEnabled()
         await expect(
           page.getByRole('button', { name: 'Vezi întâlnirea', exact: true }),
@@ -80,10 +80,10 @@ for (const width of [390, 768, 1024, 1440]) {
         expect(await page.locator('[data-dashboard-panel="email"]').count()).toBe(
           scenario === 'member' ? 0 : 1,
         )
-        expect(await page.getByRole('link', { name: 'Panou PM', exact: true }).count()).toBe(
+        expect(await page.getByRole('link', { name: 'Proiectele mele', exact: true }).count()).toBe(
           scenario === 'member' ? 0 : 1,
         )
-        expect(await page.getByRole('link', { name: 'Panou Comisii', exact: true }).count()).toBe(
+        expect(await page.getByRole('link', { name: 'Comisiile mele', exact: true }).count()).toBe(
           scenario === 'member' ? 0 : 1,
         )
         if (scenario !== 'member')

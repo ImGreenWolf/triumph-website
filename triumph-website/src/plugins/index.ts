@@ -1,3 +1,4 @@
+import { getRecruitmentStatus } from '@/utilities/recruitmentStatus'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 import { redirectsPlugin } from '@payloadcms/plugin-redirects'
@@ -12,7 +13,6 @@ import { beforeSyncWithSearch } from '@/search/beforeSync'
 
 import { AspirementConfig, FormSubmission, Page, Post } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
-import { getEndOfBucharestDay, getStartOfBucharestDay } from '@/utilities/recruitmentWorkflow'
 
 const searchableCollections = ['posts', 'events'] as const
 
@@ -152,12 +152,8 @@ export const plugins: Plugin[] = [
             const submittedForm = getRelationshipID(data.form)
             if (!recruitmentForm || recruitmentForm !== submittedForm) return data
 
-            const now = new Date()
-            const start = getStartOfBucharestDay(config.recruitment?.recruitmentStartDate)
-            const end = getEndOfBucharestDay(config.recruitment?.recruitmentEndDate)
-            if ((start && now < start) || (end && now > end)) {
-              throw new APIError('Perioada de inscrieri s-a incheiat.', 403)
-            }
+            const status = getRecruitmentStatus(config.recruitment)
+            if (!status.isOpen) throw new APIError(status.message, 403)
 
             return data
           },

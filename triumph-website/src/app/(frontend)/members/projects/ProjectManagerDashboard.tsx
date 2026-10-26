@@ -51,6 +51,14 @@ import { Media } from '@/components/Media'
 import Counter from '@/components/ui/counter'
 import { getEventTheme } from '@/utilities/eventTheme'
 import {
+  calculateEventPayment,
+  formatAgeGroup,
+  getRegistrationPaymentTotal,
+  isAgeGroup,
+  type AgeGroup,
+} from '@/utilities/eventPayment'
+import { EventPaymentFields, usePaymentDialogFocus } from './EventPaymentFields'
+import {
   QrScannerSurface,
   type QrScannerNotice,
   type QrScannerOverlayTone,
@@ -62,6 +70,8 @@ type PayloadEventSlot = NonNullable<NonNullable<PayloadEventDay['slots']>>[numbe
 export type ManagedRegistration = Omit<
   Pick<
     EventRegistration,
+    | 'ageGroup'
+    | 'consumptionAmount'
     | 'createdAt'
     | 'day'
     | 'donation'
@@ -82,8 +92,9 @@ export type ManagedRegistration = Omit<
 }
 
 type WalkInParticipantInput = {
+  ageGroup: AgeGroup
   dayId: string
-  donation: number
+  totalCollected: number
   email: string
   guests: number
   name: string
@@ -134,6 +145,7 @@ export type ManagedEvent = Pick<
   registrations: ManagedRegistration[]
   startTime: string | null
   donation: number
+  minimumConsumation: number
 }
 
 type Tab = 'overview' | 'check-in' | 'report' | 'team'
@@ -648,13 +660,10 @@ function CheckIn(props: {
   const [walkInOpen, setWalkInOpen] = useState(false)
   const [creatingWalkIn, setCreatingWalkIn] = useState(false)
   const [deletingID, setDeletingID] = useState<string | null>(null)
-  const [donationErrorIDs, setDonationErrorIDs] = useState<string[]>([])
   const [savingID, setSavingID] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null)
 
-  useEffect(() => {
-    setDonationErrorIDs([])
-  }, [event.id])
+  useEffect(() => {}, [event.id])
 
   const filtered = event.registrations.filter((registration) => {
     if (registration.status === 'cancelled') return false
@@ -669,31 +678,20 @@ function CheckIn(props: {
   })
 
   async function saveRegistration(args: {
-    donation: number
+    ageGroup?: AgeGroup
+    totalCollected?: number
     guests: number
     registration: ManagedRegistration
     status: 'registered' | 'present' | 'absent'
   }) {
-    if (args.status === 'present' && args.donation < event.donation) {
-      setDonationErrorIDs((current) =>
-        current.includes(args.registration.id) ? current : [...current, args.registration.id],
-      )
-      setNotice({
-        kind: 'error',
-        message: `Înscrierea nu se poate face deoarece donația minimă este de ${formatCurrency(event.donation)}.`,
-      })
-      setEditing(null)
-      setResumeScannerAfterCheckIn(false)
-      return
-    }
-
     setSavingID(args.registration.id)
     setNotice(null)
 
     try {
       const response = await fetch('/members/projects/check-in', {
         body: JSON.stringify({
-          donation: args.donation,
+          ageGroup: args.ageGroup,
+          totalCollected: args.totalCollected,
           guests: args.guests,
           registrationId: args.registration.id,
           status: args.status,
@@ -705,7 +703,13 @@ function CheckIn(props: {
         message?: string
         registration?: Pick<
           ManagedRegistration,
-          'donation' | 'guests' | 'id' | 'status' | 'timeOfArrival'
+          | 'ageGroup'
+          | 'consumptionAmount'
+          | 'donation'
+          | 'guests'
+          | 'id'
+          | 'status'
+          | 'timeOfArrival'
         >
       }
 
@@ -715,7 +719,6 @@ function CheckIn(props: {
 
       onRegistrationUpdate(result.registration)
       router.refresh()
-      setDonationErrorIDs((current) => current.filter((id) => id !== args.registration.id))
       setEditing(null)
       if (args.status === 'present' && resumeScannerAfterCheckIn) {
         setScannerOpen(true)
@@ -727,6 +730,7 @@ function CheckIn(props: {
         kind: 'error',
         message: error instanceof Error ? error.message : 'Actualizarea nu a putut fi salvată.',
       })
+      if (args.status === 'present') throw error
     } finally {
       setSavingID(null)
     }
@@ -787,7 +791,6 @@ function CheckIn(props: {
 
       onRegistrationUpdate(result.registration)
       router.refresh()
-      setDonationErrorIDs((current) => current.filter((id) => id !== registration.id))
       setEditing(null)
       setResumeScannerAfterCheckIn(false)
       setNotice({ kind: 'success', message: 'Participant șters din lista de check-in.' })
@@ -804,10 +807,10 @@ function CheckIn(props: {
   function hasDonationIssue(registration: ManagedRegistration) {
     const donationBelowMinimum =
       event.donation > 0 &&
-      registration.donation < event.donation &&
+      registration.donation < event.donation * (1 + registration.guests) &&
       (registration.status === 'present' || registration.donation > 0)
 
-    return donationErrorIDs.includes(registration.id) || donationBelowMinimum
+    return donationBelowMinimum
   }
 
   function renderDonationSummary(registration: ManagedRegistration) {
@@ -819,7 +822,7 @@ function CheckIn(props: {
         {hasDonationError && (
           <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-700">
             <XCircle className="size-3.5" />
-            Minim {formatCurrency(event.donation)}
+            Minim {formatCurrency(event.donation * (1 + registration.guests))} / grup
           </p>
         )}
       </>
@@ -859,7 +862,6 @@ function CheckIn(props: {
             disabled={savingID === registration.id}
             onClick={() =>
               saveRegistration({
-                donation: registration.donation || 0,
                 guests: registration.guests || 0,
                 registration,
                 status: 'absent',
@@ -1377,13 +1379,14 @@ function CheckInTeam(props: {
   )
 }
 
-function WalkInParticipantDialog(props: {
+export function WalkInParticipantDialog(props: {
   event: ManagedEvent
   onClose: () => void
   onSave: (values: WalkInParticipantInput) => Promise<void>
   saving: boolean
 }) {
   const { event, onClose, onSave, saving } = props
+  const formRef = usePaymentDialogFocus()
   const shiftOptions = event.days.flatMap((day) =>
     day.slots.map((slot) => ({
       dayId: day.id,
@@ -1396,22 +1399,14 @@ function WalkInParticipantDialog(props: {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [donation, setDonation] = useState('')
+  const [totalCollected, setTotalCollected] = useState('')
+  const [ageGroup, setAgeGroup] = useState<AgeGroup | ''>('')
   const [guests, setGuests] = useState('0')
   const [error, setError] = useState<string | null>(null)
   const selectedShift = shiftOptions.find((option) => option.value === shift)
-  const parsedDonation = Number(donation)
   const parsedGuests = Number(guests)
-  const canSubmit = Boolean(
-    selectedShift &&
-    name.trim() &&
-    donation.trim() &&
-    Number.isFinite(parsedDonation) &&
-    parsedDonation >= event.donation &&
-    Number.isInteger(parsedGuests) &&
-    parsedGuests >= 0 &&
-    parsedGuests <= 50,
-  )
+  const payment = calculateEventPayment(event, guests.trim() ? parsedGuests : NaN, totalCollected)
+  const canSubmit = Boolean(selectedShift && name.trim() && isAgeGroup(ageGroup) && !payment.error)
 
   useEffect(() => {
     function closeOnEscape(keyboardEvent: KeyboardEvent) {
@@ -1424,14 +1419,15 @@ function WalkInParticipantDialog(props: {
 
   async function submit(formEvent: React.FormEvent<HTMLFormElement>) {
     formEvent.preventDefault()
-    if (!canSubmit || !selectedShift) return
+    if (!canSubmit || !selectedShift || !isAgeGroup(ageGroup)) return
 
     setError(null)
 
     try {
       await onSave({
         dayId: selectedShift.dayId,
-        donation: parsedDonation,
+        ageGroup,
+        totalCollected: payment.totalCollected!,
         email: email.trim(),
         guests: parsedGuests,
         name: name.trim(),
@@ -1453,6 +1449,10 @@ function WalkInParticipantDialog(props: {
       }}
     >
       <form
+        ref={formRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="walkin-title"
         className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white text-[#152039] shadow-2xl sm:rounded-2xl"
         onSubmit={submit}
       >
@@ -1461,7 +1461,7 @@ function WalkInParticipantDialog(props: {
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-600">
               Participant neînregistrat
             </p>
-            <h2 className="mt-1.5 break-words text-xl font-bold">
+            <h2 id="walkin-title" className="mt-1.5 break-words text-xl font-bold">
               Adaugă participant la eveniment
             </h2>
             <p className="mt-1 text-xs text-[#7a8497]">
@@ -1542,37 +1542,24 @@ function WalkInParticipantDialog(props: {
             />
           </label>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-bold">Donație totală (RON) *</span>
-            <input
-              className="h-11 rounded-lg border border-[#d7dde6] px-3 text-sm font-bold outline-none focus:border-accent focus:ring-2 focus:ring-accent/10"
+          <div className="sm:col-span-2">
+            <EventPaymentFields
+              event={event}
+              ageGroup={ageGroup}
+              onAgeGroupChange={setAgeGroup}
+              totalCollected={totalCollected}
+              onTotalChange={setTotalCollected}
+              guests={guests}
+              onGuestsChange={setGuests}
               disabled={saving}
-              min={event.donation}
-              onChange={(inputEvent) => setDonation(inputEvent.target.value)}
-              placeholder={`Minim ${event.donation} RON`}
-              required
-              step="0.01"
-              type="number"
-              value={donation}
             />
-          </label>
-
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-bold">Persoane însoțitoare</span>
-            <input
-              className="h-11 rounded-lg border border-[#d7dde6] px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/10"
-              disabled={saving}
-              max="50"
-              min="0"
-              onChange={(inputEvent) => setGuests(inputEvent.target.value)}
-              step="1"
-              type="number"
-              value={guests}
-            />
-          </label>
+          </div>
 
           {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 sm:col-span-2">
+            <p
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 sm:col-span-2"
+            >
               {error}
             </p>
           )}
@@ -1735,17 +1722,22 @@ function EventRegistrationScannerDialog(props: {
   )
 }
 
-function CheckInDialog(props: {
+export function CheckInDialog(props: {
   canDelete: boolean
   deleting: boolean
   onClose: () => void
   onDelete: () => void | Promise<void>
-  onSave: (values: { donation: number; guests: number }) => void | Promise<void>
+  onSave: (values: {
+    ageGroup: AgeGroup
+    totalCollected: number
+    guests: number
+  }) => void | Promise<void>
   registration: ManagedRegistration
   saving: boolean
   showPersonalData: boolean
   managedEvent: ManagedEvent
 }) {
+  const formRef = usePaymentDialogFocus()
   const {
     canDelete,
     deleting,
@@ -1757,13 +1749,42 @@ function CheckInDialog(props: {
     showPersonalData,
     managedEvent,
   } = props
-  const [donation, setDonation] = useState(String(registration.donation || managedEvent.donation))
+  const [totalCollected, setTotalCollected] = useState(
+    String(getRegistrationPaymentTotal(managedEvent, registration)),
+  )
+  const [ageGroup, setAgeGroup] = useState<AgeGroup | ''>(registration.ageGroup ?? '')
+  const [error, setError] = useState<string | null>(null)
   const [deleteRequested, setDeleteRequested] = useState(false)
   const [guests, setGuests] = useState(String(registration.guests || 0))
-  const parsedDonation = Number(donation || 0)
   const parsedGuests = Number(guests || 0)
-  const people = 1 + (Number.isInteger(parsedGuests) && parsedGuests >= 0 ? parsedGuests : 0)
+  const payment = calculateEventPayment(
+    managedEvent,
+    guests.trim() ? parsedGuests : NaN,
+    totalCollected,
+  )
+  const canSubmit = isAgeGroup(ageGroup) && !payment.error
   const busy = saving || deleting
+
+  async function submit(formEvent: React.FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault()
+    if (busy) return
+    if (!isAgeGroup(ageGroup)) {
+      setError('Selectează categoria de vârstă.')
+      return
+    }
+    if (payment.error) {
+      setError(payment.error)
+      return
+    }
+    setError(null)
+    try {
+      await onSave({ ageGroup, totalCollected: payment.totalCollected!, guests: parsedGuests })
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error ? saveError.message : 'Confirmarea nu a putut fi salvată.',
+      )
+    }
+  }
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
@@ -1780,13 +1801,21 @@ function CheckInDialog(props: {
         if (event.target === event.currentTarget && !busy) onClose()
       }}
     >
-      <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+      <form
+        ref={formRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="checkin-title"
+        noValidate
+        onSubmit={submit}
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+      >
         <div className="flex items-start justify-between border-b border-[#e7ebf0] px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-600">
               Confirmare sosire
             </p>
-            <h2 className="mt-1.5 break-words text-xl font-bold text-[#152039]">
+            <h2 id="checkin-title" className="mt-1.5 break-words text-xl font-bold text-[#152039]">
               {showPersonalData ? registration.name : maskName(registration.name)}
             </h2>
             {showPersonalData && (
@@ -1794,6 +1823,7 @@ function CheckInDialog(props: {
                 {formatParticipantContact(registration)}
               </p>
             )}
+            <p className="mt-2 text-sm text-[#536071]">{formatAgeGroup(registration.ageGroup)}</p>
           </div>
           <button
             aria-label="Închide"
@@ -1824,68 +1854,22 @@ function CheckInDialog(props: {
             </div>
           )}
 
-          <div>
-            <label
-              className="mb-2 block text-sm font-bold text-[#344054]"
-              htmlFor="checkin-donation"
-            >
-              Donație totală <span className="font-medium text-[#8a94a6]">(lei)</span>
-            </label>
-            <div className="relative">
-              <HandCoins className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-accent" />
-              <input
-                autoFocus
-                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={busy}
-                id="checkin-donation"
-                min={managedEvent.donation.toString() || '0'}
-                onChange={(event) => setDonation(event.target.value)}
-                onKeyDown={(ev) => {
-                  if (ev.key == 'Enter' && !busy)
-                    onSave({ donation: parsedDonation, guests: parsedGuests })
-                }}
-                placeholder="suma donatǎ"
-                step="1"
-                type="number"
-                value={donation}
-              />
-            </div>
-            <p className="mt-2 text-xs leading-5 text-[#7a8497]">
-              Introdu suma oferită de participant și de grupul său, ca o singură donație.
+          <EventPaymentFields
+            event={managedEvent}
+            ageGroup={ageGroup}
+            onAgeGroupChange={setAgeGroup}
+            totalCollected={totalCollected}
+            onTotalChange={setTotalCollected}
+            guests={guests}
+            onGuestsChange={setGuests}
+            disabled={busy}
+            legacy={registration.consumptionAmount == null}
+          />
+          {error && (
+            <p role="alert" className="text-sm font-semibold text-red-700">
+              {error}
             </p>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-bold text-[#344054]" htmlFor="checkin-guests">
-              Persoane însoțitoare
-            </label>
-            <div className="relative">
-              <Users className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-[#7b61d1]" />
-              <input
-                className="h-12 w-full rounded-lg border border-[#d7dde6] pl-11 pr-4 text-lg font-bold text-[#152039] outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={busy}
-                id="checkin-guests"
-                max="50"
-                min="0"
-                onChange={(event) => setGuests(event.target.value)}
-                step="1"
-                type="number"
-                value={guests}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1 rounded-xl border border-[#dceaf1] bg-[#f2f9fc] px-4 py-3 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
-            <span className="text-sm font-semibold text-[#536071]">Grup confirmat</span>
-            <span className="text-sm font-bold text-[#152039] min-[390px]:text-right">
-              {people} {people === 1 ? 'persoană' : 'persoane'}
-              {parsedDonation > 0 && (
-                <span className="ml-2 font-medium text-[#6b7688]">
-                  · {formatCurrency(parsedDonation / people)}/pers.
-                </span>
-              )}
-            </span>
-          </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-3 border-t border-[#e7ebf0] bg-[#fafbfc] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -1920,32 +1904,24 @@ function CheckInDialog(props: {
             </button>
             <button
               className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={
-                busy ||
-                !Number.isFinite(parsedDonation) ||
-                parsedDonation < 0 ||
-                !Number.isInteger(parsedGuests) ||
-                parsedGuests < 0
-              }
-              onClick={() => onSave({ donation: parsedDonation, guests: parsedGuests })}
-              onSubmit={() => onSave({ donation: parsedDonation, guests: parsedGuests })}
-              type="button"
+              disabled={busy || !canSubmit}
+              type="submit"
             >
               <CheckCircle2 className="size-4" />
               {saving ? 'Se salvează…' : 'Confirmă check-in'}
             </button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   )
 }
 
 type ParticipantImportResponse = {
-  created?: Array<{ email: string; id: string; name: string; row: number }>
+  created?: Array<{ email?: string; id: string; name: string; row: number }>
   errors?: Array<{ message: string; row: number }>
   message?: string
-  skipped?: Array<{ email: string; reason: string; row: number }>
+  skipped?: Array<{ email?: string; reason: string; row: number }>
 }
 
 function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => void }) {
@@ -2037,9 +2013,12 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
                 <div>
                   <p className="text-sm font-bold text-[#152039]">Coloanele CSV</p>
                   <p className="mt-1 break-words text-xs leading-5 text-[#657286]">
-                    Obligatorii: <code>name,email,phone,day,slot</code>. Opțional:{' '}
-                    <code>questions</code>. Ziua folosește <code>YYYY-MM-DD</code>, iar tura
-                    intervalul afișat în eveniment, de exemplu <code>10:00-12:00</code>.
+                    Obligatorii: <code>name,phone,day,slot</code>. Opționale:{' '}
+                    <code>email,donation,ageGroup,questions</code>. Categoria de vârstă acceptă
+                    minor, adult sau major. Donația exclude consumația. Fără donație sau cu donație
+                    0, participantul rămâne în așteptare; cu donație pozitivă, este marcat prezent.
+                    Ziua folosește <code>YYYY-MM-DD</code>, iar tura intervalul afișat în eveniment,
+                    de exemplu <code>10:00-12:00</code>.
                   </p>
                 </div>
               </div>
@@ -2768,13 +2747,15 @@ function downloadParticipantTemplate(event: ManagedEvent) {
   const firstDay = event.days[0]
   const firstSlot = firstDay?.slots[0]
   const rows = [
-    ['name', 'email', 'phone', 'day', 'slot', 'questions'],
+    ['name', 'email', 'phone', 'day', 'slot', 'donation', 'ageGroup', 'questions'],
     [
       'Ana Popescu',
       'ana@example.com',
       '0712345678',
       firstDay ? formatCSVDate(firstDay.eventDate) : 'YYYY-MM-DD',
       firstSlot?.label ?? '10:00-12:00',
+      '',
+      '',
       'Opțional: alergii sau alte observații',
     ],
   ]
@@ -2811,6 +2792,9 @@ function exportReport(event: ManagedEvent) {
     'Tură',
     'Status',
     'Donație RON',
+    'Categorie de vârstă',
+    'Consumație RON',
+    'Total încasat RON',
     'Însoțitori',
     'Ora sosirii',
   ]
@@ -2824,6 +2808,11 @@ function exportReport(event: ManagedEvent) {
       slot?.slot.label ?? '',
       registration.status,
       registration.donation,
+      formatAgeGroup(registration.ageGroup),
+      registration.consumptionAmount ?? '',
+      registration.consumptionAmount == null
+        ? ''
+        : getRegistrationPaymentTotal(event, registration),
       registration.guests,
       registration.timeOfArrival
         ? new Date(registration.timeOfArrival).toLocaleString('ro-RO')

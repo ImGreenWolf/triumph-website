@@ -37,7 +37,7 @@ export const Checkbox: React.FC<
           <Label className="text-sm font-medium leading-5 text-foreground" htmlFor={name}>
             {required && (
               <span className={requiredClass}>
-                * <span className="sr-only">(required)</span>
+                * <span className="sr-only">(obligatoriu)</span>
               </span>
             )}
             {label}

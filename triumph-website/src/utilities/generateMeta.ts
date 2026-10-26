@@ -30,11 +30,12 @@ export const generateMeta = async (args: {
 
   const ogImage = getImageURL(doc?.meta?.image)
 
-  const title = 
-  'name' in doc! ? doc.name : 
-  ('title' in doc! && doc?.meta?.title
-    ? doc?.meta?.title + ''
-    : 'Interact Bucureşti Triumph')
+  const title =
+    doc && 'name' in doc
+      ? doc.name
+      : doc && 'title' in doc && doc.meta?.title
+        ? doc.meta.title + ''
+        : 'Interact Bucureşti Triumph'
 
   return {
     description: doc?.meta?.description,

@@ -132,8 +132,8 @@ export default function DashboardContent({
     )),
     meetingLink: slot('meetingLink', meeting, (value) =>
       value ? (
-        <Link className={meetingLinkClassName} href={`/members/meetings/${value.id}`}>
-          Vezi întâlnirea
+        <Link className={meetingLinkClassName} href={value.attendanceStatus !== 'present' && value.attendanceStatus !== 'late' && (value.status === 'ongoing' || value.status === 'ended') ? `/members/meetings/${value.id}/check-in` : `/members/meetings/${value.id}`}>
+          {value.attendanceStatus === 'present' || value.attendanceStatus === 'late' ? 'Vezi întâlnirea' : value.status === 'ongoing' || value.status === 'ended' ? 'Înregistrează prezența' : 'Vezi întâlnirea'}
           <ArrowRight className="size-4" />
         </Link>
       ) : (
@@ -260,11 +260,11 @@ function MeetingStatus({ value }: { value: DashboardMeeting }) {
   const status = getEffectiveMeetingAttendanceStatus(value.attendanceStatus, value.motivationStatus)
   const attendance =
     status === 'present'
-      ? 'Prezent/ǎ'
+      ? 'Prezent/ă'
       : status === 'late'
-        ? 'Întârziat/ǎ'
+        ? 'Întârziat/ă'
         : status === 'absent'
-          ? 'Absent/ǎ'
+          ? 'Absent/ă'
           : status === 'motivated' && value.motivationStatus === 'accepted'
             ? 'Motivare acceptată'
             : status === 'motivated' && value.motivationStatus === 'rejected'

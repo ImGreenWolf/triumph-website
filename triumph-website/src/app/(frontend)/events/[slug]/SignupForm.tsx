@@ -5,6 +5,7 @@ import { trackEventSignup, trackSignupFormOpen } from '@/lib/ga4/appEvents'
 import type { Event } from '@/payload-types'
 import { getContrastTextColor, isEventCompleted } from '@/utilities/eventDisplay'
 import type { EventSlotAvailability } from '@/utilities/eventRegistration'
+import { AGE_GROUP_ERROR, isAgeGroup, type AgeGroup } from '@/utilities/eventPayment'
 import { CheckCircle2, Coins, Ticket, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
@@ -51,6 +52,7 @@ export default function SignupForm({
   const [selectedSlot, setSelectedSlot] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [minimumsAcknowledged, setMinimumsAcknowledged] = useState(false)
+  const [ageGroup, setAgeGroup] = useState<AgeGroup | ''>('')
   const [participantsCount, setParticipantsCount] = useState(event.participantsCount)
   const minimumLabels = useMemo(() => getMinimumLabels(event), [event])
   const hasMinimums = minimumLabels.length > 0
@@ -227,6 +229,12 @@ export default function SignupForm({
                 const form = submitEvent.currentTarget
                 const formData = new FormData(form)
 
+                if (!isAgeGroup(ageGroup)) {
+                  setError(AGE_GROUP_ERROR)
+                  setIsSubmitting(false)
+                  return
+                }
+
                 if (hasMinimums && !minimumsAcknowledged) {
                   setError('Confirmă că ai luat la cunoștință minimele pentru acest eveniment.')
                   setIsSubmitting(false)
@@ -235,6 +243,7 @@ export default function SignupForm({
 
                 try {
                   await register({
+                    ageGroup,
                     day: formData.get('day') as string,
                     email: formData.get('email') as string,
                     eventId: event.id,
@@ -246,6 +255,7 @@ export default function SignupForm({
                   })
                   form.reset()
                   setMinimumsAcknowledged(false)
+                  setAgeGroup('')
                   setParticipantsCount((currentCount) => currentCount + 1)
                   setSubmitted(true)
                   trackEventSignup({
@@ -365,6 +375,34 @@ export default function SignupForm({
                 </label>
               </div>
 
+              <fieldset className="min-w-0">
+                <legend className="mb-2 text-sm font-semibold">Categorie de vârstă *</legend>
+                <div className="flex flex-wrap gap-3">
+                  {(
+                    [
+                      ['minor', 'Minor — sub 18 ani'],
+                      ['adult', 'Major — 18+'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <label
+                      key={value}
+                      className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-input px-3 text-sm"
+                    >
+                      <input
+                        type="radio"
+                        name="ageGroup"
+                        value={value}
+                        checked={ageGroup === value}
+                        onChange={() => setAgeGroup(value)}
+                        required
+                        className="size-4 accent-current"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
               <label className="flex flex-col gap-2">
                 <span className="text-sm font-semibold">Întrebări</span>
                 <textarea
@@ -391,7 +429,11 @@ export default function SignupForm({
                 </label>
               )}
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
 
               <div className="mt-2 flex gap-3">
                 <Button
@@ -400,6 +442,7 @@ export default function SignupForm({
                     isSubmitting ||
                     !selectedDay ||
                     !selectedSlot ||
+                    !ageGroup ||
                     (hasMinimums && !minimumsAcknowledged)
                   }
                   type="submit"
@@ -470,6 +513,7 @@ function getSignupButtonLabel(args: {
 }
 
 async function register(args: {
+  ageGroup: AgeGroup
   email: string
   eventId: string
   day: string
@@ -481,6 +525,7 @@ async function register(args: {
 }) {
   const response = await fetch('/api/event-registrations', {
     body: JSON.stringify({
+      ageGroup: args.ageGroup,
       day: args.day,
       email: args.email,
       event: args.eventId,
@@ -507,8 +552,8 @@ function getMinimumLabels(event: Pick<Event, 'donation' | 'minimumConsumation'>)
   const donation = formatDonationMinimum(event.donation)
   const consumation = formatCurrencyMinimum(event.minimumConsumation)
 
-  if (donation) labels.push(`donația minimă de ${donation}`)
-  if (consumation) labels.push(`consumația minimă de ${consumation}`)
+  if (donation) labels.push(`donația minimă de ${donation} / persoană`)
+  if (consumation) labels.push(`consumația minimă de ${consumation} / persoană`)
 
   return labels
 }

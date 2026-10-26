@@ -2,8 +2,10 @@ import type { Payload, PayloadRequest, RequiredDataFromCollectionSlug } from 'pa
 
 import type { Event, EventRegistration } from '@/payload-types'
 import { formatEventSlotLabel } from '@/utilities/eventRegistration'
+import { isAgeGroup } from '@/utilities/eventPayment'
 
-type RegistrationCreateData = RequiredDataFromCollectionSlug<'event-registrations'> & Pick<EventRegistration, 'donation'>
+type RegistrationCreateData = RequiredDataFromCollectionSlug<'event-registrations'> &
+  Pick<EventRegistration, 'donation'>
 type ImportPayload = Pick<Payload, 'create' | 'find'>
 
 export type ParticipantCSVError = {
@@ -34,6 +36,7 @@ export type ParticipantBulkUploadResult = {
 }
 
 const headerAliases = {
+  ageGroup: ['ageGroup', 'age_group', 'categorie varsta', 'categorie vârstă'],
   day: ['day', 'date', 'event date', 'event_date', 'zi', 'data'],
   email: ['email', 'e-mail', 'mail'],
   name: ['name', 'full name', 'full_name', 'nume', 'nume complet'],
@@ -45,7 +48,7 @@ const headerAliases = {
 
 type CSVColumn = keyof typeof headerAliases
 
-const requiredColumns: CSVColumn[] = ['name', 'email', 'phone', 'day', 'slot']
+const requiredColumns: CSVColumn[] = ['name', 'phone', 'day', 'slot']
 const normalizedHeaderAliases = new Map<string, CSVColumn>(
   Object.entries(headerAliases).flatMap(([column, aliases]) =>
     aliases.map((alias) => [normalizeHeader(alias), column as CSVColumn]),
@@ -87,16 +90,22 @@ export function parseParticipantsCSV(
     const rowNumber = recordIndex + 2
     const rowErrors: string[] = []
     const name = getRequiredCell(record, columns.name)
-    const email = getOptionalCell(record, columns.email)?.toLowerCase()
+    const email = getOptionalCell(record, columns.email)?.toLowerCase() ?? undefined
     const phone = getOptionalCell(record, columns.phone)
     const dayValue = getRequiredCell(record, columns.day)
     const slotValue = getRequiredCell(record, columns.slot)
     const questions = getOptionalCell(record, columns.questions)
-    const donation = getOptionalCell(record, columns.donation)
+    const ageValue = getOptionalCell(record, columns.ageGroup)?.toLowerCase()
+    const ageGroup = ageValue === 'major' ? 'adult' : ageValue
+    const donationValue = getOptionalCell(record, columns.donation)
+    const donation = donationValue ? Number(donationValue.replace(',', '.')) : 0
 
     if (!name) rowErrors.push('Numele este obligatoriu.')
+    if (ageGroup && !isAgeGroup(ageGroup)) {
+      rowErrors.push('Categoria de vârstă trebuie să fie minor, adult sau major.')
+    }
 
-    if (email)  
+    if (email) {
       if (!isValidEmail(email)) {
         rowErrors.push('Emailul nu este valid.')
       } else if (seenEmails.has(email)) {
@@ -104,6 +113,11 @@ export function parseParticipantsCSV(
       } else {
         seenEmails.set(email, rowNumber)
       }
+    }
+
+    if (!Number.isFinite(donation) || donation < 0) {
+      rowErrors.push('Donația trebuie să fie un număr pozitiv sau zero.')
+    }
 
     // if (!phone) rowErrors.push('Telefonul este obligatoriu.')
 
@@ -127,15 +141,16 @@ export function parseParticipantsCSV(
     }
 
     const data: RegistrationCreateData = {
+      ...(isAgeGroup(ageGroup) ? { ageGroup } : {}),
       day: day.id,
-      donation: parseInt(donation!) ?? 0,
+      donation,
       email,
       event: event.id,
       guests: 0,
       name,
       phone,
       slot: matchingSlots[0].id,
-      status: parseInt(donation!) ? 'present' : 'absent',
+      status: donation > 0 ? 'present' : 'registered',
     }
 
     if (questions) data.questions = questions
@@ -161,7 +176,7 @@ export async function importParticipantsFromCSV(args: {
 
   for (const row of parsed.rows) {
     try {
-      if(row.email) {
+      if (row.email) {
         const existing = await args.payload.find({
           collection: 'event-registrations',
           depth: 0,

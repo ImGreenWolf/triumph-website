@@ -409,19 +409,12 @@ for (const [width, height] of [
   })
 }
 
-test('buttons are unavailable before writing completes; keyboard access works', async ({
+test('buttons remain available while writing; keyboard access works', async ({
   page,
 }) => {
   await page.goto('/?case=delayed')
-  await expect(page.locator('[data-hero-actions]')).toHaveAttribute('inert', '')
-  await expect(page.getByRole('link', { name: 'Alătură-te nouă' })).toHaveCount(0)
-  await page.keyboard.press('Tab')
-  expect(
-    await page
-      .locator('[data-hero-actions]')
-      .evaluate((element) => element.contains(document.activeElement)),
-  ).toBe(false)
-  await expect(page.getByRole('link', { name: 'Alătură-te nouă' })).toBeVisible({ timeout: 6000 })
+  await expect(page.locator('[data-hero-actions]')).not.toHaveAttribute('inert', '')
+  await expect(page.getByRole('link', { name: 'Alătură-te nouă' })).toBeVisible()
   await page.getByRole('link', { name: 'Alătură-te nouă' }).focus()
   await expect(page.getByRole('link', { name: 'Alătură-te nouă' })).toBeFocused()
   await expect(page.getByRole('link', { name: 'Alătură-te nouă' })).toHaveCSS(
@@ -443,7 +436,7 @@ test('reduced motion is static, reveals buttons immediately, and responds to pre
   await expect(page.locator('[data-handwriting-entry="0"]')).toBeVisible()
   await expect(page.locator('[data-handwriting-entry="1"]')).toBeHidden()
   await page.emulateMedia({ reducedMotion: 'no-preference' })
-  await expect(page.locator('[data-hero-actions]')).toHaveAttribute('inert', '')
+  await expect(page.locator('[data-hero-actions]')).not.toHaveAttribute('inert', '')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect(page.getByRole('link', { name: 'Alătură-te nouă' })).toBeVisible()
   await expect(page.locator('[data-handwriting-entry="0"]')).toBeVisible()
@@ -491,7 +484,7 @@ test('live-preview edits restart writing, resize preserves revealed buttons, and
     ),
   )
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Nou')
-  await expect(page.locator('[data-hero-actions]')).toHaveAttribute('inert', '')
+  await expect(page.locator('[data-hero-actions]')).not.toHaveAttribute('inert', '')
   await expect(page.getByRole('link', { name: 'Alătură-te nouă' })).toBeVisible()
   await page.evaluate(() => window.dispatchEvent(new Event('hero-unmount')))
   await expect(page.getByText('Unmounted')).toBeVisible()

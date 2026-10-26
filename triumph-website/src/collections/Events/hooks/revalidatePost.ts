@@ -1,44 +1,34 @@
 import type { CollectionAfterChangeHook, CollectionAfterDeleteHook } from 'payload'
-
 import { revalidatePath, revalidateTag } from 'next/cache'
+import type { Event } from '../../../payload-types'
 
-import type { Post } from '../../../payload-types'
-
-export const revalidatePost: CollectionAfterChangeHook<Post> = ({
+export const revalidatePost: CollectionAfterChangeHook<Event> = ({
   doc,
   previousDoc,
-  req: { payload, context },
+  req: { context },
 }) => {
   if (!context.disableRevalidate) {
-    if (doc._status === 'published') {
-      const path = `/events/${doc.slug}`
-
-      payload.logger.info(`Revalidating post at path: ${path}`)
-
-      revalidatePath(path)
-      revalidateTag('events-sitemap', 'max')
-    }
-
-    // If the post was previously published, we need to revalidate the old path
-    if (previousDoc._status === 'published' && doc._status !== 'published') {
-      const oldPath = `/events/${previousDoc.slug}`
-
-      payload.logger.info(`Revalidating old events at path: ${oldPath}`)
-
-      revalidatePath(oldPath)
+    if (doc._status === 'published') revalidatePath(`/events/${doc.slug}`)
+    if (
+      previousDoc?._status === 'published' &&
+      (doc._status !== 'published' || previousDoc.slug !== doc.slug)
+    )
+      revalidatePath(`/events/${previousDoc.slug}`)
+    if (doc._status === 'published' || previousDoc?._status === 'published') {
+      revalidatePath('/')
+      revalidatePath('/events')
       revalidateTag('events-sitemap', 'max')
     }
   }
   return doc
 }
 
-export const revalidateDelete: CollectionAfterDeleteHook<Post> = ({ doc, req: { context } }) => {
+export const revalidateDelete: CollectionAfterDeleteHook<Event> = ({ doc, req: { context } }) => {
   if (!context.disableRevalidate) {
-    const path = `/events/${doc?.slug}`
-
-    revalidatePath(path)
+    revalidatePath(`/events/${doc?.slug}`)
+    revalidatePath('/')
+    revalidatePath('/events')
     revalidateTag('events-sitemap', 'max')
   }
-
   return doc
 }

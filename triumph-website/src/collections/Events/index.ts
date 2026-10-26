@@ -27,6 +27,7 @@ import {
   generateParticipationConfirmationEmailText,
 } from './registrationEmails'
 import { colorField } from '@/fields/color-picker/field'
+import { AGE_GROUP_ERROR, isAgeGroup } from '@/utilities/eventPayment'
 
 import {
   MetaDescriptionField,
@@ -204,11 +205,12 @@ export const Events: CollectionConfig<'events'> = {
                 {
                   type: 'text',
                   name: 'donation',
+                  admin: { description: 'Donație minimă per persoană (RON).' },
                 },
                 {
                   type: 'number',
                   name: 'minimumConsumation',
-                  label: 'Consumație minimă (RON)',
+                  label: 'Consumație minimă per persoană (RON)',
                   min: 0,
                 },
                 {
@@ -527,6 +529,15 @@ export const EventRegistrations: CollectionConfig = {
       name: 'email',
       type: 'email',
     },
+    {
+      name: 'ageGroup',
+      type: 'select',
+      label: 'Categorie de vârstă',
+      options: [
+        { label: 'Minor — sub 18 ani', value: 'minor' },
+        { label: 'Major — 18+', value: 'adult' },
+      ],
+    },
 
     {
       name: 'name',
@@ -558,6 +569,13 @@ export const EventRegistrations: CollectionConfig = {
           type: 'number',
           required: true,
           defaultValue: 0,
+        },
+        {
+          name: 'consumptionAmount',
+          type: 'number',
+          label: 'Consumație inclusă în total (RON)',
+          min: 0,
+          admin: { description: 'Separată de donație la confirmarea participării.' },
         },
         {
           name: 'guests',
@@ -598,6 +616,16 @@ export const EventRegistrations: CollectionConfig = {
   ],
   hooks: {
     beforeValidate: [
+      ({ data, originalDoc, operation, req }) => {
+        const ageGroup = data?.ageGroup === undefined ? originalDoc?.ageGroup : data.ageGroup
+        const requiresAge =
+          !req.context.eventRegistrationImport &&
+          (operation === 'create' || data?.status === 'present')
+        if ((requiresAge || ageGroup != null) && !isAgeGroup(ageGroup)) {
+          throw new APIError(AGE_GROUP_ERROR, 400)
+        }
+        return data
+      },
       async ({ data, req, operation }) => {
         if (operation !== 'create') return data
 

@@ -1,3 +1,5 @@
+import { consolidateHomepageEvents, isEventHighlightGallery } from '@/utilities/homepageEventsLayout'
+import { RecruitmentNotice } from '@/components/RecruitmentStatus'
 import type { Metadata } from 'next'
 
 import { PayloadRedirects } from '@/components/PayloadRedirects'
@@ -24,28 +26,43 @@ export default async function Page({ params: paramsPromise }: Args) {
   // Decode to support slugs with special characters
   const decodedSlug = decodeURIComponent(slug)
   const url = '/' + decodedSlug
-  let page: RequiredDataFromCollectionSlug<'pages'> | null
-
-  page = await queryPageBySlug({
+  const page: RequiredDataFromCollectionSlug<'pages'> | null = await queryPageBySlug({
     slug: decodedSlug,
   })
 
   if (!page) {
-    return <PayloadRedirects url={url} />
+    return (
+      <PayloadRedirects
+        url={url}
+        fallbackUrl={decodedSlug === 'familia-rotary' ? '/ce-este-rotary' : undefined}
+      />
+    )
   }
 
-  const { hero, layout } = page
+  const { hero } = page
+  let layout = page.layout
+  if (decodedSlug === 'home') {
+    const gallery = layout.find(isEventHighlightGallery)
+    const slugs = gallery?.items?.map((item) => item.link.url!.split('/events/')[1].split(/[?#]/)[0]) ?? []
+    const events = slugs.length ? (await (await getPayload({ config: configPromise })).find({
+      collection: 'events', overrideAccess: false, draft: false, depth: 0, limit: slugs.length,
+      where: { and: [{ slug: { in: slugs } }, { _status: { equals: 'published' } }] }, select: { slug: true },
+    })).docs : []
+    layout = consolidateHomepageEvents(layout, events)
+  }
 
   return (
     <article className="pt-0 pb-24">
       <PageClient />
       {/* Allows redirects for valid pages too */}
-      <PayloadRedirects disableNotFound url={url} />
+      {/* Keep the application page available when recruitment is closed, instead of the legacy waitlist redirect. */}
+      {decodedSlug !== 'inscrie-te' && <PayloadRedirects disableNotFound url={url} />}
 
       {draft && <LivePreviewListener />}
 
       <RenderHero {...hero} />
       {hero.type == 'none' && <div className="my-24" />}
+      {decodedSlug === 'inscrie-te' && <section className="container my-8"><h2 className="mb-3 text-2xl font-semibold">Înscrieri în club</h2><RecruitmentNotice /></section>}
       <RenderBlocks blocks={layout} />
     </article>
   )

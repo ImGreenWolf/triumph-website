@@ -9,7 +9,7 @@ import { ArrowUpRight, CalendarDays, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import React from 'react'
 
-export type EventCardData = Pick<Event, 'slug' | 'meta' | 'name' | 'days' | 'location'>
+export type EventCardData = Pick<Event, 'id' | 'slug' | 'meta' | 'name' | 'days' | 'location' | 'heroImage'>
 
 export const EventCard: React.FC<{
   className?: string
@@ -18,8 +18,9 @@ export const EventCard: React.FC<{
   small: boolean
 }> = ({ className, doc, showDescription = true, small }) => {
   const { card, link } = useClickableCard({})
-  const { slug, meta, name, days, location } = doc || {}
+  const { slug, meta, name, days, location, heroImage } = doc || {}
   const { description, image: metaImage } = meta || {}
+  const cardImage = metaImage || heroImage
   const href = `/events/${slug}`
   const eventLocation = getEventLocation(location)
   const status = getEventStatus({ days: days ?? [] })
@@ -28,7 +29,7 @@ export const EventCard: React.FC<{
     <article
       className={cn(
         'group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition duration-300',
-        'hover:-translate-y-1 hover:border-accent/70 hover:shadow-xl',
+        'hover:-translate-y-1 hover:border-accent/70 hover:shadow-xl motion-reduce:transform-none motion-reduce:transition-none',
         className,
       )}
       ref={card.ref}
@@ -39,14 +40,14 @@ export const EventCard: React.FC<{
           small ? 'aspect-[4/3]' : 'aspect-[5/4]',
         )}
       >
-        {metaImage && typeof metaImage !== 'string' ? (
+        {cardImage && typeof cardImage !== 'string' ? (
           <Media
             alt={name || ''}
             className="absolute inset-0"
             fill
-            imgClassName="object-cover transition duration-500 group-hover:scale-105"
+            imgClassName="object-cover transition duration-500 group-hover:scale-105 motion-reduce:transform-none motion-reduce:transition-none"
             pictureClassName="relative block size-full"
-            resource={metaImage}
+            resource={cardImage}
             size="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (

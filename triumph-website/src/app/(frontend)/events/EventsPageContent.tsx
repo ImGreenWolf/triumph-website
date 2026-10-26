@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { EventsCollection } from '@/components/EventCollection'
 import { Pagination } from '@/components/Pagination'
 import EventTimeline from '@/components/ui/TimelineComponent'
@@ -71,6 +72,7 @@ export function EventsPageContent({
               Revino în curând pentru programul actualizat. Între timp, poți explora proiectele
               deja încheiate.
             </p>
+            <div className="mt-5 flex flex-wrap gap-4"><Link href="/events#arhiva" className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4">Explorează evenimentele trecute</Link><Link href="/contact" className="inline-flex min-h-11 items-center underline underline-offset-4">Contactează-ne</Link></div>
           </div>
         )}
 
@@ -80,7 +82,7 @@ export function EventsPageContent({
       </section>
 
       {showArchive && completedEvents.length > 0 && (
-        <section className="mt-20 border-y border-border bg-card/95 text-card-foreground md:mt-28">
+        <section id="arhiva" className="scroll-mt-28 mt-20 border-y border-border bg-card/95 text-card-foreground md:mt-28">
           <div className="container py-16 md:py-24">
             <EventTimeline
               initialEvents={completedEvents}

@@ -22,8 +22,8 @@ import { trackMemberLogin } from '@/lib/ga4/appEvents'
 import PageClient from './page.client'
 
 const loginHighlights = [
-  { icon: CalendarCheck2, label: 'Prezenta' },
-  { icon: CheckCircle2, label: 'Cotizatii' },
+  { icon: CalendarCheck2, label: 'Prezență' },
+  { icon: CheckCircle2, label: 'Cotizații' },
   { icon: ShieldCheck, label: 'Resurse' },
 ]
 
@@ -59,7 +59,7 @@ export default function Login() {
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.errors?.[0]?.message || 'Login failed')
+        throw new Error(res.status === 401 ? 'Emailul sau parola nu sunt corecte. Verifică datele și încearcă din nou.' : 'Nu am putut realiza autentificarea. Încearcă din nou.')
       }
       const redirectTo = getSafeRedirect(
         new URLSearchParams(window.location.search).get('redirect'),
@@ -67,7 +67,7 @@ export default function Login() {
       trackMemberLogin({ redirectTo })
       router.replace(redirectTo)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : 'Nu am putut realiza autentificarea. Încearcă din nou.')
     } finally {
       setLoading(false)
     }
@@ -81,15 +81,15 @@ export default function Login() {
         <section className="mx-auto w-full max-w-md text-center lg:mx-0 lg:max-w-2xl lg:text-left">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase text-white/75">
             <ShieldCheck className="size-3.5 text-[#56c9f5]" />
-            Members area
+            Zona membrilor
           </div>
 
           <h1 className="mt-4 text-2xl font-bold leading-tight sm:text-4xl lg:mt-5 lg:max-w-xl lg:text-5xl">
-            Acceseaza contul tau de membru
+            Accesează contul tău de membru
           </h1>
 
           <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-white/68 sm:text-base lg:mx-0 lg:max-w-lg">
-            Vezi prezenta, cotizatiile si sedintele clubului intr-un singur loc.
+            Vezi prezența, cotizațiile și ședințele clubului într-un singur loc.
           </p>
 
           <div className="mt-4 flex flex-wrap justify-center gap-2 lg:mt-10 lg:grid lg:max-w-xl lg:grid-cols-3 lg:justify-start">
@@ -110,10 +110,10 @@ export default function Login() {
             <div className="flex min-w-0 items-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                alt="Interact Bucuresti Triumph"
-                className="size-11 shrink-0 object-contain"
+                alt="Interact București Triumph"
+                className="h-11 w-auto max-w-44 shrink-0 object-contain"
                 height={88}
-                src="/logo.png"
+                src="/ClubLogo_Blue_Full.png"
                 width={88}
               />
             </div>
@@ -124,17 +124,17 @@ export default function Login() {
 
           <div className="mb-5 sm:mb-7">
             <h2 className="text-2xl font-bold leading-tight text-[#0f172c] sm:text-3xl">
-              Member login
+              Autentificare
             </h2>
             <p className="mt-2 text-sm leading-6 text-[#5d697b]">
-              Use your club account to continue to the members dashboard.
+              Folosește contul clubului pentru a accesa zona membrilor.
             </p>
           </div>
 
           <form className="flex flex-col space-y-5" onSubmit={handleLogin}>
             <div className="space-y-2">
               <Label className="text-[#344054]" htmlFor="email">
-                Email address
+                Adresă de email
               </Label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#697386]" />
@@ -153,7 +153,7 @@ export default function Login() {
 
             <div className="space-y-2">
               <Label className="text-[#344054]" htmlFor="password">
-                Password
+                Parolă
               </Label>
               <div className="relative">
                 <LockIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#697386]" />
@@ -162,14 +162,14 @@ export default function Login() {
                   className="h-12 border-[#cfd7e3] bg-white pl-10 pr-11 text-[#0f172c] placeholder:text-[#8b95a5] focus-visible:border-[#00a2e0] focus-visible:ring-[#00a2e0]/15"
                   id="password"
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Introdu parola"
                   required
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                 />
                 <button
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-[#697386] transition hover:bg-[#eef3f8] hover:text-[#0f172c]"
+                  aria-label={showPassword ? 'Ascunde parola' : 'Arată parola'}
+                  className="absolute right-0 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-[#697386] transition hover:bg-[#eef3f8] hover:text-[#0f172c]"
                   onClick={() => setShowPassword((current) => !current)}
                   type="button"
                 >
@@ -179,7 +179,7 @@ export default function Login() {
             </div>
 
             {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
             )}
@@ -188,7 +188,7 @@ export default function Login() {
                 className="text-sm font-semibold text-[#007fb3] transition hover:text-[#005f86]"
                 href="/members/password-reset"
               >
-                Reseteaza parola
+                Resetează parola
               </Link>
             </div>
             <Button
@@ -196,7 +196,7 @@ export default function Login() {
               disabled={loading}
               type="submit"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Se autentifică…' : 'Autentifică-te'}
               {!loading && <ArrowRight className="size-4" />}
             </Button>
           </form>

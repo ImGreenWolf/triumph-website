@@ -19,7 +19,7 @@ async function resetEmail(email: string) {
   const normalizedEmail = email.trim()
 
   if (!normalizedEmail) {
-    throw new Error('Introdu o adresa de mail')
+    throw new Error('Introdu o adresă de email')
   }
 
   const res = await fetch('/api/users/forgot-password', {
@@ -35,7 +35,7 @@ async function resetEmail(email: string) {
   const data = await res.json().catch(() => null)
 
   if (!res.ok) {
-    throw new Error(data?.errors?.[0]?.message || data?.message || 'Password reset failed')
+    throw new Error('Nu am putut trimite linkul de resetare. Încearcă din nou.')
   }
 }
 export default function PasswordResetPage() {
@@ -55,7 +55,7 @@ export default function PasswordResetPage() {
       await resetEmail(email)
       setSent(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Password reset failed')
+      setError(err instanceof Error ? err.message : 'Nu am putut trimite linkul de resetare. Încearcă din nou.')
     } finally {
       setLoading(false)
     }
@@ -74,18 +74,18 @@ export default function PasswordResetPage() {
         <section className="hidden max-w-2xl lg:block">
          
           <h1 className="max-w-xl text-5xl font-semibold leading-tight tracking-normal">
-            Reseteaza parola contului tau de membru Interact Bucureşti Triumph
+            Resetează parola contului tău de membru Interact București Triumph
           </h1>
 
           <p className="mt-5 max-w-lg text-base leading-7 text-white/70">
-            Introdu adresa ta de email si acceseaza linkul din casuta de mail pentru a reseta parola.
+            Introdu adresa ta de email și accesează linkul primit pentru a reseta parola.
           </p>
 
           <div className="mt-10 grid max-w-xl gap-3 sm:grid-cols-3">
             {[
               { icon: CalendarCheck2, label: 'Prezența' },
               { icon: CheckIcon, label: 'Cotizațiile' },
-              { icon: ShieldCheck, label: 'Linkuri Utile' },
+              { icon: ShieldCheck, label: 'Linkuri utile' },
             ].map((item) => (
               <div
                 className="rounded-lg border border-white/12 bg-card p-4 text-sm font-medium text-white/85 backdrop-blur"
@@ -102,7 +102,7 @@ export default function PasswordResetPage() {
           <div className="mb-8 flex flex-row-reverse items-center justify-between gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              alt="Interact Bucuresti Triumph"
+              alt="Interact București Triumph"
               className="h-auto w-48 object-contain"
               height={150}
               src="/logo_full.png"
@@ -112,20 +112,20 @@ export default function PasswordResetPage() {
           </div>
 
           <div className="mb-8">
-            <h2 className="text-3xl text-foreground font-semibold leading-tight">Resetează Parola</h2>
-            <p className="mt-2 text-sm leading-6 text-[#526071]">
+            <h2 className="text-3xl text-foreground font-semibold leading-tight">Resetează parola</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
              Introdu adresa de email.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
+              <Label htmlFor="email">Adresă de email</Label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6b7280]" />
                 <Input
                   autoComplete="email"
-                  className="h-12 border-accent bg-[#0f172c] pl-10 text-[#0f172c] placeholder:text-[#8b95a5] focus-visible:ring-[#00a2e0]/20"
+                  className="h-12 border-border bg-background pl-10 text-foreground placeholder:text-[#8b95a5] focus-visible:ring-[#00a2e0]/20"
                   id="email"
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
@@ -137,7 +137,7 @@ export default function PasswordResetPage() {
             </div>
 
             {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
             )}
@@ -153,7 +153,7 @@ export default function PasswordResetPage() {
               disabled={loading}
               type="submit"
             >
-              {loading ? 'Se trimite...' : 'Trimite Mail'}
+              {loading ? 'Se trimite...' : 'Trimite linkul de resetare'}
               {!loading && <ArrowRight className="size-4" />}
             </Button>
           </form>

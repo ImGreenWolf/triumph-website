@@ -1,3 +1,4 @@
+import { HomepageEvents } from '@/blocks/HomepageEvents/config'
 import type { CollectionConfig } from 'payload'
 
 import { authenticated } from '../../access/authenticated'
@@ -116,6 +117,7 @@ export const Pages: CollectionConfig<'pages'> = {
                 TeamBlock,
                 MasonryBlock,
                 EventsBlock,
+                HomepageEvents,
                 ...homepageBlocks,
                 FAQBlock,
                 LogoLoopBlock,

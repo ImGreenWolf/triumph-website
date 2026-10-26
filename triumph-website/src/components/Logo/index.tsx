@@ -34,7 +34,7 @@ export const Logo = (props: Props) => {
     : clsx('max-w-100 w-full object-contain')
 
   const imageProps = {
-    alt: 'Interact Bucuresti Triumph',
+    alt: 'Interact București Triumph',
     decoding: 'async' as const,
     fetchPriority: priority,
     height: 256 * size,

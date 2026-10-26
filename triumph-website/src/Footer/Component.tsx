@@ -1,3 +1,6 @@
+import { draftMode } from 'next/headers'
+import { getPayload } from 'payload'
+import payloadConfig from '@payload-config'
 import { getCachedGlobal } from '@/utilities/getGlobals'
 import type { Footer as FooterData } from '@/payload-types'
 import type { LucideIcon } from 'lucide-react'
@@ -31,11 +34,11 @@ const defaultFooterDescription =
 const defaultLegalLinks: LegalLink[] = [
   {
     label: 'Politica de cookie-uri',
-    url: '/cookie-policy',
+    url: '/politica-cookies',
   },
   {
     label: 'Confidențialitate',
-    url: '/privacy-policy',
+    url: '/politica-confidentialitate',
   },
 ]
 
@@ -55,7 +58,8 @@ const socialIcons: Record<string, LucideIcon> = {
 const isExternalHref = (href?: string | null) => Boolean(href?.startsWith('http'))
 
 export async function Footer() {
-  const footerData = await getCachedGlobal('footer', 1)()
+  const { isEnabled: draft } = await draftMode()
+  const footerData = draft ? await (await getPayload({ config: payloadConfig })).findGlobal({ slug: 'footer', draft: true, depth: 1 }) : await getCachedGlobal('footer', 1)()
 
   const navItems = footerData?.navItems || []
   const socialLinks = footerData?.socialLinks || []
@@ -63,7 +67,7 @@ export async function Footer() {
   const footerDescription = footerData?.description ?? defaultFooterDescription
   const wordmarkText = footerData?.wordmarkText ?? 'Triumph'
   const copyrightText = footerData?.copyrightText ?? 'Interact București Triumph'
-  const backToTopLabel = footerData?.backToTopLabel ?? 'Înapoi sus'
+  const backToTopLabel = footerData?.backToTopLabel === 'Back to top' ? 'Înapoi sus' : footerData?.backToTopLabel ?? 'Înapoi sus'
 
   return (
     <FooterReveal>
@@ -166,7 +170,7 @@ export async function Footer() {
                   rel={openInNewTab ? 'noopener noreferrer' : undefined}
                   target={openInNewTab ? '_blank' : undefined}
                 >
-                  {link.label}
+                  {link.label === 'Cookie Policy' ? 'Politica de cookie-uri' : link.label === 'Privacy Policy' ? 'Confidențialitate' : link.label}
                 </a>
               )
             })}

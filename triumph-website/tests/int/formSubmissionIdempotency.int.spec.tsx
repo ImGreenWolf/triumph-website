@@ -39,7 +39,7 @@ describe('form submission idempotency', () => {
 
     render(<FormBlock enableIntro={false} form={form} introMedia={null} />)
 
-    const submit = screen.getByRole('button', { name: /trimite/i })
+    const submit = await screen.findByRole('button', { name: /trimite/i })
     fireEvent.click(submit)
     fireEvent.click(submit)
 

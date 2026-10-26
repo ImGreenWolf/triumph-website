@@ -291,8 +291,8 @@ function getMinimumRows(event: Pick<Event, 'donation' | 'minimumConsumation'>) {
   const donation = formatDonationMinimum(event.donation)
   const consumation = formatCurrencyMinimum(event.minimumConsumation)
 
-  if (donation) rows.push({ label: 'Donație minimă', value: donation })
-  if (consumation) rows.push({ label: 'Consumație minimă', value: consumation })
+  if (donation) rows.push({ label: 'Donație minimă', value: `${donation} / persoană` })
+  if (consumation) rows.push({ label: 'Consumație minimă', value: `${consumation} / persoană` })
 
   return rows
 }

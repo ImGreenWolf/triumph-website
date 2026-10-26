@@ -21,7 +21,7 @@ export const Number: React.FC<
 
         {required && (
           <span className={requiredClass}>
-            * <span className="sr-only">(required)</span>
+            * <span className="sr-only">(obligatoriu)</span>
           </span>
         )}
       </Label>

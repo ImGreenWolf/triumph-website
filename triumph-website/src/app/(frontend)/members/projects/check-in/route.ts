@@ -2,12 +2,9 @@ import payloadConfig from '@payload-config'
 import { getPayload, type Payload } from 'payload'
 
 import type { Event, EventRegistration, User } from '@/payload-types'
-import {
-  canCheckInEvent,
-  canManageEvent,
-  getRelationshipID,
-} from '@/utilities/eventAccess'
+import { canCheckInEvent, canManageEvent, getRelationshipID } from '@/utilities/eventAccess'
 import { findEventSlot } from '@/utilities/eventRegistration'
+import { AGE_GROUP_ERROR, calculateEventPayment, isAgeGroup } from '@/utilities/eventPayment'
 
 const allowedStatuses = new Set(['registered', 'present', 'absent'])
 
@@ -24,6 +21,9 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Datele trimise nu sunt valide.' }, { status: 400 })
   }
 
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return Response.json({ message: 'Datele trimise nu sunt valide.' }, { status: 400 })
+  }
   const body = input as Record<string, unknown>
   const eventID = normalizeText(body.eventId)
   const dayID = normalizeText(body.dayId)
@@ -31,8 +31,7 @@ export async function POST(request: Request) {
   const name = normalizeText(body.name)
   const email = normalizeText(body.email).toLocaleLowerCase('ro')
   const phone = normalizeText(body.phone)
-  const hasDonation = body.donation !== undefined && body.donation !== null && body.donation !== ''
-  const donation = typeof body.donation === 'number' ? body.donation : Number(body.donation)
+  const ageGroup = body.ageGroup
   const guests = body.guests === undefined ? 0 : Number(body.guests)
 
   if (!eventID || !dayID || !slotID) {
@@ -51,11 +50,8 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Numărul de telefon este prea lung.' }, { status: 400 })
   }
 
-  if (!hasDonation || !Number.isFinite(donation) || donation < 0 || donation > 1_000_000) {
-    return Response.json(
-      { message: 'Suma donată trebuie să fie un număr pozitiv.' },
-      { status: 400 },
-    )
+  if (!isAgeGroup(ageGroup)) {
+    return Response.json({ message: AGE_GROUP_ERROR }, { status: 400 })
   }
 
   if (!Number.isInteger(guests) || guests < 0 || guests > 50) {
@@ -90,13 +86,8 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Tura selectată nu mai există.' }, { status: 400 })
   }
 
-  // const minimumDonation = normalizeDonation(event.donation)
-  // if (donation < minimumDonation) {
-  //   return Response.json(
-  //     { message: `Donația minimă pentru acest eveniment este de ${minimumDonation} RON.` },
-  //     { status: 400 },
-  //   )
-  // }
+  const payment = calculateEventPayment(event, guests, body.totalCollected)
+  if (payment.error) return Response.json({ message: payment.error }, { status: 400 })
 
   try {
     const created = (await payload.create({
@@ -105,8 +96,10 @@ export async function POST(request: Request) {
         eventRegistrationWalkIn: true,
       },
       data: {
+        ageGroup,
+        consumptionAmount: payment.consumptionAmount,
         day: day.id,
-        donation,
+        donation: payment.donation!,
         email: email || undefined,
         event: event.id,
         guests,
@@ -149,28 +142,15 @@ export async function PATCH(request: Request) {
     return Response.json({ message: 'Datele trimise nu sunt valide.' }, { status: 400 })
   }
 
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return Response.json({ message: 'Datele trimise nu sunt valide.' }, { status: 400 })
+  }
   const body = input as Record<string, unknown>
   const registrationID = typeof body.registrationId === 'string' ? body.registrationId : ''
   const status = typeof body.status === 'string' ? body.status : ''
-  const donation = typeof body.donation === 'number' ? body.donation : Number(body.donation)
-  const guests = typeof body.guests === 'number' ? body.guests : Number(body.guests)
 
   if (!registrationID || !allowedStatuses.has(status)) {
     return Response.json({ message: 'Selectează o înscriere și un status valid.' }, { status: 400 })
-  }
-
-  if (!Number.isFinite(donation) || donation < 0 || donation > 1_000_000) {
-    return Response.json(
-      { message: 'Suma donată trebuie să fie un număr pozitiv.' },
-      { status: 400 },
-    )
-  }
-
-  if (!Number.isInteger(guests) || guests < 0 || guests > 50) {
-    return Response.json(
-      { message: 'Numărul de însoțitori trebuie să fie între 0 și 50.' },
-      { status: 400 },
-    )
   }
 
   let registration: EventRegistration
@@ -207,19 +187,26 @@ export async function PATCH(request: Request) {
     )
   }
 
-  const minimumDonation = normalizeDonation(event.donation)
-  if (status === 'present' && donation < minimumDonation) {
-    return Response.json(
-      { message: `Donația minimă pentru acest eveniment este de ${minimumDonation} RON.` },
-      { status: 400 },
-    )
+  let paymentData = {}
+  if (status === 'present') {
+    if (!isAgeGroup(body.ageGroup)) {
+      return Response.json({ message: AGE_GROUP_ERROR }, { status: 400 })
+    }
+    const guests = body.guests === undefined ? (registration.guests ?? 0) : Number(body.guests)
+    const payment = calculateEventPayment(event, guests, body.totalCollected)
+    if (payment.error) return Response.json({ message: payment.error }, { status: 400 })
+    paymentData = {
+      ageGroup: body.ageGroup,
+      consumptionAmount: payment.consumptionAmount,
+      donation: payment.donation!,
+      guests,
+    }
   }
 
   const updated = (await payload.update({
     collection: 'event-registrations',
     data: {
-      donation,
-      guests,
+      ...paymentData,
       name: registration.name?.trim() || registration.email || 'Participant fără nume',
       phone: registration.phone?.trim() || undefined,
       status: status as 'registered' | 'present' | 'absent',
@@ -231,13 +218,7 @@ export async function PATCH(request: Request) {
   })) as EventRegistration
 
   return Response.json({
-    registration: {
-      donation: updated.donation ?? 0,
-      guests: updated.guests ?? 0,
-      id: updated.id,
-      status: updated.status ?? 'registered',
-      timeOfArrival: updated.timeOfArrival ?? null,
-    },
+    registration: serializeRegistration(updated),
   })
 }
 
@@ -308,7 +289,10 @@ export async function DELETE(request: Request) {
   })
 }
 
-async function authenticateRequest(request: Request, payload: Payload) {
+async function authenticateRequest(
+  request: Request,
+  payload: Payload,
+): Promise<{ response: Response } | { user: User }> {
   if (request.headers.get('sec-fetch-site') === 'cross-site') {
     return { response: Response.json({ message: 'Cerere nepermisă.' }, { status: 403 }) }
   }
@@ -342,6 +326,8 @@ function isValidEmail(value: string) {
 
 function serializeRegistration(registration: EventRegistration) {
   return {
+    ageGroup: registration.ageGroup ?? null,
+    consumptionAmount: registration.consumptionAmount ?? null,
     createdAt: registration.createdAt,
     day: registration.day,
     donation: registration.donation ?? 0,
@@ -361,9 +347,4 @@ function getErrorStatus(error: unknown) {
   if (!error || typeof error !== 'object' || !('status' in error)) return 400
   const status = Number(error.status)
   return Number.isInteger(status) && status >= 400 && status < 600 ? status : 400
-}
-
-function normalizeDonation(value: Event['donation']) {
-  const donation = Number(value)
-  return Number.isFinite(donation) ? Math.max(donation, 0) : 0
 }

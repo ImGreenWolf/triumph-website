@@ -1,4 +1,5 @@
 'use client'
+import { useRecruitmentStatus } from '@/components/RecruitmentStatus'
 import type { FormFieldBlock, Form as FormType } from '@payloadcms/plugin-form-builder/types'
 
 import { useRouter } from 'next/navigation'
@@ -62,11 +63,7 @@ export const FormBlock: React.FC<
   const [draftStatus, setDraftStatus] = useState<'error' | 'idle' | 'saved' | 'saving'>('idle')
   const [isDraftHydrated, setIsDraftHydrated] = useState(false)
   const [error, setError] = useState<{ message: string; status?: string } | undefined>()
-  const [recruitmentWindow, setRecruitmentWindow] = useState<{
-    isOpen: boolean
-    isRecruitmentForm: boolean
-    message: string
-  } | null>(null)
+  const { status: recruitmentWindow, error: statusError, retry: retryStatus } = useRecruitmentStatus(formID)
   const router = useRouter()
   const draftWrite = useRef(Promise.resolve())
   const isDraftFinalized = useRef(false)
@@ -74,33 +71,6 @@ export const FormBlock: React.FC<
   const submissionInFlight = useRef(false)
   const submissionKey = useRef<string | null>(null)
   const isRecruitmentForm = recruitmentWindow?.isRecruitmentForm === true
-
-  useEffect(() => {
-    if (!formID) return
-
-    let active = true
-    void fetch(`/api/aspirement/recruitment-status?formId=${encodeURIComponent(formID)}`)
-      .then(async (response) => {
-        if (!response.ok) return null
-        return (await response.json()) as {
-          isOpen?: boolean
-          isRecruitmentForm?: boolean
-          message?: string
-        }
-      })
-      .then((result) => {
-        if (!active || !result) return
-        setRecruitmentWindow({
-          isOpen: result.isOpen !== false,
-          isRecruitmentForm: result.isRecruitmentForm === true,
-          message: result.message || 'Perioada de inscrieri s-a incheiat.',
-        })
-      })
-
-    return () => {
-      active = false
-    }
-  }, [formID])
 
   useEffect(() => {
     if (!formID || !isRecruitmentForm) {
@@ -191,7 +161,7 @@ export const FormBlock: React.FC<
 
   const onSubmit = useCallback(
     (data: FieldValues) => {
-      if (submissionInFlight.current) return
+      if (submissionInFlight.current || !recruitmentWindow || statusError || (isRecruitmentForm && !recruitmentWindow.isOpen)) return
       submissionInFlight.current = true
       setIsLoading(true)
 
@@ -234,7 +204,7 @@ export const FormBlock: React.FC<
             setIsLoading(false)
 
             setError({
-              message: res.errors?.[0]?.message || 'Internal Server Error',
+              message: res.errors?.[0]?.message || 'Nu am putut trimite formularul. Încearcă din nou.',
               status: res.status,
             })
 
@@ -261,14 +231,14 @@ export const FormBlock: React.FC<
           submissionInFlight.current = false
           setIsLoading(false)
           setError({
-            message: 'Something went wrong.',
+            message: 'Conexiunea a fost întreruptă. Încearcă din nou.',
           })
         }
       }
 
       void submitForm()
     },
-    [router, formID, redirect, confirmationType, formFromProps.fields, isRecruitmentForm],
+    [router, formID, redirect, confirmationType, formFromProps.fields, isRecruitmentForm, recruitmentWindow, statusError],
   )
 
   const hasIntro = enableIntro && introContent && !hasSubmitted
@@ -323,10 +293,12 @@ export const FormBlock: React.FC<
               {error && (
                 <div role="alert" className="mb-5 flex items-start gap-3 rounded-md border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-300">
                   <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0" />
-                  <span>{`${error.status || '500'}: ${error.message || ''}`}</span>
+                  <span>{error.message}</span>
                 </div>
               )}
 
+              {!recruitmentWindow && !statusError && <p role="status">Se verifică disponibilitatea formularului…</p>}
+              {statusError && <div role="alert"><p>Nu am putut verifica disponibilitatea formularului.</p><button className="min-h-11 underline" type="button" onClick={retryStatus}>Încearcă din nou</button></div>}
               {recruitmentWindow?.isRecruitmentForm && !recruitmentWindow.isOpen && (
                 <div className="rounded-md border border-amber-500/25 bg-amber-500/10 p-4 text-sm font-semibold text-amber-200">
                   {recruitmentWindow.message}
@@ -335,6 +307,7 @@ export const FormBlock: React.FC<
 
               {!isLoading &&
                 !hasSubmitted &&
+                recruitmentWindow && !statusError &&
                 !(recruitmentWindow?.isRecruitmentForm && !recruitmentWindow.isOpen) && (
                   <form id={formID} onSubmit={handleSubmit(onSubmit)}>
                     <div className="grid grid-cols-1 gap-5 @2xl:grid-cols-12">

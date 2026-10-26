@@ -10,9 +10,45 @@ import {
   REGISTRATION_CUTOFF_MINUTES,
 } from '@/utilities/eventRegistration'
 import {
+  EventRegistrations,
   eventRequiresMinimumsAcknowledgement,
   validateMinimumsAcknowledgement,
 } from '@/collections/Events'
+
+describe('registration age validation', () => {
+  const hook = EventRegistrations.hooks!.beforeValidate![0]
+  const validate = (
+    data: Record<string, unknown>,
+    operation = 'create',
+    originalDoc = {},
+    context = {},
+  ) => hook({ data, operation, originalDoc, req: { context } } as never)
+
+  it.each([undefined, null, '', 'major', 'child'])(
+    'rejects missing/invalid age %s on new registrations',
+    (ageGroup) => {
+      expect(() => validate({ ageGroup })).toThrow('Selectează Minor')
+    },
+  )
+  it.each(['minor', 'adult'])('accepts valid age %s', (ageGroup) => {
+    expect(validate({ ageGroup })).toEqual({ ageGroup })
+  })
+  it('allows legacy status updates and CSV imports without assigning an age', () => {
+    expect(validate({ status: 'absent' }, 'update')).toEqual({ status: 'absent' })
+    expect(
+      validate({ status: 'present' }, 'create', {}, { eventRegistrationImport: true }),
+    ).toEqual({ status: 'present' })
+    expect(() =>
+      validate({ ageGroup: 'child' }, 'create', {}, { eventRegistrationImport: true }),
+    ).toThrow()
+  })
+  it('requires age on attendance confirmation and preserves an existing age', () => {
+    expect(() => validate({ status: 'present' }, 'update')).toThrow()
+    expect(validate({ status: 'present' }, 'update', { ageGroup: 'adult' })).toEqual({
+      status: 'present',
+    })
+  })
+})
 
 describe('event registration availability', () => {
   it('includes the year in full and compact event date labels', () => {

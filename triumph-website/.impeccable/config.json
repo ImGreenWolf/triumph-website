@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "files": [
+          "src/collections/Events/registrationEmails.ts"
+        ],
+        "createdAt": "2026-10-26T23:42:10.449Z",
+        "reason": "Agent review: Arial is an email-compatible system font in an HTML email template, where client support takes priority over distinctive web typography."
+      }
+    ]
+  }
+}

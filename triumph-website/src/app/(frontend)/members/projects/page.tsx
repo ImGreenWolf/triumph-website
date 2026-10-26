@@ -124,6 +124,8 @@ function serializeEvent(
       const name = normalizeText(registration.name) || email || 'Participant fără nume'
 
       return {
+        ageGroup: registration.ageGroup ?? null,
+        consumptionAmount: registration.consumptionAmount ?? null,
         createdAt: normalizeText(registration.createdAt),
         day: normalizeText(registration.day),
         donation: normalizeNonNegativeNumber(registration.donation),
@@ -165,6 +167,7 @@ function serializeEvent(
     slug: event.slug,
     startTime: getBoundaryTime(slotStartTimes, 'earliest') ?? getDayBoundary(firstEventDay, false),
     donation: normalizeDonation(event.donation),
+    minimumConsumation: event.minimumConsumation ?? 0,
     heroImage: event.meta?.image,
     useColors: event.useColors,
   }

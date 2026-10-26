@@ -7,6 +7,7 @@ import React from 'react'
 import { AdminBar } from '@/components/AdminBar'
 import { Footer } from '@/Footer/Component'
 import { Header } from '@/Header/Component'
+import { SiteMotion } from '@/components/SiteMotion'
 import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
@@ -73,7 +74,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         poppinsFont.className,
         'overscroll-y-none',
       )}
-      lang="en"
+      lang="ro"
       suppressHydrationWarning
     >
       <head>
@@ -92,11 +93,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             }}
           /> */}
 
-          <div className="relative z-10 min-h-svh shrink-0 bg-background [background-image:inherit] [background-size:inherit]">
-            <Header />
-            {children}
-          </div>
-          <Footer />
+          <SiteMotion>
+            <div
+              data-site-page
+              className="relative z-10 min-h-svh shrink-0 bg-background [background-image:inherit] [background-size:inherit]"
+            >
+              <Header />
+              {children}
+            </div>
+            <Footer />
+          </SiteMotion>
         </Providers>
       </body>
     </html>
@@ -105,9 +111,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
 export const metadata: Metadata = {
   metadataBase: new URL(getServerSideURL()),
+  title: 'Interact București Triumph',
+  description:
+    'Club de voluntariat pentru tineri de 12–18 ani din București, sponsorizat de Rotary Cișmigiu.',
   openGraph: mergeOpenGraph(),
   twitter: {
     card: 'summary_large_image',
-    creator: '@payloadcms',
   },
 }

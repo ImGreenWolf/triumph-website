@@ -1,4 +1,5 @@
-import { Header as HeaderType, Page, Post } from '@/payload-types'
+import { draftMode } from 'next/headers'
+import { Header as HeaderType } from '@/payload-types'
 import { HeaderClient } from './Component.client'
 import { getCachedGlobal } from '@/utilities/getGlobals'
 import payloadConfig from '@payload-config'
@@ -7,8 +8,9 @@ import React from 'react'
 import { CardNavItem } from './Nav/CardNav'
 
 export async function Header() {
-  const headerData = await getCachedGlobal('header', 1)()
-  return <HeaderClient data={headerData} links={await fetchNav(headerData)} />
+  const { isEnabled: draft } = await draftMode()
+  const headerData = draft ? await (await getPayload({ config: payloadConfig })).findGlobal({ slug: 'header', draft: true, depth: 1 }) : await getCachedGlobal('header', 1)()
+  return <HeaderClient links={await fetchNav(headerData)} />
 }
 
 async function fetchNav(data: HeaderType): Promise<CardNavItem[]> {
@@ -62,22 +64,11 @@ function getSubItemLinks(subItems: HeaderNavCategory['reference']): CardNavItem[
 
 function getHref(link: HeaderLink, sectionId?: string | null) {
   const suffix = sectionId ? `#${sectionId}` : ''
-
-  if (link.type === 'custom') 
-    if(link.url)
-    return `${!['.','/'].includes(link.url[0]) ? '/' : ''}${link.url || ''}${suffix}`
-  else 
-    return '/'
-  if (!link.reference) return ''
-
-  if (typeof link.reference.value === 'string') return `${link.reference.value}${suffix}`
-
-  switch (link.reference.relationTo) {
-    case 'pages':
-      return `/${(link.reference.value as Page).slug}${suffix}`
-    case 'posts':
-      return `/posts/${(link.reference.value as Post).slug}${suffix}`
-    default:
-      return '/'
+  if (link.type === 'custom') {
+    const href = link.url || '/'
+    return `${/^(https?:|mailto:|tel:|\/|#)/.test(href) ? href : `/${href}`}${suffix}`
   }
+  if (!link.reference || typeof link.reference.value !== 'object') return ''
+  const doc = link.reference.value
+  return `${link.reference.relationTo === 'posts' ? '/posts' : ''}/${doc.slug}${suffix}`
 }

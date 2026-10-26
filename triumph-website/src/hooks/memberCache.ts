@@ -1,4 +1,6 @@
 import { revalidateTag } from 'next/cache'
+import { after } from 'next/server'
+import { hasAutosaveEnabled } from 'payload/shared'
 import type {
   CollectionAfterChangeHook,
   CollectionAfterDeleteHook,
@@ -16,8 +18,15 @@ export const invalidateMemberChange: CollectionAfterChangeHook = ({
   collection,
   doc,
   previousDoc,
+  operation,
 }) => {
-  expire(collection.slug, doc, previousDoc)
+  // Payload creates the initial autosaved draft while rendering the create page.
+  // Next.js only permits cache invalidation outside that render phase.
+  if (operation === 'create' && doc._status === 'draft' && hasAutosaveEnabled(collection)) {
+    after(() => expire(collection.slug, doc, previousDoc))
+  } else {
+    expire(collection.slug, doc, previousDoc)
+  }
   return doc
 }
 
