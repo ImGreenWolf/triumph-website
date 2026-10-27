@@ -3,10 +3,15 @@ import type { Payload, PayloadRequest, RequiredDataFromCollectionSlug } from 'pa
 import type { Event, EventRegistration } from '@/payload-types'
 import { formatEventSlotLabel } from '@/utilities/eventRegistration'
 import { isAgeGroup } from '@/utilities/eventPayment'
+import { getEventSlotDateRange } from '@/utilities/eventDisplay'
+import {
+  createRegistrationImportBatch,
+  type ImportEvent,
+} from '@/utilities/eventRegistrationImportContext'
 
 type RegistrationCreateData = RequiredDataFromCollectionSlug<'event-registrations'> &
   Pick<EventRegistration, 'donation'>
-type ImportPayload = Pick<Payload, 'create' | 'find'>
+type ImportPayload = Pick<Payload, 'create' | 'find' | 'count'>
 
 export type ParticipantCSVError = {
   message: string
@@ -15,6 +20,7 @@ export type ParticipantCSVError = {
 
 export type ParsedParticipantCSVRow = {
   data: RegistrationCreateData
+  automaticSlots?: Array<{ day: string; slot: string; capacity: number }>
   email?: string
   name: string
   row: number
@@ -48,7 +54,9 @@ const headerAliases = {
 
 type CSVColumn = keyof typeof headerAliases
 
-const requiredColumns: CSVColumn[] = ['name', 'phone', 'day', 'slot']
+const requiredColumns: CSVColumn[] = ['name', 'phone']
+const NO_AVAILABLE_SLOT =
+  'Nu există niciun interval cu locuri disponibile pentru ziua și tura indicate.'
 const normalizedHeaderAliases = new Map<string, CSVColumn>(
   Object.entries(headerAliases).flatMap(([column, aliases]) =>
     aliases.map((alias) => [normalizeHeader(alias), column as CSVColumn]),
@@ -84,7 +92,7 @@ export function parseParticipantsCSV(
 
   const rows: ParsedParticipantCSVRow[] = []
   const seenEmails = new Map<string, number>()
-  const eventDays = getEventDayOptions(event)
+  const eventSlots = getEventSlotOptions(event)
 
   records.forEach((record, recordIndex) => {
     const rowNumber = recordIndex + 2
@@ -121,41 +129,65 @@ export function parseParticipantsCSV(
 
     // if (!phone) rowErrors.push('Telefonul este obligatoriu.')
 
-    const day = eventDays.get(dayValue)
-    if (!day) {
+    if (
+      dayValue &&
+      !event.days?.some(
+        (day) => day.id && day.eventDate && formatDateInput(day.eventDate) === dayValue,
+      )
+    ) {
       rowErrors.push(`Ziua "${dayValue}" nu există în eveniment. Folosește formatul YYYY-MM-DD.`)
     }
 
-    const matchingSlots = day?.slots.get(normalizeSlot(slotValue)) ?? []
-    if (!slotValue) {
-      rowErrors.push('Tura este obligatorie.')
-    } else if (day && matchingSlots.length === 0) {
-      rowErrors.push(`Tura "${slotValue}" nu există în ziua selectată.`)
-    } else if (matchingSlots.length > 1) {
+    const matchingSlots = eventSlots.filter(
+      (option) =>
+        (!dayValue || option.date === dayValue) &&
+        (!slotValue || option.label === normalizeSlot(slotValue)),
+    )
+    if (slotValue && matchingSlots.length === 0 && rowErrors.length === 0) {
+      rowErrors.push(
+        dayValue
+          ? `Tura "${slotValue}" nu există în ziua selectată.`
+          : `Tura "${slotValue}" nu există în eveniment.`,
+      )
+    } else if (dayValue && slotValue && matchingSlots.length > 1) {
       rowErrors.push(`Tura "${slotValue}" este ambiguă în ziua selectată.`)
     }
 
-    if (rowErrors.length > 0 || !day || matchingSlots.length !== 1) {
+    const automatic = !dayValue || !slotValue
+    const candidates = automatic
+      ? matchingSlots.filter((option) => option.capacity > 0)
+      : matchingSlots
+    if (rowErrors.length === 0 && candidates.length === 0) rowErrors.push(NO_AVAILABLE_SLOT)
+
+    if (rowErrors.length > 0) {
       errors.push({ message: rowErrors.join(' '), row: rowNumber })
       return
     }
 
     const data: RegistrationCreateData = {
       ...(isAgeGroup(ageGroup) ? { ageGroup } : {}),
-      day: day.id,
+      day: candidates[0].day,
       donation,
       email,
       event: event.id,
       guests: 0,
       name,
       phone,
-      slot: matchingSlots[0].id,
+      slot: candidates[0].slot,
       status: donation > 0 ? 'present' : 'registered',
     }
 
     if (questions) data.questions = questions
 
-    rows.push({ data, email, name, row: rowNumber })
+    rows.push({
+      data,
+      email,
+      name,
+      row: rowNumber,
+      ...(automatic
+        ? { automaticSlots: candidates.map(({ day, slot, capacity }) => ({ day, slot, capacity })) }
+        : {}),
+    })
   })
 
   return { errors, rows }
@@ -163,7 +195,8 @@ export function parseParticipantsCSV(
 
 export async function importParticipantsFromCSV(args: {
   csv: string
-  event: Pick<Event, 'days' | 'id'>
+  event: ImportEvent
+  invalidate?: (tags: string[]) => void
   payload: ImportPayload
   user: PayloadRequest['user']
 }): Promise<ParticipantBulkUploadResult> {
@@ -174,24 +207,40 @@ export async function importParticipantsFromCSV(args: {
     skipped: [],
   }
 
-  for (const row of parsed.rows) {
-    try {
-      if (row.email) {
-        const existing = await args.payload.find({
-          collection: 'event-registrations',
-          depth: 0,
-          limit: 1,
-          overrideAccess: true,
-          where: {
-            and: [
-              { event: { equals: args.event.id } },
-              { email: { equals: row.email } },
-              { status: { not_equals: 'cancelled' } },
-            ],
-          },
-        })
+  if (parsed.rows.length === 0) return result
 
-        if (existing.totalDocs > 0) {
+  const batch = createRegistrationImportBatch(args.event, Boolean(args.invalidate))
+  const existingEmails = new Set<string>()
+  // Bound the email query size even for a large CSV.
+  const emails = parsed.rows.flatMap((row) => (row.email ? [row.email] : []))
+  for (let offset = 0; offset < emails.length; offset += 500) {
+    const chunk = emails.slice(offset, offset + 500)
+    const existing = await args.payload.find({
+      collection: 'event-registrations',
+      depth: 0,
+      limit: 0,
+      pagination: false,
+      select: { email: true },
+      overrideAccess: true,
+      where: {
+        and: [
+          { event: { equals: args.event.id } },
+          { email: { in: chunk } },
+          { status: { not_equals: 'cancelled' } },
+        ],
+      },
+    })
+    for (const doc of existing.docs) if (doc.email) existingEmails.add(doc.email)
+  }
+
+  const occupancy = new Map<string, number>()
+  const slotKey = (day: string, slot: string) => JSON.stringify([day, slot])
+  try {
+    for (const row of parsed.rows) {
+      let selection = { day: row.data.day, slot: row.data.slot }
+      let attemptedCreate = false
+      try {
+        if (row.email && existingEmails.has(row.email)) {
           result.skipped.push({
             email: row.email,
             reason: 'Există deja o înscriere activă cu acest email la eveniment.',
@@ -199,62 +248,103 @@ export async function importParticipantsFromCSV(args: {
           })
           continue
         }
+
+        if (row.automaticSlots) {
+          let available = false
+          for (const candidate of row.automaticSlots) {
+            const key = slotKey(candidate.day, candidate.slot)
+            let count = occupancy.get(key)
+            if (count === undefined) {
+              const current = await args.payload.count({
+                collection: 'event-registrations',
+                overrideAccess: true,
+                where: {
+                  and: [
+                    { event: { equals: args.event.id } },
+                    { day: { equals: candidate.day } },
+                    { slot: { equals: candidate.slot } },
+                    { status: { not_equals: 'cancelled' } },
+                  ],
+                },
+              })
+              count = current.totalDocs
+              occupancy.set(key, count)
+            }
+            if (count < candidate.capacity) {
+              selection = { day: candidate.day, slot: candidate.slot }
+              available = true
+              break
+            }
+          }
+          if (!available) throw new Error(NO_AVAILABLE_SLOT)
+        }
+
+        // Keep independent transactions: one invalid row must not roll back the upload.
+        // Collection hooks still perform live duplicate and capacity checks.
+        attemptedCreate = true
+        const created = await args.payload.create({
+          collection: 'event-registrations',
+          context: { eventRegistrationImport: true, eventRegistrationImportBatch: batch },
+          data: { ...row.data, ...selection },
+          depth: 0,
+          overrideAccess: true,
+          user: args.user,
+        })
+        if (row.email) existingEmails.add(row.email)
+        const key = slotKey(selection.day, selection.slot)
+        if (occupancy.has(key)) occupancy.set(key, occupancy.get(key)! + 1)
+        result.created.push({
+          email: created.email ?? row.email,
+          id: created.id,
+          name: created.name,
+          row: row.row,
+        })
+      } catch (error) {
+        // A concurrent registration may have changed availability. Refresh on the next row.
+        if (attemptedCreate) occupancy.delete(slotKey(selection.day, selection.slot))
+        result.errors.push({
+          message: error instanceof Error ? error.message : 'Participantul nu a putut fi importat.',
+          row: row.row,
+        })
       }
-
-      const created = await args.payload.create({
-        collection: 'event-registrations',
-        context: {
-          eventRegistrationImport: true,
-        },
-        data: row.data,
-        overrideAccess: true,
-        user: args.user,
-      })
-
-      result.created.push({
-        email: created.email ?? row.email,
-        id: created.id,
-        name: created.name,
-        row: row.row,
-      })
-    } catch (error) {
-      result.errors.push({
-        message: error instanceof Error ? error.message : 'Participantul nu a putut fi importat.',
-        row: row.row,
-      })
     }
+  } finally {
+    if (batch.invalidationTags?.size) args.invalidate?.([...batch.invalidationTags])
   }
 
   return result
 }
 
-function getEventDayOptions(event: Pick<Event, 'days'>) {
-  const days = new Map<
-    string,
-    {
-      id: string
-      slots: Map<string, Array<{ id: string }>>
-    }
-  >()
+function getEventSlotOptions(event: Pick<Event, 'days'>) {
+  const options: Array<{
+    day: string
+    slot: string
+    capacity: number
+    date: string
+    label: string
+    start: number
+  }> = []
 
   for (const day of event.days ?? []) {
     if (!day?.id || !day.eventDate) continue
 
-    const slots = new Map<string, Array<{ id: string }>>()
-
     for (const slot of day.slots ?? []) {
       if (!slot?.id) continue
 
-      const label = normalizeSlot(formatEventSlotLabel(slot.startTime, slot.endTime))
-      const candidates = slots.get(label) ?? []
-      candidates.push({ id: slot.id })
-      slots.set(label, candidates)
+      options.push({
+        day: day.id,
+        slot: slot.id,
+        capacity: Math.max(0, Math.floor(slot.capacity ?? 0)),
+        date: formatDateInput(day.eventDate),
+        label: normalizeSlot(formatEventSlotLabel(slot.startTime, slot.endTime)),
+        start: getEventSlotDateRange(day.eventDate, slot).start?.getTime() ?? 0,
+      })
     }
-
-    days.set(formatDateInput(day.eventDate), { id: day.id, slots })
   }
 
-  return days
+  return options.sort(
+    (left, right) => left.date.localeCompare(right.date) || left.start - right.start,
+  )
 }
 
 function parseCSVTable(input: string) {

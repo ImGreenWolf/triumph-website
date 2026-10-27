@@ -28,6 +28,7 @@ import {
 } from './registrationEmails'
 import { colorField } from '@/fields/color-picker/field'
 import { AGE_GROUP_ERROR, isAgeGroup } from '@/utilities/eventPayment'
+import { getRegistrationImportBatch } from '@/utilities/eventRegistrationImportContext'
 
 import {
   MetaDescriptionField,
@@ -470,6 +471,10 @@ export const Events: CollectionConfig<'events'> = {
 
 export const EventRegistrations: CollectionConfig = {
   slug: 'event-registrations',
+  indexes: [
+    { fields: ['event', 'email', 'status'] },
+    { fields: ['event', 'day', 'slot', 'status'] },
+  ],
   labels: {
     plural: 'Înregistrări Evenimente',
     singular: 'Înregistrare Eveniment',
@@ -639,11 +644,16 @@ export const EventRegistrations: CollectionConfig = {
 
         const eventId = typeof data.event === 'string' ? data.event : data.event.id
 
-        const event = await req.payload.findByID({
-          collection: 'events',
-          id: eventId,
-          depth: 0,
-        })
+        const batch = getRegistrationImportBatch(req.context)
+        const event =
+          batch && batch.event.id === eventId
+            ? batch.event
+            : await req.payload.findByID({
+                collection: 'events',
+                id: eventId,
+                depth: 0,
+                req,
+              })
 
         const bypassSignupRestrictions =
           req.context.eventRegistrationImport || req.context.eventRegistrationWalkIn
@@ -683,6 +693,10 @@ export const EventRegistrations: CollectionConfig = {
           const existing = await req.payload.find({
             collection: 'event-registrations',
             limit: 1,
+            depth: 0,
+            pagination: false,
+            select: { email: true },
+            req,
             where: {
               and: [
                 {
@@ -712,40 +726,38 @@ export const EventRegistrations: CollectionConfig = {
           }
         }
 
-        const existingForSlot = await req.payload.find({
-          collection: 'event-registrations',
-          limit: 0,
-          pagination: false,
-          where: {
-            and: [
-              {
-                event: {
-                  equals: eventId,
-                },
-              },
-              {
-                day: {
-                  equals: day.id,
-                },
-              },
-              {
-                slot: {
-                  equals: slot.id,
-                },
-              },
-              {
-                status: {
-                  not_equals: 'cancelled',
-                },
-              },
-            ],
-          },
-        })
-
-        if (
+        const existingForSlot =
           !req.context.eventRegistrationWalkIn &&
-          existingForSlot.docs.length >= (slot.capacity ?? 0)
-        ) {
+          (await req.payload.count({
+            collection: 'event-registrations',
+            req,
+            where: {
+              and: [
+                {
+                  event: {
+                    equals: eventId,
+                  },
+                },
+                {
+                  day: {
+                    equals: day.id,
+                  },
+                },
+                {
+                  slot: {
+                    equals: slot.id,
+                  },
+                },
+                {
+                  status: {
+                    not_equals: 'cancelled',
+                  },
+                },
+              ],
+            },
+          }))
+
+        if (existingForSlot && existingForSlot.totalDocs >= (slot.capacity ?? 0)) {
           throw new APIError(
             `${formatEventDayLabel(day.eventDate)}, ${formatEventSlotLabel(slot.startTime, slot.endTime)} este complet.`,
             409,

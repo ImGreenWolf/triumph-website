@@ -5,6 +5,7 @@ import type { Event, EventRegistration, User } from '@/payload-types'
 import { canCheckInEvent, canManageEvent, getRelationshipID } from '@/utilities/eventAccess'
 import { findEventSlot } from '@/utilities/eventRegistration'
 import { AGE_GROUP_ERROR, calculateEventPayment, isAgeGroup } from '@/utilities/eventPayment'
+import { handleDuplicateCleanup } from '@/collections/Events/duplicateCleanup'
 
 const allowedStatuses = new Set(['registered', 'present', 'absent'])
 
@@ -25,6 +26,9 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Datele trimise nu sunt valide.' }, { status: 400 })
   }
   const body = input as Record<string, unknown>
+  if (body.action === 'preview-duplicates' || body.action === 'remove-duplicates') {
+    return handleDuplicateCleanup(payload, authentication.user, body)
+  }
   const eventID = normalizeText(body.eventId)
   const dayID = normalizeText(body.dayId)
   const slotID = normalizeText(body.slotId)

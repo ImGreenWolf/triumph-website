@@ -74,3 +74,46 @@ describe('event editor initial draft cache invalidation', () => {
     })
   })
 })
+
+describe('bulk registration cache invalidation', () => {
+  it('refreshes each affected tag once after committed rows, including partial success', async () => {
+    const { importParticipantsFromCSV } = await import('@/collections/Events/bulkUpload')
+    const event = {
+      id: 'bulk-event',
+      days: [
+        {
+          id: 'day-1',
+          eventDate: '2026-06-21T00:00:00.000Z',
+          slots: [{ id: 'slot-1', capacity: 10 }],
+        },
+      ],
+    }
+    const invalidate = vi.fn()
+    const create = vi.fn().mockImplementation(async ({ data, context }) => {
+      if (data.name === 'Failed') throw new Error('Write failed')
+      const doc = { ...data, id: data.name }
+      await invalidateMemberChange({
+        collection: { slug: 'event-registrations' },
+        doc,
+        previousDoc: {},
+        operation: 'create',
+        req: { context },
+      } as HookArgs)
+      expect(invalidate).not.toHaveBeenCalled()
+      return doc
+    })
+    const result = await importParticipantsFromCSV({
+      csv: 'name,phone\nAna,\nFailed,\nIon,',
+      event,
+      user: null,
+      invalidate,
+      payload: { create, find: vi.fn(), count: vi.fn().mockResolvedValue({ totalDocs: 0 }) },
+    })
+    expect(result.created).toHaveLength(2)
+    expect(result.errors).toHaveLength(1)
+    expect(invalidate).toHaveBeenCalledExactlyOnceWith([
+      'members:collection:event-registrations',
+      'members:event-registrations:bulk-event',
+    ])
+  })
+})

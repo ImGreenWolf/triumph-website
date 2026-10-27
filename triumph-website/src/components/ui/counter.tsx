@@ -1,56 +1,55 @@
 'use client'
-import { MotionValue, motion, useSpring, useTransform } from 'framer-motion';
-import type React from 'react';
-import { useEffect, useRef } from 'react';
+import { MotionValue, motion, useReducedMotion, useSpring, useTransform } from 'framer-motion'
+import type React from 'react'
+import { useEffect, useRef } from 'react'
 
-type PlaceValue = number | '.';
+type PlaceValue = number | '.'
 
 interface NumberProps {
-  mv: MotionValue<number>;
-  number: number;
-  height: number;
+  mv: MotionValue<number>
+  number: number
 }
 
-function Number({ mv, number, height }: NumberProps) {
-  const y = useTransform(mv, latest => {
-    const placeValue = latest % 10;
-    const offset = (10 + number - placeValue) % 10;
-    let memo = offset * height;
+function Number({ mv, number }: NumberProps) {
+  const y = useTransform(mv, (latest) => {
+    const placeValue = latest % 10
+    const offset = (10 + number - placeValue) % 10
+    let memo = offset * 100
     if (offset > 5) {
-      memo -= 10 * height;
+      memo -= 1000
     }
-    return memo;
-  });
+    return `${memo}%`
+  })
 
   const baseStyle: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
-  };
+    justifyContent: 'center',
+  }
 
-  return <motion.span style={{ ...baseStyle, y }}>{number}</motion.span>;
+  return <motion.span style={{ ...baseStyle, y }}>{number}</motion.span>
 }
 
 function normalizeNearInteger(num: number): number {
-  const nearest = Math.round(num);
-  const tolerance = 1e-9 * Math.max(1, Math.abs(num));
-  return Math.abs(num - nearest) < tolerance ? nearest : num;
+  const nearest = Math.round(num)
+  const tolerance = 1e-9 * Math.max(1, Math.abs(num))
+  return Math.abs(num - nearest) < tolerance ? nearest : num
 }
 
 function getValueRoundedToPlace(value: number, place: number): number {
-  const scaled = value / place;
-  return Math.floor(normalizeNearInteger(scaled));
+  const scaled = value / place
+  return Math.floor(normalizeNearInteger(scaled))
 }
 
 interface DigitProps {
-  place: PlaceValue;
-  value: number;
-  height: number;
-  animateChanges?: boolean;
-  animateOnMount?: boolean;
-  digitStyle?: React.CSSProperties;
+  place: PlaceValue
+  value: number
+  height: React.CSSProperties['height']
+  animateChanges?: boolean
+  animateOnMount?: boolean
+  digitStyle?: React.CSSProperties
 }
 
 function Digit({ animateChanges, animateOnMount, digitStyle, height, place, value }: DigitProps) {
@@ -63,74 +62,77 @@ function Digit({ animateChanges, animateOnMount, digitStyle, height, place, valu
       >
         .
       </span>
-    );
+    )
   }
 
   // Numeric digit
-  const valueRoundedToPlace = getValueRoundedToPlace(value, place);
-  const animatedValue = useSpring(animateOnMount ? 0 : valueRoundedToPlace);
-  const previousValue = useRef(valueRoundedToPlace);
-  const hasMounted = useRef(false);
+  const valueRoundedToPlace = getValueRoundedToPlace(value, place)
+  const animatedValue = useSpring(animateOnMount ? 0 : valueRoundedToPlace)
+  const previousValue = useRef(valueRoundedToPlace)
+  const hasMounted = useRef(false)
 
   useEffect(() => {
     if (!hasMounted.current) {
-      hasMounted.current = true;
-      animatedValue.set(valueRoundedToPlace);
-      return;
+      hasMounted.current = true
+      animatedValue.set(valueRoundedToPlace)
+      return
     }
 
-    if (previousValue.current === valueRoundedToPlace) return;
-    previousValue.current = valueRoundedToPlace;
+    if (previousValue.current === valueRoundedToPlace) return
+    previousValue.current = valueRoundedToPlace
 
     if (animateChanges) {
-      animatedValue.set(valueRoundedToPlace);
+      animatedValue.set(valueRoundedToPlace)
     } else {
-      animatedValue.jump(valueRoundedToPlace);
+      animatedValue.jump(valueRoundedToPlace)
     }
-  }, [animateChanges, animatedValue, valueRoundedToPlace]);
+  }, [animateChanges, animatedValue, valueRoundedToPlace])
 
   const defaultStyle: React.CSSProperties = {
     height,
     position: 'relative',
     width: '1ch',
-    fontVariantNumeric: 'tabular-nums'
-  };
+    fontVariantNumeric: 'tabular-nums',
+  }
 
   return (
-    <span className="relative inline-flex overflow-hidden" style={{ ...defaultStyle, ...digitStyle }}>
+    <span
+      className="relative inline-flex overflow-hidden"
+      style={{ ...defaultStyle, ...digitStyle }}
+    >
       {Array.from({ length: 10 }, (_, i) => (
-        <Number key={i} mv={animatedValue} number={i} height={height} />
+        <Number key={i} mv={animatedValue} number={i} />
       ))}
     </span>
-  );
+  )
 }
 
 interface CounterProps {
-  value: number;
-  animateChanges?: boolean;
-  animateOnMount?: boolean;
-  fontSize?: number;
-  padding?: number;
+  value: number
+  animateChanges?: boolean
+  animateOnMount?: boolean
+  fontSize?: number
+  padding?: number
   /**
    * An array of place values that determines which digit positions
    * should be displayed. For decimal places, use "." to represent
    * the decimal point. Leave this prop empty to enable automatic
    * detection based on the current value.
    */
-  places?: PlaceValue[];
-  gap?: number;
-  borderRadius?: number;
-  horizontalPadding?: number;
-  textColor?: string;
-  fontWeight?: React.CSSProperties['fontWeight'];
-  containerStyle?: React.CSSProperties;
-  counterStyle?: React.CSSProperties;
-  digitStyle?: React.CSSProperties;
-  gradientHeight?: number;
-  gradientFrom?: string;
-  gradientTo?: string;
-  topGradientStyle?: React.CSSProperties;
-  bottomGradientStyle?: React.CSSProperties;
+  places?: PlaceValue[]
+  gap?: number
+  borderRadius?: number
+  horizontalPadding?: number
+  textColor?: string
+  fontWeight?: React.CSSProperties['fontWeight']
+  containerStyle?: React.CSSProperties
+  counterStyle?: React.CSSProperties
+  digitStyle?: React.CSSProperties
+  gradientHeight?: number
+  gradientFrom?: string
+  gradientTo?: string
+  topGradientStyle?: React.CSSProperties
+  bottomGradientStyle?: React.CSSProperties
   className: string
 }
 
@@ -142,15 +144,19 @@ export default function Counter({
   padding = 0,
   places = [...value.toString()].map((ch, i, a) => {
     if (ch === '.') {
-      return '.';
+      return '.'
     }
 
-    const dotIndex = a.indexOf('.');
-    const isInteger = dotIndex === -1;
+    const dotIndex = a.indexOf('.')
+    const isInteger = dotIndex === -1
 
-    const exponent = isInteger ? a.length - i - 1 : i < dotIndex ? dotIndex - i - 1 : -(i - dotIndex);
+    const exponent = isInteger
+      ? a.length - i - 1
+      : i < dotIndex
+        ? dotIndex - i - 1
+        : -(i - dotIndex)
 
-    return 10 ** exponent;
+    return 10 ** exponent
   }),
   gap = 8,
   borderRadius = 4,
@@ -165,20 +171,22 @@ export default function Counter({
   gradientTo = 'transparent',
   topGradientStyle,
   bottomGradientStyle,
-  className
+  className,
 }: CounterProps) {
-  const height = fontSize + padding;
-  const hasMounted = useRef(false);
-  const shouldAnimateMount = animateOnMount && !hasMounted.current;
+  // Each rolling slot follows the rendered font, including responsive overrides.
+  const height = padding ? `calc(1em + ${padding}px)` : '1em'
+  const reducedMotion = useReducedMotion()
+  const hasMounted = useRef(false)
+  const shouldAnimateMount = animateOnMount && !reducedMotion && !hasMounted.current
 
   useEffect(() => {
-    hasMounted.current = true;
-  }, []);
+    hasMounted.current = true
+  }, [])
 
   const defaultContainerStyle: React.CSSProperties = {
     position: 'relative',
-    display: 'inline-block'
-  };
+    display: 'inline-block',
+  }
 
   const defaultCounterStyle: React.CSSProperties = {
     fontSize,
@@ -191,8 +199,8 @@ export default function Counter({
     lineHeight: 1,
     color: textColor,
     fontWeight,
-    direction: "ltr"
-  };
+    direction: 'ltr',
+  }
 
   const gradientContainerStyle: React.CSSProperties = {
     pointerEvents: 'none',
@@ -200,25 +208,25 @@ export default function Counter({
     inset: 0,
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'space-between'
-  };
+    justifyContent: 'space-between',
+  }
 
   const defaultTopGradientStyle: React.CSSProperties = {
     height: gradientHeight,
-    background: `linear-gradient(to bottom, ${gradientFrom}, ${gradientTo})`
-  };
+    background: `linear-gradient(to bottom, ${gradientFrom}, ${gradientTo})`,
+  }
 
   const defaultBottomGradientStyle: React.CSSProperties = {
     height: gradientHeight,
-    background: `linear-gradient(to top, ${gradientFrom}, ${gradientTo})`
-  };
+    background: `linear-gradient(to top, ${gradientFrom}, ${gradientTo})`,
+  }
 
   return (
     <span style={{ ...defaultContainerStyle, ...containerStyle }} className={className}>
       <span style={{ ...defaultCounterStyle, ...counterStyle }}>
-        {places.map(place => (
+        {places.map((place) => (
           <Digit
-            animateChanges={animateChanges}
+            animateChanges={animateChanges && !reducedMotion}
             animateOnMount={shouldAnimateMount}
             digitStyle={digitStyle}
             height={height}
@@ -233,5 +241,5 @@ export default function Counter({
         <span style={bottomGradientStyle ?? defaultBottomGradientStyle} />
       </span>
     </span>
-  );
+  )
 }

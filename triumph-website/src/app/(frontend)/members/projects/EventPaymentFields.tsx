@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef } from 'react'
+import { CornerDownLeft } from 'lucide-react'
 import { calculateEventPayment, type AgeGroup } from '@/utilities/eventPayment'
 
 const currency = (amount: number) =>
@@ -21,11 +22,25 @@ export function usePaymentDialogFocus() {
           'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
         ),
       )
+    const fields = Array.from(
+      form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+        'input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled)',
+      ),
+    )
+    const incomplete = fields.find(
+      (field) => !field.validity.valid || (field.required && !field.value.trim()),
+    )
     ;(
-      form.querySelector<HTMLElement>('input:checked, input:not([type="radio"]), select') ??
+      incomplete ??
+      form.querySelector<HTMLElement>('[name="totalCollected"]:not(:disabled)') ??
+      fields[0] ??
       focusable()[0]
     )?.focus()
     function trap(event: KeyboardEvent) {
+      if (event.key === 'Enter' && event.repeat) {
+        event.preventDefault()
+        return
+      }
       if (event.key !== 'Tab') return
       const elements = focusable()
       const first = elements[0]
@@ -59,11 +74,30 @@ export function EventPaymentFields(props: {
   legacy?: boolean
 }) {
   const id = useId()
-  const payment = calculateEventPayment(
-    props.event,
-    props.guests.trim() ? Number(props.guests) : NaN,
-    props.totalCollected,
-  )
+  const totalInput = useRef<HTMLInputElement>(null)
+  const focusConfirmation = useRef(false)
+  const guests = props.guests.trim() ? Number(props.guests) : NaN
+  const payment = calculateEventPayment(props.event, guests, props.totalCollected)
+  const canUseMinimum = !calculateEventPayment(props.event, guests, payment.minimumTotal).error
+  const emptyTotal = props.totalCollected === ''
+
+  useEffect(() => {
+    if (!focusConfirmation.current) return
+    focusConfirmation.current = false
+    const form = totalInput.current?.form
+    ;(
+      form?.querySelector<HTMLElement>('button[type="submit"]:not(:disabled)') ??
+      form?.querySelector<HTMLElement>('input:invalid, select:invalid') ??
+      totalInput.current
+    )?.focus()
+  }, [props.totalCollected])
+
+  function useMinimum() {
+    if (props.disabled || !canUseMinimum) return
+    focusConfirmation.current = true
+    props.onTotalChange(String(payment.minimumTotal))
+  }
+
   const inputClass =
     'h-12 w-full min-w-0 rounded-lg border border-[#d7dde6] bg-white px-3 text-base font-semibold text-[#152039] outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60'
 
@@ -99,39 +133,80 @@ export function EventPaymentFields(props: {
           Categoria participantului înscris, nu a însoțitorilor.
         </p>
       </fieldset>
-      <label className="flex flex-col gap-2 text-sm font-bold" htmlFor={`${id}-guests`}>
-        Persoane însoțitoare
-        <input
-          id={`${id}-guests`}
-          className={inputClass}
-          type="number"
-          min="0"
-          max="50"
-          step="1"
-          required
-          disabled={props.disabled}
-          value={props.guests}
-          onChange={(e) => props.onGuestsChange(e.target.value)}
-        />
-      </label>
-      <label className="flex flex-col gap-2 text-sm font-bold" htmlFor={`${id}-total`}>
-        Total încasat — include consumația (RON)
-        <input
-          id={`${id}-total`}
-          className={inputClass}
-          type="number"
-          min={payment.minimumTotal}
-          max="1000000"
-          step="0.01"
-          required
-          aria-describedby={`${id}-breakdown ${id}-help`}
-          aria-invalid={Boolean(props.totalCollected && payment.error)}
-          disabled={props.disabled}
-          value={props.totalCollected}
-          placeholder={`Minim ${currency(payment.minimumTotal)}`}
-          onChange={(e) => props.onTotalChange(e.target.value)}
-        />
-      </label>
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-end gap-3 sm:gap-4">
+        <label className="flex min-w-0 flex-col gap-2 text-sm font-bold" htmlFor={`${id}-guests`}>
+          Persoane însoțitoare
+          <input
+            id={`${id}-guests`}
+            className={inputClass}
+            type="number"
+            min="0"
+            max="50"
+            step="1"
+            required
+            disabled={props.disabled}
+            value={props.guests}
+            onChange={(e) => props.onGuestsChange(e.target.value)}
+          />
+        </label>
+        <label className="flex min-w-0 flex-col gap-2 text-sm font-bold" htmlFor={`${id}-total`}>
+          Total încasat — include consumația (RON)
+          <div className="relative">
+            <input
+              ref={totalInput}
+              id={`${id}-total`}
+              name="totalCollected"
+              className={`${inputClass} appearance-textfield pr-12 placeholder:text-[#536071] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+              type="number"
+              min={payment.minimumTotal}
+              max="1000000"
+              step="0.01"
+              required
+              aria-describedby={`${id}-breakdown ${id}-help${emptyTotal ? ` ${id}-shortcut` : ''}`}
+              aria-invalid={Boolean(props.totalCollected && payment.error)}
+              disabled={props.disabled}
+              value={props.totalCollected}
+              placeholder={currency(payment.minimumTotal)}
+              onChange={(e) => props.onTotalChange(e.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  event.key !== 'Enter' ||
+                  !emptyTotal ||
+                  event.nativeEvent.isComposing ||
+                  event.nativeEvent.keyCode === 229 ||
+                  event.altKey ||
+                  event.ctrlKey ||
+                  event.metaKey ||
+                  event.shiftKey
+                )
+                  return
+                event.preventDefault()
+                if (!event.repeat && !event.currentTarget.validity.badInput) useMinimum()
+              }}
+            />
+            {emptyTotal && (
+              <button
+                type="button"
+                aria-label={`Folosește totalul minim de ${currency(payment.minimumTotal)}`}
+                title="Enter: folosește totalul minim"
+                disabled={props.disabled || !canUseMinimum}
+                onClick={useMinimum}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-[#536071] hover:bg-[#eef2f7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+              >
+                <CornerDownLeft aria-hidden className="size-4" />
+              </button>
+            )}
+          </div>
+        </label>
+      </div>
+      {emptyTotal && (
+        <p id={`${id}-shortcut`} className="text-xs leading-5 text-[#536071]">
+          <kbd className="rounded border border-[#d7dde6] px-1 py-0.5 font-sans font-semibold">
+            Enter
+          </kbd>{' '}
+          completează totalul minim și trece la confirmare.
+        </p>
+      )}
       <p id={`${id}-help`} className="text-xs leading-5 text-[#536071]">
         Introdu întreaga sumă primită pentru participant și însoțitori. Consumația este inclusă;
         restul se înregistrează ca donație. Ambele minime se aplică fiecărei persoane.

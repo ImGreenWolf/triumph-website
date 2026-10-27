@@ -8,12 +8,16 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
 } from 'react'
 import {
   ArrowLeft,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   BarChart3,
   CalendarDays,
   Check,
@@ -33,6 +37,7 @@ import {
   ShieldCheck,
   Sparkles,
   TrendingUp,
+  TriangleAlert,
   Trash2,
   Upload,
   UserCheck,
@@ -58,6 +63,13 @@ import {
   type AgeGroup,
 } from '@/utilities/eventPayment'
 import { EventPaymentFields, usePaymentDialogFocus } from './EventPaymentFields'
+import { CheckInActionsMenu } from './CheckInActionsMenu'
+import { DuplicateCleanupDialog } from './DuplicateCleanupDialog'
+import { CheckInPagination } from './CheckInPagination'
+import {
+  getDuplicateRegistrationReasons,
+  isDonationBelowMinimum,
+} from '@/utilities/eventCheckInWarnings'
 import {
   QrScannerSurface,
   type QrScannerNotice,
@@ -639,7 +651,45 @@ function Overview(props: {
   )
 }
 
-function CheckIn(props: {
+const checkInSortColumns = [
+  { key: 'participant', label: 'Participant' },
+  { key: 'slot', label: 'Tură' },
+  { key: 'status', label: 'Status' },
+  { key: 'group', label: 'Grup' },
+  { key: 'donation', label: 'Donație' },
+] as const
+type CheckInSortKey = (typeof checkInSortColumns)[number]['key']
+type CheckInSort = { key: CheckInSortKey; direction: 'ascending' | 'descending' }
+const checkInCollator = new Intl.Collator('ro', { sensitivity: 'base', numeric: true })
+const SINGLE_RESULT_SHORTCUT_DELAY_MS = 250
+
+function getCheckInSortValue(
+  registration: ManagedRegistration,
+  key: CheckInSortKey,
+  event: ManagedEvent,
+) {
+  switch (key) {
+    case 'participant':
+      return registration.name
+    case 'group':
+      return 1 + registration.guests
+    case 'donation':
+      return registration.donation
+    case 'status':
+      return {
+        absent: 'Absent',
+        cancelled: 'Anulat',
+        registered: 'În așteptare',
+        present: 'Prezent',
+      }[registration.status]
+    case 'slot': {
+      const info = getSlotInfo(event, registration.day, registration.slot)
+      return info ? (parseDate(info.slot.startTime ?? info.day.eventDate)?.getTime() ?? null) : null
+    }
+  }
+}
+
+export function CheckIn(props: {
   canManageEvent: boolean
   event: ManagedEvent
   onRegistrationCreate: (registration: ManagedRegistration) => void
@@ -651,10 +701,16 @@ function CheckIn(props: {
   const { canManageEvent, event, onRegistrationCreate, onRegistrationUpdate, showPersonalData } =
     props
   const [query, setQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [readySearchKey, setReadySearchKey] = useState<string | null>(null)
   const [shift, setShift] = useState('all')
   const [status, setStatus] = useState('all')
+  const [page, setPage] = useState(1)
+  const paginationTopRef = useRef<HTMLDivElement>(null)
+  const [sort, setSort] = useState<CheckInSort | null>(null)
   const [editing, setEditing] = useState<ManagedRegistration | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [cleanupOpen, setCleanupOpen] = useState(false)
   const [resumeScannerAfterCheckIn, setResumeScannerAfterCheckIn] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [walkInOpen, setWalkInOpen] = useState(false)
@@ -662,13 +718,48 @@ function CheckIn(props: {
   const [deletingID, setDeletingID] = useState<string | null>(null)
   const [savingID, setSavingID] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null)
+  const duplicateReasons = useMemo(
+    () => getDuplicateRegistrationReasons(event.registrations),
+    [event.registrations],
+  )
+  const checkedInAttendance = useMemo(() => {
+    const people = event.registrations.reduce(
+      (sum, registration) =>
+        registration.status === 'present' ? sum + 1 + (registration.guests || 0) : sum,
+      0,
+    )
+    const capacity = event.days.reduce(
+      (sum, day) =>
+        sum + day.slots.reduce((total, slot) => total + Math.max(0, slot.capacity || 0), 0),
+      0,
+    )
+    return { people, capacity }
+  }, [event.registrations, event.days])
 
-  useEffect(() => {}, [event.id])
+  useEffect(() => {
+    setSort(null)
+    setPage(1)
+  }, [event.id])
+
+  function toggleSort(key: CheckInSortKey) {
+    setPage(1)
+    setSort((current) => ({
+      key,
+      direction:
+        current?.key === key && current.direction === 'ascending' ? 'descending' : 'ascending',
+    }))
+  }
 
   const filtered = event.registrations.filter((registration) => {
     if (registration.status === 'cancelled') return false
     if (shift !== 'all' && `${registration.day}:${registration.slot}` !== shift) return false
-    if (status !== 'all' && registration.status !== status) return false
+    if (status === 'warnings') {
+      if (
+        !duplicateReasons.has(registration.id) &&
+        !isDonationBelowMinimum(registration, event.donation)
+      )
+        return false
+    } else if (status !== 'all' && registration.status !== status) return false
     if (!query.trim()) return true
 
     const normalizedQuery = query.trim().toLocaleLowerCase('ro')
@@ -676,6 +767,80 @@ function CheckIn(props: {
       value.toLocaleLowerCase('ro').includes(normalizedQuery),
     )
   })
+  if (sort) {
+    filtered.sort((left, right) => {
+      const a = getCheckInSortValue(left, sort.key, event)
+      const b = getCheckInSortValue(right, sort.key, event)
+      // Keep unavailable shifts at the end in either direction.
+      if (a === null) return b === null ? 0 : 1
+      if (b === null) return -1
+      const comparison =
+        typeof a === 'number' && typeof b === 'number'
+          ? a - b
+          : checkInCollator.compare(String(a), String(b))
+      return sort.direction === 'ascending' ? comparison : -comparison
+    })
+  }
+
+  const pageSize = 100
+  const pages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const currentPage = Math.min(page, pages)
+  const pageStart = (currentPage - 1) * pageSize
+  const visibleRegistrations = filtered.slice(pageStart, pageStart + pageSize)
+  const resultRange =
+    filtered.length > pageSize
+      ? `${pageStart + 1}–${Math.min(pageStart + pageSize, filtered.length)} din ${filtered.length} rezultate`
+      : `${filtered.length} rezultate`
+  useEffect(() => {
+    setPage((current) => Math.min(current, pages))
+  }, [pages])
+
+  function changePage(next: number, fromBottom = false) {
+    setPage(Math.max(1, Math.min(next, pages)))
+    if (fromBottom) {
+      paginationTopRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
+      paginationTopRef.current?.querySelector('select')?.focus({ preventScroll: true })
+    }
+  }
+
+  const singleSearchResult =
+    query.trim() &&
+    filtered.length === 1 &&
+    !editing &&
+    !walkInOpen &&
+    !scannerOpen &&
+    !importOpen &&
+    !cleanupOpen &&
+    !creatingWalkIn &&
+    !savingID &&
+    !deletingID
+      ? filtered[0]
+      : null
+  // Bind readiness to the current query, filters, event and result so an old timer
+  // can never enable Enter for a newly selected participant.
+  const searchResultKey = singleSearchResult
+    ? JSON.stringify([event.id, query, shift, status, singleSearchResult.id])
+    : null
+  const searchShortcutReady = searchResultKey !== null && readySearchKey === searchResultKey
+
+  useEffect(() => {
+    setReadySearchKey(null)
+    if (!searchResultKey) return
+    const timer = window.setTimeout(
+      () => setReadySearchKey(searchResultKey),
+      SINGLE_RESULT_SHORTCUT_DELAY_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [searchResultKey])
+
+  function openSingleSearchResult() {
+    if (!searchShortcutReady || !singleSearchResult) return
+    // The dialog restores focus here after closing, including when its shortcut is tapped.
+    searchInputRef.current?.focus()
+    setReadySearchKey(null)
+    setResumeScannerAfterCheckIn(false)
+    setEditing(singleSearchResult)
+  }
 
   async function saveRegistration(args: {
     ageGroup?: AgeGroup
@@ -805,12 +970,32 @@ function CheckIn(props: {
   }
 
   function hasDonationIssue(registration: ManagedRegistration) {
-    const donationBelowMinimum =
-      event.donation > 0 &&
-      registration.donation < event.donation * (1 + registration.guests) &&
-      (registration.status === 'present' || registration.donation > 0)
+    return isDonationBelowMinimum(registration, event.donation)
+  }
 
-    return donationBelowMinimum
+  function renderRegistrationWarnings(registration: ManagedRegistration) {
+    const reasons = duplicateReasons.get(registration.id)
+    const belowMinimum = hasDonationIssue(registration)
+    if (!reasons && !belowMinimum) return null
+    return (
+      <div className="mt-2 flex max-w-60 flex-wrap gap-1.5">
+        {reasons && (
+          <span
+            title={reasons.join(' · ')}
+            className="inline-flex max-w-full items-start gap-1 rounded bg-amber-100 px-2 py-1 text-[11px] font-semibold leading-4 text-amber-900"
+          >
+            <TriangleAlert aria-hidden className="mt-0.5 size-3 shrink-0" />
+            Posibil duplicat
+          </span>
+        )}
+        {belowMinimum && (
+          <span className="inline-flex max-w-full items-start gap-1 rounded bg-red-100 px-2 py-1 text-[11px] font-semibold leading-4 text-red-700">
+            <TriangleAlert aria-hidden className="mt-0.5 size-3 shrink-0" />
+            Sub donația minimă
+          </span>
+        )}
+      </div>
+    )
   }
 
   function renderDonationSummary(registration: ManagedRegistration) {
@@ -885,6 +1070,38 @@ function CheckIn(props: {
           <p className="mt-1 text-sm text-[#748094]">
             Confirmă sosirea, donația totală și persoanele care împart donația.
           </p>
+          <div
+            role="status"
+            aria-label="Prezență la eveniment"
+            aria-atomic="true"
+            className="mt-3 text-sm tabular-nums"
+          >
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="inline-flex items-center gap-1.5">
+                <UserCheck aria-hidden className="size-4 shrink-0" />
+                <strong>{checkedInAttendance.people.toLocaleString('ro-RO')}</strong>{' '}
+                {checkedInAttendance.people === 1 ? 'persoană prezentă' : 'persoane prezente'}
+              </span>
+              <span>
+                {checkedInAttendance.capacity > 0 ? (
+                  <>
+                    <strong>
+                      {(
+                        (checkedInAttendance.people / checkedInAttendance.capacity) *
+                        100
+                      ).toLocaleString('ro-RO', { maximumFractionDigits: 1 })}
+                      %
+                    </strong>{' '}
+                    din capacitate ({checkedInAttendance.people.toLocaleString('ro-RO')} /{' '}
+                    {checkedInAttendance.capacity.toLocaleString('ro-RO')})
+                  </>
+                ) : (
+                  'Capacitate neconfigurată'
+                )}
+              </span>
+            </div>
+            <p className="mt-1 text-xs opacity-70">Total eveniment · include însoțitorii.</p>
+          </div>
         </div>
         <div className="grid gap-2 sm:flex sm:flex-wrap">
           <button
@@ -907,20 +1124,17 @@ function CheckIn(props: {
             Scanează QR
           </button>
           {canManageEvent && (
-            <button
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent px-3 text-xs font-bold text-accent-foreground transition hover:opacity-90 sm:w-auto sm:px-4"
-              onClick={() => setImportOpen(true)}
-              type="button"
-            >
-              <Upload className="size-3.5" />
-              Importă CSV
-            </button>
+            <CheckInActionsMenu
+              onImport={() => setImportOpen(true)}
+              onRemoveDuplicates={() => setCleanupOpen(true)}
+            />
           )}
         </div>
       </div>
 
       {notice && (
         <div
+          role="status"
           className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold ${
             notice.kind === 'success'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
@@ -938,19 +1152,45 @@ function CheckIn(props: {
 
       <Panel className="overflow-hidden p-0" stagger={false}>
         <div className="grid gap-3 border-b border-[#e5e9ef] p-3 sm:p-4 md:grid-cols-[minmax(220px,1fr)_220px_180px]">
-          <div className="relative">
+          <div className="relative min-w-0">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a94a6]" />
             <input
+              ref={searchInputRef}
+              aria-label="Caută participanți"
+              aria-describedby="checkin-search-hint"
+              aria-keyshortcuts={searchShortcutReady ? 'Enter' : undefined}
+              enterKeyHint="go"
               className="h-11 w-full rounded-lg border border-[#dce2ea] bg-white pl-10 pr-3 text-sm text-[#152039] outline-none transition placeholder:text-[#a4abba] focus:border-accent focus:ring-2 focus:ring-accent/10"
-              onChange={(inputEvent) => setQuery(inputEvent.target.value)}
+              onChange={(inputEvent) => {
+                setQuery(inputEvent.target.value)
+                setPage(1)
+              }}
+              onKeyDown={(keyEvent) => {
+                if (
+                  keyEvent.key !== 'Enter' ||
+                  keyEvent.repeat ||
+                  keyEvent.nativeEvent.isComposing ||
+                  keyEvent.nativeEvent.keyCode === 229 ||
+                  keyEvent.altKey ||
+                  keyEvent.ctrlKey ||
+                  keyEvent.metaKey ||
+                  keyEvent.shiftKey
+                )
+                  return
+                keyEvent.preventDefault()
+                openSingleSearchResult()
+              }}
               placeholder="Caută nume, email sau telefon"
               type="search"
               value={query}
             />
           </div>
           <select
-            className="h-11 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-medium text-[#152039] outline-none focus:border-accent"
-            onChange={(selectEvent) => setShift(selectEvent.target.value)}
+            className="h-11 w-full min-w-0 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-medium text-[#152039] outline-none focus:border-accent"
+            onChange={(selectEvent) => {
+              setShift(selectEvent.target.value)
+              setPage(1)
+            }}
             value={shift}
           >
             <option value="all">Toate zilele și turele</option>
@@ -963,29 +1203,123 @@ function CheckIn(props: {
             )}
           </select>
           <select
-            className="h-11 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-medium text-[#152039] outline-none focus:border-accent"
-            onChange={(selectEvent) => setStatus(selectEvent.target.value)}
+            aria-label="Filtrează după status"
+            className="h-11 w-full min-w-0 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-medium text-[#152039] outline-none focus:border-accent"
+            onChange={(selectEvent) => {
+              setStatus(selectEvent.target.value)
+              setPage(1)
+            }}
             value={status}
           >
             <option value="all">Toate statusurile</option>
             <option value="registered">În așteptare</option>
             <option value="present">Prezent</option>
             <option value="absent">Absent</option>
+            <option value="warnings">Cu avertismente</option>
           </select>
         </div>
 
+        <div
+          id="checkin-search-hint"
+          aria-live="polite"
+          aria-atomic="true"
+          className="border-b border-current/10 px-3 py-2 sm:px-4"
+        >
+          {searchShortcutReady && singleSearchResult ? (
+            <button
+              type="button"
+              onClick={openSingleSearchResult}
+              aria-keyshortcuts="Enter"
+              className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-md border border-accent/40 bg-accent/10 px-2 py-1 text-left text-sm font-semibold text-card-foreground outline-none hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <kbd className="shrink-0 rounded border border-current/30 bg-card px-1.5 py-0.5 text-xs">
+                Enter
+              </kbd>
+              <span className="min-w-0 break-words">
+                Deschide confirmarea pentru{' '}
+                {showPersonalData ? singleSearchResult.name : maskName(singleSearchResult.name)}
+              </span>
+            </button>
+          ) : (
+            <p className="flex min-h-9 items-center text-xs leading-5 text-card-foreground/80">
+              Caută un participant. Enter deschide confirmarea când rămâne un singur rezultat.
+            </p>
+          )}
+        </div>
+
+        {pages > 1 && (
+          <div
+            ref={paginationTopRef}
+            className="flex flex-col gap-3 border-b border-current/10 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4"
+          >
+            <p aria-live="polite" aria-atomic="true" className="text-sm">
+              {resultRange}
+            </p>
+            <CheckInPagination
+              page={currentPage}
+              pages={pages}
+              position="sus"
+              onChange={changePage}
+            />
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-end gap-2 border-b border-[#e5e9ef] p-3 md:hidden">
+          <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-semibold text-card-foreground">
+            Sortează după
+            <select
+              className="h-11 w-full min-w-0 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm text-[#152039] outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              value={sort?.key ?? ''}
+              onChange={(e) => {
+                setPage(1)
+                setSort(
+                  e.target.value
+                    ? { key: e.target.value as CheckInSortKey, direction: 'ascending' }
+                    : null,
+                )
+              }}
+            >
+              <option value="">Ordinea inițială</option>
+              {checkInSortColumns.map((column) => (
+                <option key={column.key} value={column.key}>
+                  {column.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={!sort}
+            aria-label={`Sortează ${sort?.direction === 'ascending' ? 'descrescător' : 'crescător'}`}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-semibold text-[#344054] outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+            onClick={() => {
+              if (sort) toggleSort(sort.key)
+            }}
+          >
+            {sort?.direction === 'descending' ? (
+              <ArrowDown aria-hidden className="size-4" />
+            ) : (
+              <ArrowUp aria-hidden className="size-4" />
+            )}
+            {sort?.direction === 'descending' ? 'Descrescător' : 'Crescător'}
+          </button>
+        </div>
+
         <div className="grid gap-2 p-2 sm:gap-3 sm:p-3 md:hidden">
-          {filtered.map((registration) => {
+          {visibleRegistrations.map((registration) => {
             const slotInfo = getSlotInfo(event, registration.day, registration.slot)
             const hasDonationError = hasDonationIssue(registration)
+            const hasDuplicate = duplicateReasons.has(registration.id)
 
             return (
               <article
                 aria-invalid={hasDonationError || undefined}
-                className={`min-w-0 rounded-xl border p-3 shadow-sm sm:p-4 ${
+                className={`min-w-0 rounded-xl border p-3 text-[#152039] shadow-sm sm:p-4 ${
                   hasDonationError
                     ? 'border-red-200 bg-red-50'
-                    : 'border-[#e4e8ef] bg-white text-[#152039]'
+                    : hasDuplicate
+                      ? 'border-amber-200 bg-amber-50'
+                      : 'border-[#e4e8ef] bg-white'
                 }`}
                 key={registration.id}
               >
@@ -996,11 +1330,12 @@ function CheckIn(props: {
                       <p className="break-words text-sm font-bold leading-5">
                         {showPersonalData ? registration.name : maskName(registration.name)}
                       </p>
-                      <p className="mt-0.5 min-w-0 break-words text-xs leading-4 text-[#6b7688]">
+                      <p className="mt-0.5 min-w-0 break-words text-xs leading-4 text-[#536071]">
                         {showPersonalData
                           ? formatParticipantContact(registration)
                           : 'Date personale ascunse'}
                       </p>
+                      {renderRegistrationWarnings(registration)}
                     </div>
                   </div>
                   <div className="min-[360px]:justify-self-end">
@@ -1052,26 +1387,52 @@ function CheckIn(props: {
           <table className="w-full min-w-[920px] border-collapse text-left">
             <thead>
               <tr className="border-b border-current/10 bg-card text-[11px] font-bold uppercase tracking-[0.09em] opacity-70">
-                <th className="px-5 py-3.5">Participant</th>
-                <th className="px-4 py-3.5">Tură</th>
-                <th className="px-4 py-3.5">Status</th>
-                <th className="px-4 py-3.5">Grup</th>
-                <th className="px-4 py-3.5">Donație</th>
-                <th className="px-5 py-3.5 text-right">Acțiuni</th>
+                {checkInSortColumns.map((column) => {
+                  const active = sort?.key === column.key
+                  const Icon = active
+                    ? sort.direction === 'ascending'
+                      ? ArrowUp
+                      : ArrowDown
+                    : ArrowUpDown
+                  return (
+                    <th
+                      key={column.key}
+                      scope="col"
+                      aria-sort={active ? sort.direction : 'none'}
+                      className={`${column.key === 'participant' ? 'px-5' : 'px-4'} py-2`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(column.key)}
+                        aria-label={`Sortează după ${column.label}, ${active && sort.direction === 'ascending' ? 'descrescător' : 'crescător'}`}
+                        className="-ml-1 inline-flex min-h-9 items-center gap-2 rounded px-1 text-inherit uppercase outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        {column.label}
+                        <Icon aria-hidden className="size-3.5 shrink-0" />
+                      </button>
+                    </th>
+                  )
+                })}
+                <th scope="col" className="px-5 py-3.5 text-right">
+                  Acțiuni
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#edf0f4]">
-              {filtered.map((registration) => {
+              {visibleRegistrations.map((registration) => {
                 const slotInfo = getSlotInfo(event, registration.day, registration.slot)
                 const hasDonationError = hasDonationIssue(registration)
+                const hasDuplicate = duplicateReasons.has(registration.id)
 
                 return (
                   <tr
                     aria-invalid={hasDonationError || undefined}
                     className={
                       hasDonationError
-                        ? 'bg-red-50/90 ring-1 ring-inset ring-red-200 transition hover:bg-red-50'
-                        : 'bg-card transition hover:opacity-90'
+                        ? 'bg-red-50/90 text-[#152039] ring-1 ring-inset ring-red-200 transition hover:bg-red-50'
+                        : hasDuplicate
+                          ? 'bg-amber-50 text-amber-950 transition hover:bg-amber-100'
+                          : 'bg-card transition hover:opacity-90'
                     }
                     key={registration.id}
                   >
@@ -1082,11 +1443,14 @@ function CheckIn(props: {
                           <p className="max-w-60 truncate text-sm font-bold">
                             {showPersonalData ? registration.name : maskName(registration.name)}
                           </p>
-                          <p className="mt-0.5 max-w-60 truncate text-xs opacity-55">
+                          <p
+                            className={`mt-0.5 max-w-60 truncate text-xs ${hasDonationError || hasDuplicate ? 'text-[#536071]' : 'opacity-55'}`}
+                          >
                             {showPersonalData
                               ? formatParticipantContact(registration)
                               : 'Date personale ascunse'}
                           </p>
+                          {renderRegistrationWarnings(registration)}
                         </div>
                       </div>
                     </td>
@@ -1094,7 +1458,9 @@ function CheckIn(props: {
                       <p className="text-sm font-semibold">
                         {slotInfo ? formatSlotTimeRange(slotInfo.slot) : '—'}
                       </p>
-                      <p className="mt-0.5 text-xs capitalize opacity-55">
+                      <p
+                        className={`mt-0.5 text-xs capitalize ${hasDonationError || hasDuplicate ? 'text-[#536071]' : 'opacity-55'}`}
+                      >
                         {slotInfo ? compactDay(slotInfo.day.eventDate) : 'Tură indisponibilă'}
                       </p>
                     </td>
@@ -1123,12 +1489,22 @@ function CheckIn(props: {
           </table>
           {filtered.length === 0 && <InlineEmpty text="Nicio înscriere nu corespunde filtrelor." />}
         </div>
-        <div className="flex flex-col gap-1 border-t border-current/10 bg-card px-4 py-3 text-xs font-medium opacity-65 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <span>{filtered.length} rezultate</span>
-          <span>
-            {event.registrations.filter((item) => item.status !== 'cancelled').length} înscrieri
-            active
-          </span>
+        <div className="flex flex-col gap-3 border-t border-current/10 bg-card px-4 py-3 text-xs font-medium sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="flex flex-col gap-1 opacity-65">
+            <span>{resultRange}</span>
+            <span>
+              {event.registrations.filter((item) => item.status !== 'cancelled').length} înscrieri
+              active
+            </span>
+          </div>
+          {pages > 1 && (
+            <CheckInPagination
+              page={currentPage}
+              pages={pages}
+              position="jos"
+              onChange={(next) => changePage(next, true)}
+            />
+          )}
         </div>
       </Panel>
 
@@ -1175,6 +1551,24 @@ function CheckIn(props: {
       )}
       {canManageEvent && importOpen && (
         <ParticipantImportDialog event={event} onClose={() => setImportOpen(false)} />
+      )}
+      {canManageEvent && cleanupOpen && (
+        <DuplicateCleanupDialog
+          eventId={event.id}
+          labels={Object.fromEntries(
+            event.registrations.map((row) => [
+              row.id,
+              showPersonalData ? row.name : maskName(row.name),
+            ]),
+          )}
+          onClose={() => setCleanupOpen(false)}
+          onComplete={(result) => {
+            for (const registration of result.registrations) onRegistrationUpdate(registration)
+            setCleanupOpen(false)
+            setNotice({ kind: result.incomplete ? 'error' : 'success', message: result.message })
+            router.refresh()
+          }}
+        />
       )}
     </div>
   )
@@ -1501,7 +1895,6 @@ export function WalkInParticipantDialog(props: {
           <label className="flex flex-col gap-2 sm:col-span-2">
             <span className="text-sm font-bold">Nume *</span>
             <input
-              autoFocus
               className="h-11 rounded-lg border border-[#d7dde6] px-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/10"
               disabled={saving}
               maxLength={160}
@@ -1750,7 +2143,9 @@ export function CheckInDialog(props: {
     managedEvent,
   } = props
   const [totalCollected, setTotalCollected] = useState(
-    String(getRegistrationPaymentTotal(managedEvent, registration)),
+    registration.consumptionAmount != null || registration.status === 'present'
+      ? String(getRegistrationPaymentTotal(managedEvent, registration))
+      : '',
   )
   const [ageGroup, setAgeGroup] = useState<AgeGroup | ''>(registration.ageGroup ?? '')
   const [error, setError] = useState<string | null>(null)
@@ -1863,7 +2258,7 @@ export function CheckInDialog(props: {
             guests={guests}
             onGuestsChange={setGuests}
             disabled={busy}
-            legacy={registration.consumptionAmount == null}
+            legacy={registration.consumptionAmount == null && registration.status === 'present'}
           />
           {error && (
             <p role="alert" className="text-sm font-semibold text-red-700">
@@ -2013,12 +2408,14 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
                 <div>
                   <p className="text-sm font-bold text-[#152039]">Coloanele CSV</p>
                   <p className="mt-1 break-words text-xs leading-5 text-[#657286]">
-                    Obligatorii: <code>name,phone,day,slot</code>. Opționale:{' '}
-                    <code>email,donation,ageGroup,questions</code>. Categoria de vârstă acceptă
-                    minor, adult sau major. Donația exclude consumația. Fără donație sau cu donație
-                    0, participantul rămâne în așteptare; cu donație pozitivă, este marcat prezent.
-                    Ziua folosește <code>YYYY-MM-DD</code>, iar tura intervalul afișat în eveniment,
-                    de exemplu <code>10:00-12:00</code>.
+                    Obligatorii: <code>name,phone</code>. Opționale:{' '}
+                    <code>day,slot,email,donation,ageGroup,questions</code>. Dacă ziua sau tura
+                    lipsesc, se alege primul interval cronologic cu locuri disponibile, respectând
+                    ziua sau tura completată. Categoria de vârstă acceptă minor, adult sau major.
+                    Donația exclude consumația. Fără donație sau cu donație 0, participantul rămâne
+                    în așteptare; cu donație pozitivă, este marcat prezent. Ziua folosește{' '}
+                    <code>YYYY-MM-DD</code>, iar tura intervalul afișat în eveniment, de exemplu{' '}
+                    <code>10:00-12:00</code>.
                   </p>
                 </div>
               </div>
@@ -2354,25 +2751,24 @@ function MetricCard(props: {
             {props.label}
           </p>
           {props.numberValue == undefined && (
-            <p className="mt-2 break-words text-xl font-bold tracking-tight sm:mt-3 sm:text-3xl">
+            <p className="mt-2 break-words text-xl font-bold leading-none tracking-tight sm:mt-3 sm:text-3xl sm:leading-none">
               {props.value}
             </p>
           )}
           {props.numberValue != undefined && (
-            <span className="mt-2 inline-flex items-end align-bottom sm:mt-3">
+            <span className="mt-2 inline-flex items-center gap-1 align-bottom text-xl font-bold leading-none tracking-tight sm:mt-3 sm:text-3xl sm:leading-none">
               <Counter
                 animateChanges={false}
                 animateOnMount
                 value={Math.round(props.numberValue)}
-                fontSize={28}
-                className="text-xl font-bold sm:text-3xl"
+                className="font-bold"
+                counterStyle={{ fontSize: 'inherit' }}
+                horizontalPadding={0}
                 gap={0}
                 topGradientStyle={{}}
                 bottomGradientStyle={{}}
               />
-              <p className="pb-0.5 text-xl font-bold tracking-tight sm:pb-1 sm:text-3xl">
-                {props.numberUnit}
-              </p>
+              {props.numberUnit && <span>{props.numberUnit}</span>}
             </span>
           )}
           <p className="mt-1 text-[11px] font-medium leading-4 opacity-60 sm:mt-1.5 sm:text-xs">
@@ -2744,16 +3140,14 @@ function formatMemberRole(role: User['role']) {
 }
 
 function downloadParticipantTemplate(event: ManagedEvent) {
-  const firstDay = event.days[0]
-  const firstSlot = firstDay?.slots[0]
   const rows = [
     ['name', 'email', 'phone', 'day', 'slot', 'donation', 'ageGroup', 'questions'],
     [
       'Ana Popescu',
       'ana@example.com',
       '0712345678',
-      firstDay ? formatCSVDate(firstDay.eventDate) : 'YYYY-MM-DD',
-      firstSlot?.label ?? '10:00-12:00',
+      '',
+      '',
       '',
       '',
       'Opțional: alergii sau alte observații',
@@ -2769,18 +3163,6 @@ function downloadParticipantTemplate(event: ManagedEvent) {
   anchor.download = `${event.slug || 'eveniment'}-participanti-model.csv`
   anchor.click()
   URL.revokeObjectURL(url)
-}
-
-function formatCSVDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'YYYY-MM-DD'
-
-  return new Intl.DateTimeFormat('en-CA', {
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: 'Europe/Bucharest',
-    year: 'numeric',
-  }).format(date)
 }
 
 function exportReport(event: ManagedEvent) {

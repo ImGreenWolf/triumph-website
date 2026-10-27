@@ -46,7 +46,12 @@ const [stylesheet, client] = await Promise.all([
 ])
 const css = stylesheet.css
 const js = client.outputFiles.find((file) => file.path.endsWith('.js'))!.text
-createServer((request, response) => {
+createServer(async (request, response) => {
+  if (request.url === '/fonts/Poppins-Regular.ttf' || request.url === '/fonts/Poppins-Bold.ttf') {
+    response.setHeader('Content-Type', 'font/ttf')
+    response.end(await readFile(path.join(root, 'public', request.url)))
+    return
+  }
   if (request.url === '/fixture.js') {
     response.setHeader('Content-Type', 'text/javascript')
     response.end(js)
@@ -56,7 +61,7 @@ createServer((request, response) => {
   } else {
     response.setHeader('Content-Type', 'text/html; charset=utf-8')
     response.end(
-      '<!doctype html><html lang="ro" data-theme="light"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>',
+      '<!doctype html><html lang="ro" data-theme="light"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/styles.css"><style>@font-face{font-family:MetricFixture;src:url(/fonts/Poppins-Regular.ttf);font-weight:400}@font-face{font-family:MetricFixture;src:url(/fonts/Poppins-Bold.ttf);font-weight:700}.metric-fixture{font-family:MetricFixture,sans-serif}</style></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>',
     )
   }
 }).listen(3121, '127.0.0.1', () => console.log('Event registration fixture ready on 3121'))

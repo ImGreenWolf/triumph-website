@@ -1,5 +1,6 @@
 import payloadConfig from '@payload-config'
 import { getPayload } from 'payload'
+import { revalidateTag } from 'next/cache'
 
 import { importParticipantsFromCSV } from '@/collections/Events/bulkUpload'
 import type { Event, User } from '@/payload-types'
@@ -82,6 +83,9 @@ export async function POST(request: Request) {
   const result = await importParticipantsFromCSV({
     csv: await file.text(),
     event,
+    invalidate: (tags) => {
+      for (const tag of tags) revalidateTag(tag, { expire: 0 })
+    },
     payload,
     user,
   })

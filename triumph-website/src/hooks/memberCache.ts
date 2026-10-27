@@ -9,6 +9,7 @@ import type {
 } from 'payload'
 
 import { mutationTags } from '@/utilities/memberCachePolicy'
+import { getRegistrationImportBatch } from '@/utilities/eventRegistrationImportContext'
 
 function expire(slug: string, doc: Record<string, unknown>, previous?: Record<string, unknown>) {
   for (const tag of mutationTags(slug, doc, previous)) revalidateTag(tag, { expire: 0 })
@@ -19,7 +20,19 @@ export const invalidateMemberChange: CollectionAfterChangeHook = ({
   doc,
   previousDoc,
   operation,
+  req,
 }) => {
+  const batch = getRegistrationImportBatch(req?.context)
+  const eventID = typeof doc.event === 'object' ? doc.event?.id : doc.event
+  if (
+    collection.slug === 'event-registrations' &&
+    eventID === batch?.event.id &&
+    batch?.invalidationTags
+  ) {
+    for (const tag of mutationTags(collection.slug, doc, previousDoc))
+      batch.invalidationTags.add(tag)
+    return doc
+  }
   // Payload creates the initial autosaved draft while rendering the create page.
   // Next.js only permits cache invalidation outside that render phase.
   if (operation === 'create' && doc._status === 'draft' && hasAutosaveEnabled(collection)) {
