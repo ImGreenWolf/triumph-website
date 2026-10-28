@@ -2,6 +2,7 @@ import { cache } from 'react'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import type { Event } from '@/payload-types'
+import { eventAggregate, mongoID, peopleExpression } from './eventMongo'
 
 // Only aggregates leave the server. Registration records retain their private read access.
 const getCount = cache(async (eventID: string): Promise<number | undefined> => {
@@ -17,12 +18,16 @@ const getCount = cache(async (eventID: string): Promise<number | undefined> => {
   })
   if (!published.docs.length) return undefined
   try {
-    const { totalDocs } = await payload.count({
-      collection: 'event-registrations',
-      overrideAccess: true,
-      where: { and: [{ event: { equals: eventID } }, { status: { not_equals: 'cancelled' } }] },
-    })
-    return totalDocs
+    const result = await eventAggregate<{ people: number }>(payload, [
+      {
+        $match: {
+          event: mongoID(payload, 'event-registrations', 'event', eventID),
+          status: { $ne: 'cancelled' },
+        },
+      },
+      { $group: { _id: null, people: { $sum: peopleExpression } } },
+    ])
+    return result[0]?.people ?? 0
   } catch (error) {
     payload.logger.error({ err: error, msg: 'Could not load public event registration count' })
     return undefined

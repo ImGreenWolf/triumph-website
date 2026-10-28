@@ -87,7 +87,7 @@ export function EventPaymentFields(props: {
     const form = totalInput.current?.form
     ;(
       form?.querySelector<HTMLElement>('button[type="submit"]:not(:disabled)') ??
-      form?.querySelector<HTMLElement>('input:invalid, select:invalid') ??
+      form?.querySelector<HTMLElement>('input:invalid, select:invalid, textarea:invalid') ??
       totalInput.current
     )?.focus()
   }, [props.totalCollected])

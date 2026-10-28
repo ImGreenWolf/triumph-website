@@ -54,6 +54,15 @@ import { useHeaderTheme } from '@/providers/HeaderTheme'
 import type { Event, EventRegistration, User } from '@/payload-types'
 import { Media } from '@/components/Media'
 import Counter from '@/components/ui/counter'
+import { useProjectPage } from './useProjectPage'
+import { CapacityOverrideFields, capacityIssue } from './CapacityOverrideFields'
+import {
+  defaultEventShift,
+  type RemoteProjectData,
+  type ProjectMetrics,
+  type SlotSummary,
+} from '@/utilities/eventOperationsTypes'
+import { registrationPeople } from '@/utilities/eventPeople'
 import { getEventTheme } from '@/utilities/eventTheme'
 import {
   calculateEventPayment,
@@ -64,6 +73,9 @@ import {
 } from '@/utilities/eventPayment'
 import { EventPaymentFields, usePaymentDialogFocus } from './EventPaymentFields'
 import { CheckInActionsMenu } from './CheckInActionsMenu'
+import { checkInSearchTerms, matchesCheckInSearch } from '@/utilities/eventCheckInSearch'
+import { EventActivityDialog } from './EventActivityDialog'
+import { ShiftOperationsPanel } from './ShiftOperationsPanel'
 import { DuplicateCleanupDialog } from './DuplicateCleanupDialog'
 import { CheckInPagination } from './CheckInPagination'
 import {
@@ -85,6 +97,9 @@ export type ManagedRegistration = Omit<
     | 'ageGroup'
     | 'consumptionAmount'
     | 'createdAt'
+    | 'operationVersion'
+    | 'lastHandledName'
+    | 'lastHandledAt'
     | 'day'
     | 'donation'
     | 'email'
@@ -104,6 +119,7 @@ export type ManagedRegistration = Omit<
 }
 
 type WalkInParticipantInput = {
+  capacityOverrideReason?: string
   ageGroup: AgeGroup
   dayId: string
   totalCollected: number
@@ -149,6 +165,8 @@ export type ManagedEvent = Pick<
   | 'slug'
   | 'useColors'
 > & {
+  remote?: boolean
+  serverData?: RemoteProjectData
   accessLevel: EventAccessLevel
   checkInMembers: CheckInMember[]
   days: ManagedEventDay[]
@@ -216,8 +234,26 @@ export default function ProjectManagerDashboard(props: {
     setEvents(initialEvents)
   }, [initialEvents])
 
-  const event = events.find((candidate) => candidate.id === selectedEventID) ?? events[0]
-  const metrics = useMemo(() => (event ? calculateMetrics(event) : null), [event])
+  const selectedEvent = events.find((candidate) => candidate.id === selectedEventID) ?? events[0]
+  const detail = useProjectPage(
+    selectedEvent?.id || '',
+    { page: 1, query: '', shift: 'all', status: 'all' },
+    Boolean(selectedEvent?.remote && tab !== 'check-in'),
+  )
+  const [receivedData, setReceivedData] = useState<RemoteProjectData | null>(null)
+  const receiveData = useCallback((data: RemoteProjectData) => setReceivedData(data), [])
+  useEffect(() => {
+    if (detail.data) setReceivedData(detail.data)
+  }, [detail.data])
+  const data = receivedData?.eventId === selectedEvent?.id ? receivedData : detail.data
+  const event =
+    selectedEvent && data && selectedEvent.remote
+      ? { ...selectedEvent, ...data.event, registrations: data.registrations, serverData: data }
+      : selectedEvent
+  const metrics = useMemo(
+    () => event?.serverData?.metrics ?? (event ? calculateMetrics(event) : null),
+    [event],
+  )
   const canManageEvent = event?.accessLevel === 'manager'
 
   useEffect(() => {
@@ -459,7 +495,17 @@ export default function ProjectManagerDashboard(props: {
           key={event.id}
           variants={mainVariants}
         >
-          {openedCounterTabs.overview && (
+          {event.remote && !event.serverData && tab !== 'check-in' && (
+            <p role="status" className="mb-4 text-sm">
+              {detail.error || 'Se încarcă evenimentul…'}
+              {detail.error && (
+                <button type="button" className="ml-3 underline" onClick={detail.refresh}>
+                  Reîncearcă
+                </button>
+              )}
+            </p>
+          )}
+          {openedCounterTabs.overview && (!event.remote || event.serverData) && (
             <div hidden={tab !== 'overview'}>
               <Overview
                 event={event}
@@ -474,13 +520,14 @@ export default function ProjectManagerDashboard(props: {
             <CheckIn
               canManageEvent={canManageEvent}
               event={event}
+              onRemoteData={receiveData}
               onRegistrationCreate={addRegistration}
               onRegistrationUpdate={updateRegistration}
               onTogglePersonalData={() => setShowPersonalData((current) => !current)}
               showPersonalData={showPersonalData}
             />
           )}
-          {openedCounterTabs.report && (
+          {openedCounterTabs.report && (!event.remote || event.serverData) && (
             <div hidden={tab !== 'report'}>
               <FinalReport event={event} metrics={metrics} />
             </div>
@@ -496,16 +543,18 @@ export default function ProjectManagerDashboard(props: {
 
 function Overview(props: {
   event: ManagedEvent
-  metrics: ReturnType<typeof calculateMetrics>
+  metrics: ProjectMetrics
   onOpenCheckIn: () => void
   onTogglePersonalData: () => void
   showPersonalData: boolean
 }) {
   const { event, metrics, onOpenCheckIn, showPersonalData } = props
-  const recentRegistrations = [...event.registrations]
-    .filter((registration) => registration.status !== 'cancelled')
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-    .slice(0, 6)
+  const recentRegistrations =
+    event.serverData?.recentRegistrations ??
+    [...event.registrations]
+      .filter((registration) => registration.status !== 'cancelled')
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .slice(0, 6)
 
   return (
     <div className="grid gap-4 sm:gap-6">
@@ -515,8 +564,8 @@ function Overview(props: {
           detail={`${metrics.remainingCapacity} locuri disponibile`}
           icon={UsersRound}
           label="Înscrieri active"
-          numberValue={metrics.active.length}
-          value={String(metrics.active.length)}
+          numberValue={metrics.activeCount}
+          value={String(metrics.activeCount)}
         />
         <MetricCard
           accent="violet"
@@ -530,8 +579,8 @@ function Overview(props: {
           detail={`${metrics.checkInProgress}% din listă procesată`}
           icon={UserCheck}
           label="Prezenți confirmați"
-          numberValue={metrics.present.length}
-          value={String(metrics.present.length)}
+          numberValue={metrics.presentCount}
+          value={String(metrics.presentCount)}
         />
         <MetricCard
           accent="amber"
@@ -556,15 +605,26 @@ function Overview(props: {
                 <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3">
                   <h3 className="text-sm font-bold capitalize">{day.label}</h3>
                   <span className="text-xs font-medium text-[#7a8497]">
-                    {sumDayRegistrations(event, day.id)} înscrieri
+                    {sumDayRegistrations(event, day.id)} persoane înscrise
                   </span>
                 </div>
                 <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
                   {day.slots.map((slot) => {
-                    const registrations = activeRegistrationsForSlot(event, day.id, slot.id).length
-                    const presence = activeRegistrationsForSlot(event, day.id, slot.id).filter(
-                      (reg) => reg.status == 'present',
-                    ).length
+                    const registrations =
+                      event.serverData?.slots.find(
+                        (item) => item.day === day.id && item.slot === slot.id,
+                      )?.reservedPeople ??
+                      activeRegistrationsForSlot(event, day.id, slot.id).reduce(
+                        (sum, row) => sum + registrationPeople(row),
+                        0,
+                      )
+                    const presence =
+                      event.serverData?.slots.find(
+                        (item) => item.day === day.id && item.slot === slot.id,
+                      )?.presentPeople ??
+                      activeRegistrationsForSlot(event, day.id, slot.id)
+                        .filter((reg) => reg.status === 'present')
+                        .reduce((sum, row) => sum + registrationPeople(row), 0)
                     const percentage = percentageOf(registrations, slot.capacity)
                     const presencePercentage = percentageOf(presence, slot.capacity)
                     return (
@@ -614,7 +674,7 @@ function Overview(props: {
         <Panel className="h-fit">
           <div className="flex items-start justify-between gap-4">
             <PanelHeader
-              description={`${recentRegistrations.length} din ${metrics.active.length} afișate`}
+              description={`${recentRegistrations.length} din ${metrics.activeCount} afișate`}
               title="Înscrieri recente"
             />
           </div>
@@ -661,7 +721,7 @@ const checkInSortColumns = [
 type CheckInSortKey = (typeof checkInSortColumns)[number]['key']
 type CheckInSort = { key: CheckInSortKey; direction: 'ascending' | 'descending' }
 const checkInCollator = new Intl.Collator('ro', { sensitivity: 'base', numeric: true })
-const SINGLE_RESULT_SHORTCUT_DELAY_MS = 250
+const SEARCH_SHORTCUT_DELAY_MS = 250
 
 function getCheckInSortValue(
   registration: ManagedRegistration,
@@ -690,6 +750,7 @@ function getCheckInSortValue(
 }
 
 export function CheckIn(props: {
+  onRemoteData?: (data: RemoteProjectData) => void
   canManageEvent: boolean
   event: ManagedEvent
   onRegistrationCreate: (registration: ManagedRegistration) => void
@@ -703,7 +764,7 @@ export function CheckIn(props: {
   const [query, setQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [readySearchKey, setReadySearchKey] = useState<string | null>(null)
-  const [shift, setShift] = useState('all')
+  const [shift, setShift] = useState(() => (event.remote ? defaultEventShift(event) : 'all'))
   const [status, setStatus] = useState('all')
   const [page, setPage] = useState(1)
   const paginationTopRef = useRef<HTMLDivElement>(null)
@@ -711,6 +772,8 @@ export function CheckIn(props: {
   const [editing, setEditing] = useState<ManagedRegistration | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [cleanupOpen, setCleanupOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [shiftDialogOpen, setShiftDialogOpen] = useState(false)
   const [resumeScannerAfterCheckIn, setResumeScannerAfterCheckIn] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [walkInOpen, setWalkInOpen] = useState(false)
@@ -718,11 +781,32 @@ export function CheckIn(props: {
   const [deletingID, setDeletingID] = useState<string | null>(null)
   const [savingID, setSavingID] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null)
+  const remote = useProjectPage(
+    event.id,
+    { page, query, shift, status, sort: sort?.key, direction: sort?.direction },
+    Boolean(event.remote),
+  )
+  useEffect(() => {
+    if (remote.data) props.onRemoteData?.(remote.data)
+  }, [remote.data, props.onRemoteData])
+  useEffect(() => {
+    if (remote.matches && remote.data && remote.data.page !== page) setPage(remote.data.page)
+  }, [remote.matches, remote.data, page])
+
   const duplicateReasons = useMemo(
-    () => getDuplicateRegistrationReasons(event.registrations),
-    [event.registrations],
+    () =>
+      event.remote && remote.data
+        ? new Map(
+            Object.entries(remote.data.warnings)
+              .filter(([, value]) => value.duplicateReasons.length)
+              .map(([id, value]) => [id, value.duplicateReasons]),
+          )
+        : getDuplicateRegistrationReasons(event.registrations),
+    [event.registrations, event.remote, remote.data],
   )
   const checkedInAttendance = useMemo(() => {
+    if (event.remote && remote.data)
+      return { people: remote.data.metrics.peoplePresent, capacity: remote.data.metrics.capacity }
     const people = event.registrations.reduce(
       (sum, registration) =>
         registration.status === 'present' ? sum + 1 + (registration.guests || 0) : sum,
@@ -734,11 +818,12 @@ export function CheckIn(props: {
       0,
     )
     return { people, capacity }
-  }, [event.registrations, event.days])
+  }, [event.registrations, event.days, event.remote, remote.data])
 
   useEffect(() => {
     setSort(null)
     setPage(1)
+    setShift(event.remote ? defaultEventShift(event) : 'all')
   }, [event.id])
 
   function toggleSort(key: CheckInSortKey) {
@@ -750,24 +835,27 @@ export function CheckIn(props: {
     }))
   }
 
-  const filtered = event.registrations.filter((registration) => {
-    if (registration.status === 'cancelled') return false
-    if (shift !== 'all' && `${registration.day}:${registration.slot}` !== shift) return false
-    if (status === 'warnings') {
-      if (
-        !duplicateReasons.has(registration.id) &&
-        !isDonationBelowMinimum(registration, event.donation)
-      )
-        return false
-    } else if (status !== 'all' && registration.status !== status) return false
-    if (!query.trim()) return true
-
-    const normalizedQuery = query.trim().toLocaleLowerCase('ro')
-    return [registration.name, registration.email, registration.phone].some((value) =>
-      value.toLocaleLowerCase('ro').includes(normalizedQuery),
-    )
-  })
-  if (sort) {
+  const searchTerms = checkInSearchTerms(query)
+  const filtered = event.remote
+    ? remote.matches
+      ? (remote.data?.registrations ?? [])
+      : []
+    : event.registrations.filter((registration) => {
+        if (registration.status === 'cancelled') return false
+        if (shift !== 'all' && `${registration.day}:${registration.slot}` !== shift) return false
+        if (status === 'warnings') {
+          if (
+            !duplicateReasons.has(registration.id) &&
+            !isDonationBelowMinimum(registration, event.donation)
+          )
+            return false
+        } else if (status !== 'all' && registration.status !== status) return false
+        return matchesCheckInSearch(
+          [registration.name, registration.email, registration.phone],
+          searchTerms,
+        )
+      })
+  if (sort && !event.remote) {
     filtered.sort((left, right) => {
       const a = getCheckInSortValue(left, sort.key, event)
       const b = getCheckInSortValue(right, sort.key, event)
@@ -783,17 +871,22 @@ export function CheckIn(props: {
   }
 
   const pageSize = 100
-  const pages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const currentPage = Math.min(page, pages)
+  const resultCount = event.remote ? (remote.data?.totalDocs ?? 0) : filtered.length
+  const pages = event.remote
+    ? (remote.data?.totalPages ?? 1)
+    : Math.max(1, Math.ceil(resultCount / pageSize))
+  const currentPage = event.remote ? page : Math.min(page, pages)
   const pageStart = (currentPage - 1) * pageSize
-  const visibleRegistrations = filtered.slice(pageStart, pageStart + pageSize)
+  const visibleRegistrations = event.remote
+    ? filtered
+    : filtered.slice(pageStart, pageStart + pageSize)
   const resultRange =
-    filtered.length > pageSize
-      ? `${pageStart + 1}–${Math.min(pageStart + pageSize, filtered.length)} din ${filtered.length} rezultate`
-      : `${filtered.length} rezultate`
+    resultCount > pageSize
+      ? `${pageStart + 1}–${Math.min(pageStart + pageSize, resultCount)} din ${resultCount} rezultate`
+      : `${resultCount} rezultate`
   useEffect(() => {
-    setPage((current) => Math.min(current, pages))
-  }, [pages])
+    if (!event.remote) setPage((current) => Math.min(current, pages))
+  }, [pages, event.remote])
 
   function changePage(next: number, fromBottom = false) {
     setPage(Math.max(1, Math.min(next, pages)))
@@ -803,24 +896,35 @@ export function CheckIn(props: {
     }
   }
 
-  const singleSearchResult =
-    query.trim() &&
-    filtered.length === 1 &&
+  const canOpenSearchShortcut =
+    (!event.remote || (remote.matches && !remote.loading && !remote.error)) &&
     !editing &&
     !walkInOpen &&
     !scannerOpen &&
     !importOpen &&
     !cleanupOpen &&
+    !historyOpen &&
+    !shiftDialogOpen &&
     !creatingWalkIn &&
     !savingID &&
     !deletingID
+  const singleSearchResult =
+    canOpenSearchShortcut && query.trim() && resultCount === 1 && filtered.length === 1
       ? filtered[0]
       : null
+  const emptySearchResult = canOpenSearchShortcut && resultCount === 0 && filtered.length === 0
   // Bind readiness to the current query, filters, event and result so an old timer
-  // can never enable Enter for a newly selected participant.
-  const searchResultKey = singleSearchResult
-    ? JSON.stringify([event.id, query, shift, status, singleSearchResult.id])
-    : null
+  // can never enable Enter for an earlier result or a request that is still loading.
+  const searchResultKey =
+    singleSearchResult || emptySearchResult
+      ? JSON.stringify([
+          event.id,
+          query,
+          shift,
+          status,
+          singleSearchResult?.id ?? 'add-participant',
+        ])
+      : null
   const searchShortcutReady = searchResultKey !== null && readySearchKey === searchResultKey
 
   useEffect(() => {
@@ -828,22 +932,24 @@ export function CheckIn(props: {
     if (!searchResultKey) return
     const timer = window.setTimeout(
       () => setReadySearchKey(searchResultKey),
-      SINGLE_RESULT_SHORTCUT_DELAY_MS,
+      SEARCH_SHORTCUT_DELAY_MS,
     )
     return () => window.clearTimeout(timer)
   }, [searchResultKey])
 
-  function openSingleSearchResult() {
-    if (!searchShortcutReady || !singleSearchResult) return
+  function openSearchShortcut() {
+    if (!searchShortcutReady || (!singleSearchResult && !emptySearchResult)) return
     // The dialog restores focus here after closing, including when its shortcut is tapped.
     searchInputRef.current?.focus()
     setReadySearchKey(null)
     setResumeScannerAfterCheckIn(false)
-    setEditing(singleSearchResult)
+    if (singleSearchResult) setEditing(singleSearchResult)
+    else setWalkInOpen(true)
   }
 
   async function saveRegistration(args: {
     ageGroup?: AgeGroup
+    capacityOverrideReason?: string
     totalCollected?: number
     guests: number
     registration: ManagedRegistration
@@ -859,6 +965,8 @@ export function CheckIn(props: {
           totalCollected: args.totalCollected,
           guests: args.guests,
           registrationId: args.registration.id,
+          expectedVersion: args.registration.operationVersion || 0,
+          capacityOverrideReason: args.capacityOverrideReason,
           status: args.status,
         }),
         headers: { 'Content-Type': 'application/json' },
@@ -868,6 +976,9 @@ export function CheckIn(props: {
         message?: string
         registration?: Pick<
           ManagedRegistration,
+          | 'operationVersion'
+          | 'lastHandledName'
+          | 'lastHandledAt'
           | 'ageGroup'
           | 'consumptionAmount'
           | 'donation'
@@ -878,11 +989,21 @@ export function CheckIn(props: {
         >
       }
 
+      if (response.status === 409 && result.registration) {
+        onRegistrationUpdate(result.registration)
+        setEditing((current) =>
+          current?.id === result.registration!.id
+            ? { ...current, ...result.registration }
+            : current,
+        )
+      }
       if (!response.ok || !result.registration) {
+        remote.refresh()
         throw new Error(result.message || 'Actualizarea nu a putut fi salvată.')
       }
 
       onRegistrationUpdate(result.registration)
+      remote.refresh()
       router.refresh()
       setEditing(null)
       if (args.status === 'present' && resumeScannerAfterCheckIn) {
@@ -921,6 +1042,7 @@ export function CheckIn(props: {
       }
 
       onRegistrationCreate(result.registration)
+      remote.refresh()
       router.refresh()
       setWalkInOpen(false)
       setNotice({ kind: 'success', message: 'Participant adăugat și marcat prezent.' })
@@ -941,20 +1063,33 @@ export function CheckIn(props: {
 
     try {
       const response = await fetch('/members/projects/check-in', {
-        body: JSON.stringify({ registrationId: registration.id }),
+        body: JSON.stringify({
+          registrationId: registration.id,
+          expectedVersion: registration.operationVersion || 0,
+        }),
         headers: { 'Content-Type': 'application/json' },
         method: 'DELETE',
       })
       const result = (await response.json()) as {
         message?: string
-        registration?: Pick<ManagedRegistration, 'id' | 'status' | 'timeOfArrival'>
+        registration?: ManagedRegistration
       }
 
+      if (response.status === 409 && result.registration) {
+        onRegistrationUpdate(result.registration)
+        setEditing((current) =>
+          current?.id === result.registration!.id
+            ? { ...current, ...result.registration }
+            : current,
+        )
+      }
       if (!response.ok || !result.registration) {
+        remote.refresh()
         throw new Error(result.message || 'Participantul nu a putut fi șters.')
       }
 
       onRegistrationUpdate(result.registration)
+      remote.refresh()
       router.refresh()
       setEditing(null)
       setResumeScannerAfterCheckIn(false)
@@ -1127,6 +1262,7 @@ export function CheckIn(props: {
             <CheckInActionsMenu
               onImport={() => setImportOpen(true)}
               onRemoveDuplicates={() => setCleanupOpen(true)}
+              onHistory={event.remote ? () => setHistoryOpen(true) : undefined}
             />
           )}
         </div>
@@ -1150,6 +1286,44 @@ export function CheckIn(props: {
         </div>
       )}
 
+      {event.remote && (
+        <div
+          className="flex flex-wrap items-center gap-3 text-xs"
+          data-sync={
+            remote.error ? 'error' : remote.loading || !remote.matches ? 'pending' : 'current'
+          }
+        >
+          <span>
+            {remote.error
+              ? `Actualizarea este întreruptă: ${remote.error}`
+              : remote.loading || !remote.matches
+                ? 'Se actualizează lista…'
+                : 'Conectat · actualizare automată la 5 secunde'}
+          </span>
+          {remote.lastSynced && (
+            <time dateTime={new Date(remote.lastSynced).toISOString()}>
+              Ultima actualizare: {new Date(remote.lastSynced).toLocaleTimeString('ro-RO')}
+            </time>
+          )}
+          <button
+            type="button"
+            className="min-h-9 font-semibold underline"
+            onClick={remote.refresh}
+          >
+            Actualizează
+          </button>
+        </div>
+      )}
+      {event.remote && remote.data && (
+        <ShiftOperationsPanel
+          event={event}
+          data={remote.data}
+          selected={shift}
+          manager={canManageEvent}
+          onUpdated={remote.refresh}
+          onDialogChange={setShiftDialogOpen}
+        />
+      )}
       <Panel className="overflow-hidden p-0" stagger={false}>
         <div className="grid gap-3 border-b border-[#e5e9ef] p-3 sm:p-4 md:grid-cols-[minmax(220px,1fr)_220px_180px]">
           <div className="relative min-w-0">
@@ -1178,7 +1352,7 @@ export function CheckIn(props: {
                 )
                   return
                 keyEvent.preventDefault()
-                openSingleSearchResult()
+                openSearchShortcut()
               }}
               placeholder="Caută nume, email sau telefon"
               type="search"
@@ -1186,6 +1360,7 @@ export function CheckIn(props: {
             />
           </div>
           <select
+            aria-label="Filtrează după tură"
             className="h-11 w-full min-w-0 rounded-lg border border-[#dce2ea] bg-white px-3 text-sm font-medium text-[#152039] outline-none focus:border-accent"
             onChange={(selectEvent) => {
               setShift(selectEvent.target.value)
@@ -1225,10 +1400,10 @@ export function CheckIn(props: {
           aria-atomic="true"
           className="border-b border-current/10 px-3 py-2 sm:px-4"
         >
-          {searchShortcutReady && singleSearchResult ? (
+          {searchShortcutReady && (singleSearchResult || emptySearchResult) ? (
             <button
               type="button"
-              onClick={openSingleSearchResult}
+              onClick={openSearchShortcut}
               aria-keyshortcuts="Enter"
               className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-md border border-accent/40 bg-accent/10 px-2 py-1 text-left text-sm font-semibold text-card-foreground outline-none hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent"
             >
@@ -1236,13 +1411,20 @@ export function CheckIn(props: {
                 Enter
               </kbd>
               <span className="min-w-0 break-words">
-                Deschide confirmarea pentru{' '}
-                {showPersonalData ? singleSearchResult.name : maskName(singleSearchResult.name)}
+                {singleSearchResult ? (
+                  <>
+                    Deschide confirmarea pentru{' '}
+                    {showPersonalData ? singleSearchResult.name : maskName(singleSearchResult.name)}
+                  </>
+                ) : (
+                  'Adaugă participant nou'
+                )}
               </span>
             </button>
           ) : (
             <p className="flex min-h-9 items-center text-xs leading-5 text-card-foreground/80">
-              Caută un participant. Enter deschide confirmarea când rămâne un singur rezultat.
+              Caută un participant. Enter deschide confirmarea când rămâne un singur rezultat. Fără
+              rezultate, Enter deschide adăugarea unui participant.
             </p>
           )}
         </div>
@@ -1487,14 +1669,24 @@ export function CheckIn(props: {
               })}
             </tbody>
           </table>
-          {filtered.length === 0 && <InlineEmpty text="Nicio înscriere nu corespunde filtrelor." />}
+          {filtered.length === 0 && (
+            <InlineEmpty
+              text={
+                event.remote && !remote.matches
+                  ? 'Se încarcă înscrierile…'
+                  : 'Nicio înscriere nu corespunde filtrelor.'
+              }
+            />
+          )}
         </div>
         <div className="flex flex-col gap-3 border-t border-current/10 bg-card px-4 py-3 text-xs font-medium sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="flex flex-col gap-1 opacity-65">
             <span>{resultRange}</span>
             <span>
-              {event.registrations.filter((item) => item.status !== 'cancelled').length} înscrieri
-              active
+              {event.remote
+                ? (remote.data?.metrics.activeCount ?? 0)
+                : event.registrations.filter((item) => item.status !== 'cancelled').length}{' '}
+              înscrieri active
             </span>
           </div>
           {pages > 1 && (
@@ -1508,6 +1700,14 @@ export function CheckIn(props: {
         </div>
       </Panel>
 
+      {historyOpen && (
+        <EventActivityDialog
+          eventId={event.id}
+          showPersonalData={showPersonalData}
+          onClose={() => setHistoryOpen(false)}
+          onUpdated={remote.refresh}
+        />
+      )}
       {editing && (
         <CheckInDialog
           onClose={() => {
@@ -1522,13 +1722,15 @@ export function CheckIn(props: {
           registration={editing}
           saving={savingID === editing.id}
           showPersonalData={showPersonalData}
-          managedEvent={event}
+          managedEvent={event.remote && remote.data ? { ...event, serverData: remote.data } : event}
           canDelete={canManageEvent}
         />
       )}
       {walkInOpen && (
         <WalkInParticipantDialog
-          event={event}
+          event={event.remote && remote.data ? { ...event, serverData: remote.data } : event}
+          canManageEvent={canManageEvent}
+          initialShift={event.remote ? shift : undefined}
           onClose={() => setWalkInOpen(false)}
           onSave={createWalkInParticipant}
           saving={creatingWalkIn}
@@ -1566,6 +1768,7 @@ export function CheckIn(props: {
             for (const registration of result.registrations) onRegistrationUpdate(registration)
             setCleanupOpen(false)
             setNotice({ kind: result.incomplete ? 'error' : 'success', message: result.message })
+            remote.refresh()
             router.refresh()
           }}
         />
@@ -1774,6 +1977,8 @@ function CheckInTeam(props: {
 }
 
 export function WalkInParticipantDialog(props: {
+  canManageEvent?: boolean
+  initialShift?: string
   event: ManagedEvent
   onClose: () => void
   onSave: (values: WalkInParticipantInput) => Promise<void>
@@ -1789,18 +1994,34 @@ export function WalkInParticipantDialog(props: {
       value: `${day.id}:${slot.id}`,
     })),
   )
-  const [shift, setShift] = useState(shiftOptions[0]?.value ?? '')
+  const [shift, setShift] = useState(() =>
+    shiftOptions.some((option) => option.value === props.initialShift)
+      ? props.initialShift!
+      : event.remote
+        ? defaultEventShift(event)
+        : (shiftOptions[0]?.value ?? ''),
+  )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [totalCollected, setTotalCollected] = useState('')
   const [ageGroup, setAgeGroup] = useState<AgeGroup | ''>('')
   const [guests, setGuests] = useState('0')
+  const [overrideReason, setOverrideReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const selectedShift = shiftOptions.find((option) => option.value === shift)
   const parsedGuests = Number(guests)
   const payment = calculateEventPayment(event, guests.trim() ? parsedGuests : NaN, totalCollected)
-  const canSubmit = Boolean(selectedShift && name.trim() && isAgeGroup(ageGroup) && !payment.error)
+  const issue = capacityIssue(
+    event,
+    selectedShift?.dayId || '',
+    selectedShift?.slotId || '',
+    parsedGuests,
+  )
+  const capacityValid =
+    !issue.closed && (!issue.exceeds || (props.canManageEvent && overrideReason.trim().length >= 5))
+  const canSubmit =
+    capacityValid && Boolean(selectedShift && name.trim() && isAgeGroup(ageGroup) && !payment.error)
 
   useEffect(() => {
     function closeOnEscape(keyboardEvent: KeyboardEvent) {
@@ -1819,6 +2040,7 @@ export function WalkInParticipantDialog(props: {
 
     try {
       await onSave({
+        capacityOverrideReason: overrideReason.trim(),
         dayId: selectedShift.dayId,
         ageGroup,
         totalCollected: payment.totalCollected!,
@@ -1948,6 +2170,15 @@ export function WalkInParticipantDialog(props: {
             />
           </div>
 
+          <div className="sm:col-span-2">
+            <CapacityOverrideFields
+              issue={issue}
+              manager={Boolean(props.canManageEvent)}
+              reason={overrideReason}
+              onChange={setOverrideReason}
+              disabled={saving}
+            />
+          </div>
           {error && (
             <p
               role="alert"
@@ -2006,7 +2237,7 @@ function EventRegistrationScannerDialog(props: {
   }, [onClose])
 
   const handleScan = useCallback(
-    (value: string): QrScannerOverlayTone => {
+    async (value: string): Promise<QrScannerOverlayTone> => {
       const registrationID = extractEventRegistrationID(value)
 
       if (!registrationID) {
@@ -2018,7 +2249,16 @@ function EventRegistrationScannerDialog(props: {
         return 'error'
       }
 
-      const registration = event.registrations.find((candidate) => candidate.id === registrationID)
+      let registration = event.registrations.find((candidate) => candidate.id === registrationID)
+      if (event.remote) {
+        const response = await fetch(
+          `/members/projects/data?eventId=${encodeURIComponent(event.id)}&registrationId=${encodeURIComponent(registrationID)}`,
+          { cache: 'no-store' },
+        )
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.message || 'Înscrierea nu a putut fi încărcată.')
+        registration = result.registration
+      }
 
       if (!registration) {
         setNotice({
@@ -2050,7 +2290,7 @@ function EventRegistrationScannerDialog(props: {
 
       return registration.status === 'present' ? 'warning' : 'success'
     },
-    [event.registrations, onRegistrationFound, showPersonalData],
+    [event.id, event.remote, event.registrations, onRegistrationFound, showPersonalData],
   )
 
   return (
@@ -2121,6 +2361,7 @@ export function CheckInDialog(props: {
   onClose: () => void
   onDelete: () => void | Promise<void>
   onSave: (values: {
+    capacityOverrideReason?: string
     ageGroup: AgeGroup
     totalCollected: number
     guests: number
@@ -2148,6 +2389,7 @@ export function CheckInDialog(props: {
       : '',
   )
   const [ageGroup, setAgeGroup] = useState<AgeGroup | ''>(registration.ageGroup ?? '')
+  const [overrideReason, setOverrideReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [deleteRequested, setDeleteRequested] = useState(false)
   const [guests, setGuests] = useState(String(registration.guests || 0))
@@ -2157,7 +2399,25 @@ export function CheckInDialog(props: {
     guests.trim() ? parsedGuests : NaN,
     totalCollected,
   )
-  const canSubmit = isAgeGroup(ageGroup) && !payment.error
+  const issue = capacityIssue(
+    managedEvent,
+    registration.day,
+    registration.slot,
+    parsedGuests,
+    registration,
+  )
+  const capacityValid =
+    !issue.closed && (!issue.exceeds || (canDelete && overrideReason.trim().length >= 5))
+  const canSubmit = capacityValid && isAgeGroup(ageGroup) && !payment.error
+  useEffect(() => {
+    setAgeGroup(registration.ageGroup || '')
+    setGuests(String(registration.guests || 0))
+    setTotalCollected(
+      registration.consumptionAmount != null || registration.status === 'present'
+        ? String(getRegistrationPaymentTotal(managedEvent, registration))
+        : '',
+    )
+  }, [registration.operationVersion])
   const busy = saving || deleting
 
   async function submit(formEvent: React.FormEvent<HTMLFormElement>) {
@@ -2167,13 +2427,22 @@ export function CheckInDialog(props: {
       setError('Selectează categoria de vârstă.')
       return
     }
+    if (!capacityValid) {
+      setError('Verifică disponibilitatea turei și aprobarea managerului.')
+      return
+    }
     if (payment.error) {
       setError(payment.error)
       return
     }
     setError(null)
     try {
-      await onSave({ ageGroup, totalCollected: payment.totalCollected!, guests: parsedGuests })
+      await onSave({
+        capacityOverrideReason: overrideReason.trim(),
+        ageGroup,
+        totalCollected: payment.totalCollected!,
+        guests: parsedGuests,
+      })
     } catch (saveError) {
       setError(
         saveError instanceof Error ? saveError.message : 'Confirmarea nu a putut fi salvată.',
@@ -2219,6 +2488,18 @@ export function CheckInDialog(props: {
               </p>
             )}
             <p className="mt-2 text-sm text-[#536071]">{formatAgeGroup(registration.ageGroup)}</p>
+            {registration.status === 'present' && (
+              <p className="mt-2 text-sm font-semibold text-emerald-800">
+                Deja prezent
+                {registration.lastHandledName
+                  ? ` · ultima modificare de ${registration.lastHandledName}`
+                  : ''}
+                {registration.lastHandledAt
+                  ? `, ${new Date(registration.lastHandledAt).toLocaleString('ro-RO')}`
+                  : ''}
+                .
+              </p>
+            )}
           </div>
           <button
             aria-label="Închide"
@@ -2259,6 +2540,13 @@ export function CheckInDialog(props: {
             onGuestsChange={setGuests}
             disabled={busy}
             legacy={registration.consumptionAmount == null && registration.status === 'present'}
+          />
+          <CapacityOverrideFields
+            issue={issue}
+            manager={canDelete}
+            reason={overrideReason}
+            onChange={setOverrideReason}
+            disabled={busy}
           />
           {error && (
             <p role="alert" className="text-sm font-semibold text-red-700">
@@ -2513,17 +2801,9 @@ function ParticipantImportDialog(props: { event: ManagedEvent; onClose: () => vo
   )
 }
 
-function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof calculateMetrics> }) {
+function FinalReport(props: { event: ManagedEvent; metrics: ProjectMetrics }) {
   const { event, metrics } = props
-  const reportDays = event.days.map((day) => {
-    const records = metrics.present.filter((registration) => registration.day === day.id)
-    return {
-      attendees: records.reduce((sum, registration) => sum + 1 + (registration.guests || 0), 0),
-      funds: records.reduce((sum, registration) => sum + (registration.donation || 0), 0),
-      id: day.id,
-      label: compactDay(day.eventDate),
-    }
-  })
+  const reportDays = metrics.days
   const maxDayFunds = Math.max(...reportDays.map((day) => day.funds), 1)
 
   return (
@@ -2584,6 +2864,24 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
         />
       </section>
 
+      <div className="rounded-xl border border-[#d9dfe7] bg-white p-4 text-sm text-[#344054]">
+        <dl className="flex flex-wrap gap-x-8 gap-y-3 tabular-nums">
+          <div>
+            <dt>Consumație înregistrată</dt>
+            <dd className="mt-1 font-bold">{formatCurrency(metrics.consumptionAmount)}</dd>
+          </div>
+          <div>
+            <dt>Total încasat înregistrat</dt>
+            <dd className="mt-1 font-bold">{formatCurrency(metrics.totalCollected)}</dd>
+          </div>
+        </dl>
+        {metrics.legacyConsumptionCount > 0 && (
+          <p className="mt-3">
+            {metrics.legacyConsumptionCount} înscrieri prezente au consumația istorică
+            nespecificată. Totalul include doar sumele înregistrate.
+          </p>
+        )}
+      </div>
       <section className="grid gap-6 xl:grid-cols-[minmax(360px,0.72fr)_minmax(0,1.28fr)]">
         <Panel>
           <PanelHeader
@@ -2603,8 +2901,8 @@ function FinalReport(props: { event: ManagedEvent; metrics: ReturnType<typeof ca
               </div>
             </div>
             <div className="w-full max-w-60 space-y-3">
-              <Legend color="bg-emerald-500" label="Au venit" value={metrics.present.length} />
-              <Legend color="bg-[#ef6a6a]" label="Nu au ajuns" value={metrics.absent.length} />
+              <Legend color="bg-emerald-500" label="Au venit" value={metrics.presentCount} />
+              <Legend color="bg-[#ef6a6a]" label="Nu au ajuns" value={metrics.absentCount} />
               <Legend color="bg-[#d8dee7]" label="Neprocesați" value={metrics.unprocessed} />
             </div>
           </div>
@@ -2760,7 +3058,8 @@ function MetricCard(props: {
               <Counter
                 animateChanges={false}
                 animateOnMount
-                value={Math.round(props.numberValue)}
+                value={Math.round(props.numberValue * 100) / 100}
+                decimalSeparator=","
                 className="font-bold"
                 counterStyle={{ fontSize: 'inherit' }}
                 horizontalPadding={0}
@@ -2933,6 +3232,10 @@ function calculateMetrics(event: ManagedEvent) {
   return {
     absent,
     active,
+    activeCount: active.length,
+    presentCount: present.length,
+    absentCount: absent.length,
+    activePeople: active.reduce((sum, row) => sum + registrationPeople(row), 0),
     attendanceRate: percentageOf(present.length, processed),
     averageDonation: present.length ? funds / present.length : 0,
     averageGroupSize: present.length ? peoplePresent / present.length : 0,
@@ -2941,12 +3244,42 @@ function calculateMetrics(event: ManagedEvent) {
     companions,
     donationPerPerson: peoplePresent ? funds / peoplePresent : 0,
     funds,
+    consumptionAmount: present.reduce((sum, row) => sum + (row.consumptionAmount || 0), 0),
+    totalCollected:
+      present.reduce(
+        (sum, row) =>
+          sum + Math.round(row.donation * 100) + Math.round((row.consumptionAmount || 0) * 100),
+        0,
+      ) / 100,
+    legacyConsumptionCount: present.filter((row) => row.consumptionAmount == null).length,
+    days: event.days.map((day) => {
+      const rows = present.filter((row) => row.day === day.id)
+      const donation = rows.reduce((sum, row) => sum + Math.round(row.donation * 100), 0)
+      const consumption = rows.reduce(
+        (sum, row) => sum + Math.round((row.consumptionAmount || 0) * 100),
+        0,
+      )
+      return {
+        id: day.id,
+        label: compactDay(day.eventDate),
+        attendees: rows.reduce((sum, row) => sum + registrationPeople(row), 0),
+        funds: donation / 100,
+        consumptionAmount: consumption / 100,
+        totalCollected: (donation + consumption) / 100,
+      }
+    }),
     missingDonations: present.filter((registration) => registration.donation <= 0).length,
     noShowRate: percentageOf(absent.length, processed),
-    occupancy: percentageOf(active.length, capacity),
+    occupancy: percentageOf(
+      active.reduce((sum, row) => sum + registrationPeople(row), 0),
+      capacity,
+    ),
     peoplePresent,
     present,
-    remainingCapacity: Math.max(capacity - active.length, 0),
+    remainingCapacity: Math.max(
+      capacity - active.reduce((sum, row) => sum + registrationPeople(row), 0),
+      0,
+    ),
     topSlotLabel: topSlotInfo
       ? `${compactDay(topSlotInfo.day.eventDate)}, ${topSlotInfo.slot.label}`
       : '—',
@@ -2997,9 +3330,13 @@ function activeRegistrationsForSlot(event: ManagedEvent, dayID: string, slotID: 
 }
 
 function sumDayRegistrations(event: ManagedEvent, dayID: string) {
-  return event.registrations.filter(
-    (registration) => registration.status !== 'cancelled' && registration.day === dayID,
-  ).length
+  if (event.serverData)
+    return event.serverData.slots
+      .filter((slot) => slot.day === dayID)
+      .reduce((sum, slot) => sum + slot.reservedPeople, 0)
+  return event.registrations
+    .filter((row) => row.status !== 'cancelled' && row.day === dayID)
+    .reduce((sum, row) => sum + registrationPeople(row), 0)
 }
 
 function formatEventDateRange(event: ManagedEvent) {
@@ -3166,6 +3503,12 @@ function downloadParticipantTemplate(event: ManagedEvent) {
 }
 
 function exportReport(event: ManagedEvent) {
+  if (event.remote) {
+    const anchor = document.createElement('a')
+    anchor.href = `/members/projects/data?eventId=${encodeURIComponent(event.id)}&export=1`
+    anchor.click()
+    return
+  }
   const header = [
     'Nume',
     'Email',

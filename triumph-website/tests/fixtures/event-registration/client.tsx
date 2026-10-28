@@ -64,87 +64,91 @@ function App() {
   }
   const mode = query.get('mode') ?? 'checkin'
   const [saved, setSaved] = useState('')
-  const [listRegistrations, setListRegistrations] = useState<ManagedRegistration[]>([
-    {
-      ...registration,
-      id: 'zoe',
-      name: 'Zoe',
-      email: 'zoe@example.com',
-      donation: 10,
-      guests: Number(query.get('present-guests') ?? 9),
-      status: query.has('empty-attendance') ? 'registered' : 'present',
-    },
-    {
-      ...registration,
-      id: 'stefan',
-      name: 'Ștefan',
-      email: 'stefan@example.com',
-      donation: 2,
-      guests: 2,
-      status: 'absent',
-      day: 'earlier',
-      slot: 'early',
-    },
-    {
-      ...registration,
-      id: 'ana',
-      name: query.has('long-name') ? registration.name : 'Ana',
-      email: 'ana@example.com',
-      donation: 100,
-      guests: 0,
-      status: 'registered',
-      slot: 'later',
-    },
-    { ...registration, id: 'cancelled', name: 'Anulat', status: 'cancelled' },
-    ...Array.from(
-      { length: Math.max(0, Math.min(500, Number(query.get('count') ?? 3)) - 3) },
-      (_, index) => ({
-        ...registration,
-        id: `bulk-${index + 4}`,
-        name: `Participant ${String(index + 4).padStart(3, '0')}`,
-        email:
-          query.has('cross-page-duplicate') && index + 4 === 205
-            ? 'zoe@example.com'
-            : `participant${index + 4}@example.com`,
-        donation: 0,
-        guests: 0,
-      }),
-    ),
-    ...(query.has('cleanup')
-      ? [
+  const [listRegistrations, setListRegistrations] = useState<ManagedRegistration[]>(
+    query.has('empty-list')
+      ? []
+      : [
           {
             ...registration,
-            id: 'unpaid-duplicate',
-            name: 'Zoe duplicat neplătit',
+            id: 'zoe',
+            name: 'Zoe',
             email: 'zoe@example.com',
-            donation: 0,
-            guests: 0,
-          },
-        ]
-      : []),
-    ...(query.has('warnings')
-      ? [
-          {
-            ...registration,
-            id: 'duplicate',
-            name: 'Zoe duplicat',
-            email: ' ZOE@example.com ',
-            donation: 40,
-            guests: 0,
-            status: 'registered' as const,
+            donation: 10,
+            guests: Number(query.get('present-guests') ?? 9),
+            status: query.has('empty-attendance') ? 'registered' : 'present',
           },
           {
             ...registration,
-            id: 'unpaid',
-            name: 'Participant fără donație',
-            email: 'unpaid@example.com',
-            donation: 0,
-            guests: 0,
-            status: 'registered' as const,
+            id: 'stefan',
+            name: 'Ștefan',
+            email: 'stefan@example.com',
+            donation: 2,
+            guests: 2,
+            status: 'absent',
+            day: 'earlier',
+            slot: 'early',
           },
-        ]
-      : []),
-  ])
+          {
+            ...registration,
+            id: 'ana',
+            name: query.has('long-name') ? registration.name : 'Ana',
+            email: 'ana@example.com',
+            donation: 100,
+            guests: 0,
+            status: 'registered',
+            slot: 'later',
+          },
+          { ...registration, id: 'cancelled', name: 'Anulat', status: 'cancelled' },
+          ...Array.from(
+            { length: Math.max(0, Math.min(500, Number(query.get('count') ?? 3)) - 3) },
+            (_, index) => ({
+              ...registration,
+              id: `bulk-${index + 4}`,
+              name: `Participant ${String(index + 4).padStart(3, '0')}`,
+              email:
+                query.has('cross-page-duplicate') && index + 4 === 205
+                  ? 'zoe@example.com'
+                  : `participant${index + 4}@example.com`,
+              donation: 0,
+              guests: 0,
+            }),
+          ),
+          ...(query.has('cleanup')
+            ? [
+                {
+                  ...registration,
+                  id: 'unpaid-duplicate',
+                  name: 'Zoe duplicat neplătit',
+                  email: 'zoe@example.com',
+                  donation: 0,
+                  guests: 0,
+                },
+              ]
+            : []),
+          ...(query.has('warnings')
+            ? [
+                {
+                  ...registration,
+                  id: 'duplicate',
+                  name: 'Zoe duplicat',
+                  email: ' ZOE@example.com ',
+                  donation: 40,
+                  guests: 0,
+                  status: 'registered' as const,
+                },
+                {
+                  ...registration,
+                  id: 'unpaid',
+                  name: 'Participant fără donație',
+                  email: 'unpaid@example.com',
+                  donation: 0,
+                  guests: 0,
+                  status: 'registered' as const,
+                },
+              ]
+            : []),
+        ],
+  )
   async function save(value: unknown) {
     if (query.has('fail')) throw new Error('Totalul minim s-a schimbat. Verifică suma încasată.')
     setSaved(JSON.stringify(value))
@@ -188,6 +192,10 @@ function App() {
           <CheckIn
             event={{
               ...event,
+              remote: query.has('remote'),
+              checkInMembers: [
+                { id: 'staff', name: 'Maria Voluntar', email: 'staff@example.com', role: 'active' },
+              ],
               donation: query.has('warnings') ? 30 : 0,
               registrations: listRegistrations,
               days: [

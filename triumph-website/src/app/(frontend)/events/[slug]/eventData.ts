@@ -1,4 +1,4 @@
-import { countActiveRegistrations } from '@/utilities/eventRegistrationStats'
+import { activePeople } from '@/utilities/eventPeople'
 import configPromise from '@payload-config'
 import { draftMode } from 'next/headers'
 import { getPayload } from 'payload'
@@ -39,6 +39,7 @@ export async function getEventSignupData(event: Event) {
       donation: true,
       slot: true,
       status: true,
+      guests: true,
     },
     where: {
       event: {
@@ -48,9 +49,9 @@ export async function getEventSignupData(event: Event) {
   })
   const docs = registrations.docs as Pick<
     EventRegistration,
-    'day' | 'donation' | 'slot' | 'status'
+    'day' | 'donation' | 'slot' | 'status' | 'guests'
   >[]
-  const participantsCount = countActiveRegistrations(docs)
+  const participantsCount = activePeople(docs)
 
   return {
     participantsCount,

@@ -1,3 +1,4 @@
+import { createEventOperationState, releaseEventOperation } from '@/utilities/eventOperationGuard'
 import payloadConfig from '@payload-config'
 import { getPayload, type Payload } from 'payload'
 
@@ -93,11 +94,14 @@ export async function POST(request: Request) {
   const payment = calculateEventPayment(event, guests, body.totalCollected)
   if (payment.error) return Response.json({ message: payment.error }, { status: 400 })
 
+  const operationState = createEventOperationState()
+  operationState.capacityOverrideReason = normalizeText(body.capacityOverrideReason)
   try {
     const created = (await payload.create({
       collection: 'event-registrations',
       context: {
         eventRegistrationWalkIn: true,
+        eventOperationState: operationState,
       },
       data: {
         ageGroup,
@@ -124,6 +128,7 @@ export async function POST(request: Request) {
       { status: 201 },
     )
   } catch (error) {
+    await releaseEventOperation(payload, operationState)
     return Response.json(
       {
         message: error instanceof Error ? error.message : 'Participantul nu a putut fi adăugat.',
@@ -191,6 +196,18 @@ export async function PATCH(request: Request) {
     )
   }
 
+  if (!Number.isInteger(body.expectedVersion) || Number(body.expectedVersion) < 0)
+    return Response.json({ message: 'Reîncarcă înscrierea înainte de salvare.' }, { status: 400 })
+  if (Number(body.expectedVersion) !== Number(registration.operationVersion || 0))
+    return Response.json(
+      {
+        message:
+          'Alt membru a modificat această înscriere. Verifică datele actualizate înainte de confirmare.',
+        registration: serializeRegistration(registration),
+      },
+      { status: 409 },
+    )
+
   let paymentData = {}
   if (status === 'present') {
     if (!isAgeGroup(body.ageGroup)) {
@@ -207,23 +224,33 @@ export async function PATCH(request: Request) {
     }
   }
 
-  const updated = (await payload.update({
-    collection: 'event-registrations',
-    data: {
-      ...paymentData,
-      name: registration.name?.trim() || registration.email || 'Participant fără nume',
-      phone: registration.phone?.trim() || undefined,
-      status: status as 'registered' | 'present' | 'absent',
-      timeOfArrival:
-        status === 'present' ? registration.timeOfArrival || new Date().toISOString() : null,
-    },
-    id: registrationID,
-    overrideAccess: true,
-  })) as EventRegistration
+  const operationState = createEventOperationState()
+  operationState.expectedVersion = Number(body.expectedVersion)
+  operationState.capacityOverrideReason = normalizeText(body.capacityOverrideReason)
+  try {
+    const updated = (await payload.update({
+      collection: 'event-registrations',
+      data: {
+        ...paymentData,
+        name: registration.name?.trim() || registration.email || 'Participant fără nume',
+        phone: registration.phone?.trim() || undefined,
+        status: status as 'registered' | 'present' | 'absent',
+        timeOfArrival:
+          status === 'present' ? registration.timeOfArrival || new Date().toISOString() : null,
+      },
+      id: registrationID,
+      overrideAccess: true,
+      user: authentication.user,
+      context: { eventOperationState: operationState },
+    })) as EventRegistration
 
-  return Response.json({
-    registration: serializeRegistration(updated),
-  })
+    return Response.json({
+      registration: serializeRegistration(updated),
+    })
+  } catch (error) {
+    await releaseEventOperation(payload, operationState)
+    return registrationErrorResponse(payload, registrationID, error)
+  }
 }
 
 export async function DELETE(request: Request) {
@@ -239,6 +266,8 @@ export async function DELETE(request: Request) {
     return Response.json({ message: 'Datele trimise nu sunt valide.' }, { status: 400 })
   }
 
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    return Response.json({ message: 'Datele trimise nu sunt valide.' }, { status: 400 })
   const body = input as Record<string, unknown>
   const registrationID = typeof body.registrationId === 'string' ? body.registrationId : ''
 
@@ -274,23 +303,57 @@ export async function DELETE(request: Request) {
     )
   }
 
-  const updated = (await payload.update({
-    collection: 'event-registrations',
-    data: {
-      status: 'cancelled',
-      timeOfArrival: null,
-    },
-    id: registrationID,
-    overrideAccess: true,
-  })) as EventRegistration
+  if (!Number.isInteger(body.expectedVersion) || Number(body.expectedVersion) < 0)
+    return Response.json({ message: 'Reîncarcă înscrierea înainte de salvare.' }, { status: 400 })
+  if (Number(body.expectedVersion) !== Number(registration.operationVersion || 0))
+    return Response.json(
+      {
+        message:
+          'Alt membru a modificat această înscriere. Verifică datele actualizate înainte de confirmare.',
+        registration: serializeRegistration(registration),
+      },
+      { status: 409 },
+    )
 
-  return Response.json({
-    registration: {
-      id: updated.id,
-      status: updated.status ?? 'cancelled',
-      timeOfArrival: updated.timeOfArrival ?? null,
+  const operationState = createEventOperationState()
+  operationState.expectedVersion = Number(body.expectedVersion)
+  try {
+    const updated = (await payload.update({
+      collection: 'event-registrations',
+      data: {
+        status: 'cancelled',
+        timeOfArrival: null,
+      },
+      id: registrationID,
+      overrideAccess: true,
+      user: authentication.user,
+      context: { eventOperationState: operationState },
+    })) as EventRegistration
+
+    return Response.json({
+      registration: serializeRegistration(updated),
+    })
+  } catch (error) {
+    await releaseEventOperation(payload, operationState)
+    return registrationErrorResponse(payload, registrationID, error)
+  }
+}
+
+async function registrationErrorResponse(payload: Payload, id: string, error: unknown) {
+  const status = getErrorStatus(error)
+  const latest =
+    status === 409
+      ? await payload
+          .findByID({ collection: 'event-registrations', id, depth: 0, overrideAccess: true })
+          .catch(() => null)
+      : null
+  return Response.json(
+    {
+      message: error instanceof Error ? error.message : 'Modificarea nu a putut fi salvată.',
+      ...(latest ? { registration: serializeRegistration(latest) } : {}),
     },
-  })
+    { status },
+  )
 }
 
 async function authenticateRequest(
@@ -330,6 +393,9 @@ function isValidEmail(value: string) {
 
 function serializeRegistration(registration: EventRegistration) {
   return {
+    operationVersion: registration.operationVersion || 0,
+    lastHandledName: registration.lastHandledName || '',
+    lastHandledAt: registration.lastHandledAt || null,
     ageGroup: registration.ageGroup ?? null,
     consumptionAmount: registration.consumptionAmount ?? null,
     createdAt: registration.createdAt,

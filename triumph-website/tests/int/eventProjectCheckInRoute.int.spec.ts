@@ -1,3 +1,12 @@
+import { GET as projectData } from '@/app/(frontend)/members/projects/data/route'
+import { mutateProjectOperation } from '@/utilities/projectOperations'
+import { shiftSnapshotKey } from '@/utilities/eventOperationsTypes'
+const ops = vi.hoisted(() => ({ summary: vi.fn(), query: vi.fn() }))
+vi.mock('@/utilities/projectQueries', () => ({
+  projectSummary: ops.summary,
+  queryProjectPage: ops.query,
+  serializeProjectRegistration: (row: unknown) => row,
+}))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getPayload } from 'payload'
 import { POST, PATCH, DELETE } from '@/app/(frontend)/members/projects/check-in/route'
@@ -5,7 +14,14 @@ import { POST, PATCH, DELETE } from '@/app/(frontend)/members/projects/check-in/
 vi.mock('next/cache', () => ({ revalidateTag: vi.fn() }))
 
 vi.mock('@payload-config', () => ({ default: {} }))
-vi.mock('payload', () => ({ getPayload: vi.fn() }))
+vi.mock('payload', async (original) => ({
+  ...(await original<typeof import('payload')>()),
+  getPayload: vi.fn(),
+  createLocalReq: async (args: object, payload: unknown) => ({ ...args, payload }),
+  initTransaction: vi.fn(async () => false),
+  commitTransaction: vi.fn(),
+  killTransaction: vi.fn(),
+}))
 
 const event = {
   id: 'event',
@@ -38,6 +54,7 @@ const walkIn = {
   totalCollected: 100,
 }
 const confirmation = {
+  expectedVersion: 0,
   registrationId: 'reg',
   status: 'present',
   ageGroup: 'adult',
@@ -81,7 +98,9 @@ describe('project check-in payment HTTP boundary', () => {
         consumptionAmount: 40,
       })
       expect(payload.create).toHaveBeenCalledWith(
-        expect.objectContaining({ context: { eventRegistrationWalkIn: true } }),
+        expect.objectContaining({
+          context: expect.objectContaining({ eventRegistrationWalkIn: true }),
+        }),
       )
     },
   )
@@ -126,7 +145,13 @@ describe('project check-in payment HTTP boundary', () => {
     async (status) => {
       registration.consumptionAmount = 40
       const response = await PATCH(
-        request('PATCH', { registrationId: 'reg', status, donation: 0, consumptionAmount: 0 }),
+        request('PATCH', {
+          registrationId: 'reg',
+          expectedVersion: 0,
+          status,
+          donation: 0,
+          consumptionAmount: 0,
+        }),
       )
       expect(response.status).toBe(200)
       expect((await response.json()).registration).toMatchObject({
@@ -141,7 +166,9 @@ describe('project check-in payment HTTP boundary', () => {
 
   it('cancels without changing payment or requiring age', async () => {
     registration.consumptionAmount = 40
-    expect((await DELETE(request('DELETE', { registrationId: 'reg' }))).status).toBe(200)
+    expect(
+      (await DELETE(request('DELETE', { registrationId: 'reg', expectedVersion: 0 }))).status,
+    ).toBe(200)
     expect(registration).toMatchObject({ donation: 60, consumptionAmount: 40, status: 'cancelled' })
   })
 
@@ -344,4 +371,303 @@ describe('duplicate cleanup batching', () => {
       }
     },
   )
+})
+
+describe('operation versions at the HTTP boundary', () => {
+  it('rejects missing versions and returns the latest record for stale saves', async () => {
+    registration.operationVersion = 3
+    registration.lastHandledName = 'Maria'
+    const missing = { ...confirmation, expectedVersion: undefined }
+    expect((await PATCH(request('PATCH', missing))).status).toBe(400)
+    const response = await PATCH(request('PATCH', { ...confirmation, expectedVersion: 2 }))
+    expect(response.status).toBe(409)
+    expect((await response.json()).registration).toMatchObject({
+      operationVersion: 3,
+      lastHandledName: 'Maria',
+    })
+    expect(payload.update).not.toHaveBeenCalled()
+  })
+  it('never exposes the latest participant to an unauthorized user through a version conflict', async () => {
+    payload.auth.mockResolvedValue({ user: { id: 'outsider', role: 'active' } })
+    registration.operationVersion = 3
+    const response = await PATCH(request('PATCH', confirmation))
+    expect(response.status).toBe(403)
+    expect(await response.json()).not.toHaveProperty('registration')
+  })
+  it('returns the fresh version when another device commits during the update', async () => {
+    payload.update.mockImplementationOnce(async () => {
+      registration = {
+        ...registration,
+        operationVersion: 2,
+        lastHandledName: 'Maria',
+        status: 'present',
+        consumptionAmount: 40,
+      }
+      throw Object.assign(new Error('Alt membru a modificat înscrierea.'), { status: 409 })
+    })
+    const response = await PATCH(request('PATCH', confirmation))
+    expect(response.status).toBe(409)
+    expect((await response.json()).registration).toMatchObject({
+      operationVersion: 2,
+      lastHandledName: 'Maria',
+      status: 'present',
+      consumptionAmount: 40,
+    })
+  })
+  it('validates malformed cancellation bodies', async () => {
+    expect((await DELETE(request('DELETE', null))).status).toBe(400)
+  })
+})
+
+const closingSlot = {
+  day: 'day',
+  slot: 'slot',
+  capacity: 100,
+  activeCount: 3,
+  reservedPeople: 4,
+  presentCount: 2,
+  presentPeople: 3,
+  pendingPeople: 1,
+  absentCount: 0,
+  donation: 30.15,
+  consumptionAmount: 20.25,
+  totalCollected: 50.4,
+  legacyConsumptionCount: 0,
+}
+function closingHarness() {
+  const state = {
+    shift: null as Record<string, unknown> | null,
+    closings: [] as Record<string, unknown>[],
+    logs: [] as Record<string, unknown>[],
+  }
+  const p = {
+    db: {
+      collections: {
+        events: {
+          schema: { path: () => ({ cast: (id: string) => id }) },
+          findOneAndUpdate: vi.fn(async () => ({ registrationRevision: 7 })),
+          updateOne: vi.fn(async () => ({})),
+        },
+      },
+    },
+    find: vi.fn(async () => ({ docs: state.shift ? [state.shift] : [] })),
+    findByID: vi.fn(
+      async (_args: { collection: string }): Promise<Record<string, unknown>> => ({}),
+    ),
+    create: vi.fn(async ({ collection, data }) => {
+      const doc = {
+        ...data,
+        id: `${collection}-${state.closings.length + 1}`,
+        updatedAt: '2026-10-27T12:00:00Z',
+      }
+      if (collection === 'event-shifts') state.shift = doc
+      if (collection === 'event-closings') state.closings.push(doc)
+      if (collection === 'event-activity') state.logs.push(doc)
+      return doc
+    }),
+    update: vi.fn(async ({ collection, data }) => {
+      if (collection === 'event-shifts') state.shift = { ...state.shift, ...data }
+      return { id: 'reg', ...data }
+    }),
+  }
+  ops.summary.mockResolvedValue({ slots: [{ ...closingSlot }] })
+  const user = { id: 'manager', name: 'Manager', role: 'president' }
+  const body = {
+    action: 'close-shift',
+    day: 'day',
+    slot: 'slot',
+    snapshot: shiftSnapshotKey(closingSlot),
+    countedAmount: '50.40',
+  }
+  const mutate = (changes = {}, asUser = user) =>
+    mutateProjectOperation(p as never, event as never, asUser as never, { ...body, ...changes })
+  return { state, p, user, body, mutate }
+}
+
+describe('shift closing, reopening, and undo', () => {
+  it('stores exact cents in an immutable closing and appends an activity entry', async () => {
+    const h = closingHarness()
+    await h.mutate()
+    expect(h.state.closings[0]).toMatchObject({
+      donation: 30.15,
+      consumptionAmount: 20.25,
+      totalCollected: 50.4,
+      countedAmount: 50.4,
+      difference: 0,
+      revision: 7,
+    })
+    expect(h.state.shift?.closing).toBe(h.state.closings[0].id)
+    expect(h.state.logs[0].action).toBe('shift-close')
+    expect(h.p.create.mock.calls.every(([args]) => args.req)).toBe(true)
+  })
+  it('requires an explanation for differences and preserves the signed difference', async () => {
+    const h = closingHarness()
+    await expect(h.mutate({ countedAmount: '50.39' })).rejects.toThrow('Scrie un motiv')
+    await h.mutate({ countedAmount: '50.39', note: 'Diferență verificată de casier' })
+    expect(h.state.closings[0].difference).toBe(-0.01)
+  })
+  it.each(['', null, '-1', '1.001', '1e2', 'Infinity', '1234567890123'])(
+    'rejects invalid verified amount %s',
+    async (countedAmount) => {
+      const h = closingHarness()
+      await expect(h.mutate({ countedAmount })).rejects.toThrow('maximum două zecimale')
+      expect(h.state.closings).toHaveLength(0)
+    },
+  )
+  it('requires acknowledgement and an explanation for unknown legacy consumption without backfilling it', async () => {
+    const h = closingHarness(),
+      legacy = { ...closingSlot, legacyConsumptionCount: 1 }
+    ops.summary.mockResolvedValue({ slots: [legacy] })
+    const body = { snapshot: shiftSnapshotKey(legacy) }
+    await expect(h.mutate(body)).rejects.toThrow('istorice')
+    await expect(h.mutate({ ...body, legacyAcknowledged: true })).rejects.toThrow('Scrie un motiv')
+    await h.mutate({
+      ...body,
+      legacyAcknowledged: true,
+      note: 'Registrul istoric a fost verificat',
+    })
+    expect(h.state.closings[0]).toMatchObject({
+      legacyConsumptionCount: 1,
+      consumptionAmount: 20.25,
+    })
+    expect(h.p.update).not.toHaveBeenCalled()
+  })
+  it('rejects a stale shift snapshot, and restricts closing to managers', async () => {
+    const h = closingHarness()
+    await expect(h.mutate({ snapshot: 'outdated' })).rejects.toThrow(
+      'Totalurile turei s-au schimbat',
+    )
+    await expect(h.mutate({}, { ...h.user, role: 'active' })).rejects.toThrow('Doar un manager')
+    expect(h.state.closings).toHaveLength(0)
+  })
+  it('reopens the exact closing with a reason, preserving the original snapshot', async () => {
+    const h = closingHarness()
+    await h.mutate()
+    const original = structuredClone(h.state.closings[0])
+    await expect(
+      h.mutate({ action: 'reopen-shift', closingId: 'old', reason: 'Corectare registru' }),
+    ).rejects.toThrow('s-a schimbat')
+    await h.mutate({ action: 'reopen-shift', closingId: original.id, reason: 'Corectare registru' })
+    expect(h.state.shift?.closing).toBeNull()
+    expect(h.state.closings[0]).toEqual(original)
+    expect(h.state.logs.at(-1)).toMatchObject({
+      action: 'shift-reopen',
+      reason: 'Corectare registru',
+    })
+  })
+  it('protects handover notes from stale overwrites and roster changes by volunteers', async () => {
+    const h = closingHarness()
+    h.state.shift = { id: 'shift', members: ['volunteer'], updatedAt: 'latest' }
+    await expect(
+      h.mutate({ action: 'save-shift', expectedUpdatedAt: 'old', handoverNote: 'Notă' }),
+    ).rejects.toThrow('actualizate')
+    await expect(
+      h.mutate(
+        { action: 'save-shift', expectedUpdatedAt: 'latest', memberIds: [] },
+        { ...h.user, id: 'volunteer', role: 'active' },
+      ),
+    ).rejects.toThrow('atribui echipa')
+  })
+  it('undoes only the latest registration version and retains legacy null values', async () => {
+    const h = closingHarness()
+    h.p.findByID.mockImplementation(async ({ collection }: { collection: string }) =>
+      collection === 'event-activity'
+        ? {
+            id: 'log',
+            event: 'event',
+            registration: 'reg',
+            version: 2,
+            before: {
+              status: 'registered',
+              donation: 15.25,
+              consumptionAmount: null,
+              ageGroup: null,
+            },
+          }
+        : { id: 'reg', name: 'Ana', event: 'event', operationVersion: 3 },
+    )
+    await expect(
+      h.mutate({ action: 'undo', activityId: 'log', reason: 'Confirmare greșită' }),
+    ).rejects.toThrow('modificată ulterior')
+    h.p.findByID.mockImplementation(async ({ collection }: { collection: string }) =>
+      collection === 'event-activity'
+        ? {
+            id: 'log',
+            event: 'event',
+            registration: 'reg',
+            version: 2,
+            before: {
+              status: 'registered',
+              donation: 15.25,
+              consumptionAmount: null,
+              ageGroup: null,
+            },
+          }
+        : { id: 'reg', name: 'Ana', event: 'event', operationVersion: 2 },
+    )
+    await h.mutate({ action: 'undo', activityId: 'log', reason: 'Confirmare greșită' })
+    expect(h.p.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          donation: 15.25,
+          consumptionAmount: null,
+          ageGroup: null,
+          status: 'registered',
+        }),
+        req: expect.objectContaining({
+          context: expect.objectContaining({
+            eventOperationState: expect.objectContaining({ expectedVersion: 2, undoOf: 'log' }),
+          }),
+        }),
+      }),
+    )
+  })
+})
+
+describe('private event data HTTP boundary', () => {
+  const get = (query = '', headers = {}) =>
+    projectData(
+      new Request(`https://example.com/members/projects/data?eventId=event${query}`, { headers }),
+    )
+  it('uses conditional updates and skips page queries when the event has not changed', async () => {
+    ops.query.mockResolvedValue({
+      eventId: 'event',
+      registrations: [],
+      metrics: { presentCount: 250 },
+    })
+    ops.query.mockClear()
+    const first = await get('&page=2&q=Ana&sort=participant&direction=descending')
+    expect(first.status).toBe(200)
+    expect(first.headers.get('Cache-Control')).toContain('no-store')
+    const etag = first.headers.get('ETag')!
+    const second = await get('&page=2&q=Ana&sort=participant&direction=descending', {
+      'If-None-Match': etag,
+    })
+    expect(second.status).toBe(304)
+    expect(ops.query).toHaveBeenCalledOnce()
+    const otherPage = await get('&page=3&q=Ana&sort=participant&direction=descending', {
+      'If-None-Match': etag,
+    })
+    expect(otherPage.status).toBe(200)
+  })
+  it('rejects unauthenticated, cross-site, and unrelated event readers', async () => {
+    expect((await get('', { 'Sec-Fetch-Site': 'cross-site' })).status).toBe(403)
+    payload.auth.mockResolvedValue({ user: null })
+    expect((await get()).status).toBe(401)
+    payload.auth.mockResolvedValue({ user: { id: 'outsider', role: 'active' } })
+    expect((await get()).status).toBe(403)
+  })
+  it('scopes QR lookup by event instead of the visible page', async () => {
+    payload.find.mockResolvedValue({ docs: [registration] })
+    const response = await get('&registrationId=reg')
+    expect(response.status).toBe(200)
+    expect(payload.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        limit: 1,
+        where: { and: [{ event: { equals: 'event' } }, { id: { equals: 'reg' } }] },
+      }),
+    )
+    payload.find.mockResolvedValue({ docs: [] })
+    expect((await get('&registrationId=foreign')).status).toBe(404)
+  })
 })

@@ -77,6 +77,9 @@ export interface Config {
     'absence-motivations': AbsenceMotivation;
     events: Event;
     'event-registrations': EventRegistration;
+    'event-activity': EventActivity;
+    'event-shifts': EventShift;
+    'event-closings': EventClosing;
     sponsors: Sponsor;
     causes: Cause;
     payments: Payment;
@@ -125,6 +128,9 @@ export interface Config {
     'absence-motivations': AbsenceMotivationsSelect<false> | AbsenceMotivationsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
     'event-registrations': EventRegistrationsSelect<false> | EventRegistrationsSelect<true>;
+    'event-activity': EventActivitySelect<false> | EventActivitySelect<true>;
+    'event-shifts': EventShiftsSelect<false> | EventShiftsSelect<true>;
+    'event-closings': EventClosingsSelect<false> | EventClosingsSelect<true>;
     sponsors: SponsorsSelect<false> | SponsorsSelect<true>;
     causes: CausesSelect<false> | CausesSelect<true>;
     payments: PaymentsSelect<false> | PaymentsSelect<true>;
@@ -1168,6 +1174,9 @@ export interface Event {
        * Opțională pentru ultimul sau singurul interval al zilei. Lasă gol dacă nu există o oră fixă de final.
        */
       endTime?: string | null;
+      /**
+       * Număr de persoane, inclusiv însoțitorii.
+       */
       capacity?: number | null;
       id?: string | null;
     }[];
@@ -1190,6 +1199,11 @@ export interface Event {
    */
   private?: boolean | null;
   capacity?: number | null;
+  registrationRevision?: number | null;
+  registrationIdentityRevision?: number | null;
+  registrationLockToken?: string | null;
+  registrationLastToken?: string | null;
+  registrationLockUntil?: string | null;
   populatedCoordonators?:
     | {
         id?: string | null;
@@ -1229,6 +1243,10 @@ export interface Cause {
  */
 export interface EventRegistration {
   id: string;
+  operationVersion?: number | null;
+  lastHandledBy?: (string | null) | User;
+  lastHandledName?: string | null;
+  lastHandledAt?: string | null;
   event: string | Event;
   day: string;
   slot: string;
@@ -2325,6 +2343,83 @@ export interface AccordionGallery {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-activity".
+ */
+export interface EventActivity {
+  id: string;
+  event: string | Event;
+  registration?: (string | null) | EventRegistration;
+  day?: string | null;
+  slot?: string | null;
+  action: string;
+  actor?: (string | null) | User;
+  actorName: string;
+  reason?: string | null;
+  before?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  after?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  undoOf?: (string | null) | EventActivity;
+  version?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-shifts".
+ */
+export interface EventShift {
+  id: string;
+  event: string | Event;
+  day: string;
+  slot: string;
+  members?: (string | User)[] | null;
+  handoverNote?: string | null;
+  updatedBy?: string | null;
+  closing?: (string | null) | EventClosing;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-closings".
+ */
+export interface EventClosing {
+  id: string;
+  event: string | Event;
+  day: string;
+  slot: string;
+  actor: string | User;
+  actorName: string;
+  donation: number;
+  consumptionAmount: number;
+  totalCollected: number;
+  countedAmount: number;
+  difference: number;
+  people: number;
+  legacyConsumptionCount: number;
+  legacyAcknowledged?: boolean | null;
+  note?: string | null;
+  revision: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "sponsors".
  */
 export interface Sponsor {
@@ -2773,6 +2868,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'event-registrations';
         value: string | EventRegistration;
+      } | null)
+    | ({
+        relationTo: 'event-activity';
+        value: string | EventActivity;
+      } | null)
+    | ({
+        relationTo: 'event-shifts';
+        value: string | EventShift;
+      } | null)
+    | ({
+        relationTo: 'event-closings';
+        value: string | EventClosing;
       } | null)
     | ({
         relationTo: 'sponsors';
@@ -3808,6 +3915,11 @@ export interface EventsSelect<T extends boolean = true> {
   checkInMembers?: T;
   private?: T;
   capacity?: T;
+  registrationRevision?: T;
+  registrationIdentityRevision?: T;
+  registrationLockToken?: T;
+  registrationLastToken?: T;
+  registrationLockUntil?: T;
   populatedCoordonators?:
     | T
     | {
@@ -3826,6 +3938,10 @@ export interface EventsSelect<T extends boolean = true> {
  * via the `definition` "event-registrations_select".
  */
 export interface EventRegistrationsSelect<T extends boolean = true> {
+  operationVersion?: T;
+  lastHandledBy?: T;
+  lastHandledName?: T;
+  lastHandledAt?: T;
   event?: T;
   day?: T;
   slot?: T;
@@ -3841,6 +3957,64 @@ export interface EventRegistrationsSelect<T extends boolean = true> {
   guests?: T;
   timeOfArrival?: T;
   status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-activity_select".
+ */
+export interface EventActivitySelect<T extends boolean = true> {
+  event?: T;
+  registration?: T;
+  day?: T;
+  slot?: T;
+  action?: T;
+  actor?: T;
+  actorName?: T;
+  reason?: T;
+  before?: T;
+  after?: T;
+  undoOf?: T;
+  version?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-shifts_select".
+ */
+export interface EventShiftsSelect<T extends boolean = true> {
+  event?: T;
+  day?: T;
+  slot?: T;
+  members?: T;
+  handoverNote?: T;
+  updatedBy?: T;
+  closing?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "event-closings_select".
+ */
+export interface EventClosingsSelect<T extends boolean = true> {
+  event?: T;
+  day?: T;
+  slot?: T;
+  actor?: T;
+  actorName?: T;
+  donation?: T;
+  consumptionAmount?: T;
+  totalCollected?: T;
+  countedAmount?: T;
+  difference?: T;
+  people?: T;
+  legacyConsumptionCount?: T;
+  legacyAcknowledged?: T;
+  note?: T;
+  revision?: T;
   updatedAt?: T;
   createdAt?: T;
 }

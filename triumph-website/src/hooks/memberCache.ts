@@ -23,13 +23,19 @@ export const invalidateMemberChange: CollectionAfterChangeHook = ({
   req,
 }) => {
   const batch = getRegistrationImportBatch(req?.context)
-  const eventID = typeof doc.event === 'object' ? doc.event?.id : doc.event
+  const eventID =
+    (typeof doc.event === 'object' ? doc.event?.id : doc.event) ??
+    (collection.slug === 'event-registrations' ? batch?.event.id : undefined)
   if (
     collection.slug === 'event-registrations' &&
     eventID === batch?.event.id &&
     batch?.invalidationTags
   ) {
-    for (const tag of mutationTags(collection.slug, doc, previousDoc))
+    for (const tag of mutationTags(
+      collection.slug,
+      { ...doc, event: doc.event ?? batch.event.id },
+      previousDoc,
+    ))
       batch.invalidationTags.add(tag)
     return doc
   }

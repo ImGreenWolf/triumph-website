@@ -1,3 +1,24 @@
+import {
+  guardRegistrationOperation,
+  recordRegistrationOperation,
+} from '@/collections/Events/operationHooks'
+import {
+  createEventOperationState,
+  lockEvent,
+  releaseEventOperation,
+} from '@/utilities/eventOperationGuard'
+import { defaultEventShift, shiftSnapshotKey } from '@/utilities/eventOperationsTypes'
+import {
+  checkInSearchPattern,
+  checkInSearchTerms,
+  matchesCheckInSearch,
+  normalizeCheckInSearch,
+} from '@/utilities/eventCheckInSearch'
+import {
+  queryProjectPage,
+  projectSummary,
+  invalidateProjectIdentities,
+} from '@/utilities/projectQueries'
 import { describe, expect, it, vi } from 'vitest'
 import { createRegistrationImportBatch } from '@/utilities/eventRegistrationImportContext'
 import type { EventRegistration } from '@/payload-types'
@@ -289,72 +310,6 @@ describe('check-in row warnings', () => {
   })
 })
 
-describe('registration database validation', () => {
-  const hook = EventRegistrations.hooks!.beforeValidate![1]
-  const event = {
-    id: 'event-1',
-    days: [
-      {
-        id: 'day-1',
-        eventDate: '2026-06-21T00:00:00.000Z',
-        slots: [{ id: 'slot-1', capacity: 2 }],
-      },
-    ],
-  }
-  const data = { event: event.id, day: 'day-1', slot: 'slot-1', email: 'ana@example.com' }
-  function request(context: Record<string, unknown> = {}) {
-    return {
-      context,
-      payload: {
-        findByID: vi.fn().mockResolvedValue(event),
-        find: vi.fn().mockResolvedValue({ docs: [] }),
-        count: vi.fn().mockResolvedValue({ totalDocs: 1 }),
-      },
-    }
-  }
-
-  it('reuses trusted event data but keeps live checks within the row transaction', async () => {
-    const req = request({
-      eventRegistrationImport: true,
-      eventRegistrationImportBatch: createRegistrationImportBatch(event, false),
-    })
-    await expect(hook({ data, operation: 'create', req } as never)).resolves.toEqual(data)
-    expect(req.payload.findByID).not.toHaveBeenCalled()
-    expect(req.payload.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        req,
-        depth: 0,
-        limit: 1,
-        pagination: false,
-        select: { email: true },
-      }),
-    )
-    expect(req.payload.count).toHaveBeenCalledWith(expect.objectContaining({ req }))
-  })
-
-  it('does not trust serialized batch objects and rejects live capacity changes', async () => {
-    const req = request({ eventRegistrationImport: true, eventRegistrationImportBatch: { event } })
-    req.payload.count.mockResolvedValue({ totalDocs: 2 })
-    await expect(hook({ data, operation: 'create', req } as never)).rejects.toThrow('este complet')
-    expect(req.payload.findByID).toHaveBeenCalledWith(expect.objectContaining({ req }))
-  })
-
-  it('rejects a duplicate inserted after import preflight', async () => {
-    const req = request({ eventRegistrationImport: true })
-    req.payload.find.mockResolvedValue({ docs: [{ id: 'concurrent-registration' }] })
-    await expect(hook({ data, operation: 'create', req } as never)).rejects.toThrow(
-      'Te-ai înscris deja',
-    )
-    expect(req.payload.count).not.toHaveBeenCalled()
-  })
-
-  it('does not count occupancy for walk-ins, which may exceed capacity', async () => {
-    const req = request({ eventRegistrationWalkIn: true })
-    await expect(hook({ data, operation: 'create', req } as never)).resolves.toEqual(data)
-    expect(req.payload.count).not.toHaveBeenCalled()
-  })
-})
-
 describe('duplicate cleanup planning', () => {
   const row = (id: string, values: Partial<EventRegistration> = {}) => ({
     id,
@@ -426,5 +381,551 @@ describe('duplicate cleanup planning', () => {
         a,
       ]).removals,
     ).toEqual([{ id: 'b', keepId: 'a' }])
+  })
+})
+
+function operationHarness() {
+  const event = {
+    id: 'event-ops',
+    donation: '30',
+    days: [{ id: 'day', eventDate: '2099-06-21', slots: [{ id: 'slot', capacity: 4 }] }],
+  }
+  let stored = {
+    registrationRevision: 0,
+    registrationIdentityRevision: 0,
+    registrationLastToken: undefined as string | undefined,
+  }
+  let leased = false
+  const rows: Array<Record<string, unknown>> = []
+  const eventModel = {
+    schema: { path: () => ({ cast: (id: string) => id }) },
+    findOneAndUpdate: vi.fn(async (_where, update, _options) => {
+      if (leased) return null
+      leased = true
+      const previous = { ...stored }
+      stored = {
+        registrationRevision: stored.registrationRevision + 1,
+        registrationIdentityRevision:
+          stored.registrationIdentityRevision + (update.$inc.registrationIdentityRevision || 0),
+        registrationLastToken: update.$set.registrationLockToken,
+      }
+      return previous
+    }),
+    updateOne: vi.fn(async () => {
+      leased = false
+    }),
+  }
+  const payload = {
+    db: { collections: { events: eventModel }, sessions: { tx: { test: 'session' } } },
+    findByID: vi.fn(async ({ collection, id }) =>
+      collection === 'events' ? event : rows.find((row) => row.id === id),
+    ),
+    find: vi.fn(async ({ collection, select }) => ({
+      docs:
+        collection === 'event-shifts' ? [] : select?.email ? rows.filter((row) => row.email) : rows,
+    })),
+    create: vi.fn(async ({ data }) => data),
+  }
+  const request = (context: Record<string, unknown> = {}) => ({
+    payload,
+    context,
+    user: { id: 'manager', role: 'president', name: 'Manager' },
+    transactionID: 'tx',
+  })
+  const data = {
+    event: event.id,
+    day: 'day',
+    slot: 'slot',
+    name: 'Ana',
+    guests: 0,
+    status: 'registered',
+    donation: 0,
+  }
+  return { event, rows, eventModel, payload, request, data }
+}
+
+describe('serialized registration capacity and history', () => {
+  it.each([
+    ['walk-in', { eventRegistrationWalkIn: true }],
+    ['import', { eventRegistrationImport: true }],
+    ['signup', {}],
+  ])('accepts Payload empty originalDoc on a new %s registration', async (action, context) => {
+    const h = operationHarness(),
+      req = h.request(context)
+    const changed = await guardRegistrationOperation({
+      data: { ...h.data },
+      operation: 'create',
+      originalDoc: {},
+      req,
+    } as never)
+    expect(changed).toMatchObject({ operationVersion: 1 })
+    expect(h.payload.findByID.mock.calls.every(([args]) => args.collection === 'events')).toBe(true)
+    await recordRegistrationOperation({
+      doc: { ...h.data, ...changed, id: 'new-registration' },
+      req,
+    } as never)
+    expect(h.payload.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action, before: undefined, version: 1 }),
+      }),
+    )
+  })
+  it('treats a duplicated document as a new registration instead of an event move', async () => {
+    const h = operationHarness()
+    const changed = await guardRegistrationOperation({
+      data: { ...h.data },
+      operation: 'create',
+      originalDoc: { ...h.data, id: 'source', event: 'another-event', operationVersion: 12 },
+      req: h.request(),
+    } as never)
+    expect(changed).toMatchObject({ operationVersion: 1 })
+  })
+  it('still rejects moving an existing registration to another event', async () => {
+    const h = operationHarness()
+    await expect(
+      guardRegistrationOperation({
+        data: { event: 'another-event' },
+        operation: 'update',
+        originalDoc: { ...h.data, id: 'existing' },
+        req: h.request(),
+      } as never),
+    ).rejects.toThrow('Mutarea între evenimente')
+    expect(h.eventModel.findOneAndUpdate).not.toHaveBeenCalled()
+  })
+  it('counts companions and rejects group overflow for public signups and walk-ins', async () => {
+    for (const context of [{}, { eventRegistrationWalkIn: true }]) {
+      const h = operationHarness()
+      h.rows.push({ id: 'existing', guests: 2, status: 'present' })
+      await expect(
+        guardRegistrationOperation({
+          data: { ...h.data, guests: 1 },
+          operation: 'create',
+          req: h.request(context),
+        } as never),
+      ).rejects.toThrow('Capacitatea turei este de 4 persoane')
+    }
+  })
+  it('records manager override reasons and refuses volunteer overrides', async () => {
+    for (const role of ['president', 'active']) {
+      const h = operationHarness()
+      h.rows.push({ guests: 3 })
+      const state = createEventOperationState()
+      state.capacityOverrideReason = 'Locuri suplimentare aprobate'
+      const req = h.request({ eventOperationState: state })
+      req.user.role = role
+      const result = guardRegistrationOperation({ data: h.data, operation: 'create', req } as never)
+      if (role === 'active') await expect(result).rejects.toThrow('Doar un manager')
+      else {
+        await result
+        expect(state.reason).toContain('Locuri suplimentare aprobate')
+        expect(state.capacity?.people).toBe(5)
+      }
+    }
+  })
+  it('checks companion increases against reserved people, but permits payment updates at existing capacity', async () => {
+    for (const guests of [1, 2]) {
+      const h = operationHarness()
+      const original = { ...h.data, id: 'reg', guests: 1, operationVersion: 2 }
+      h.rows.push(original, { guests: 1 })
+      const result = guardRegistrationOperation({
+        data: { guests },
+        originalDoc: original,
+        operation: 'update',
+        req: h.request(),
+      } as never)
+      if (guests === 2) await expect(result).rejects.toThrow('Capacitatea')
+      else expect(await result).toMatchObject({ operationVersion: 3 })
+    }
+  })
+  it('rejects stale versions, including a commit between original read and lock acquisition', async () => {
+    for (const expected of [0, 1]) {
+      const h = operationHarness()
+      const original = { ...h.data, id: 'reg', operationVersion: 1 }
+      h.rows.push({ ...original, operationVersion: 2 })
+      const state = createEventOperationState()
+      state.expectedVersion = expected
+      await expect(
+        guardRegistrationOperation({
+          data: { status: 'present' },
+          originalDoc: original,
+          operation: 'update',
+          req: h.request({ eventOperationState: state }),
+        } as never),
+      ).rejects.toThrow('Alt membru')
+    }
+  })
+  it('serializes competing requests and shares the lock within a bulk operation', async () => {
+    const h = operationHarness(),
+      req = h.request()
+    const [a, b] = await Promise.all([
+      lockEvent(req as never, h.event.id),
+      lockEvent(req as never, h.event.id),
+    ])
+    expect(a).toBe(b)
+    expect(h.eventModel.findOneAndUpdate).toHaveBeenCalledOnce()
+    await expect(lockEvent(h.request() as never, h.event.id)).rejects.toThrow('Alt membru')
+    await releaseEventOperation(h.payload as never, a, req as never)
+    await expect(lockEvent(h.request() as never, h.event.id)).resolves.toMatchObject({
+      revision: 2,
+    })
+    expect(h.eventModel.findOneAndUpdate.mock.calls[0][2]).toMatchObject({
+      session: { test: 'session' },
+    })
+  })
+  it('never releases the write lock during nested reads', async () => {
+    const h = operationHarness(),
+      req = h.request()
+    await lockEvent(req as never, h.event.id)
+    const hook = EventRegistrations.hooks!.afterOperation![0]
+    await hook({ operation: 'findByID', result: {}, req } as never)
+    expect(h.eventModel.updateOne).not.toHaveBeenCalled()
+    await hook({ operation: 'updateByID', result: {}, req } as never)
+    expect(h.eventModel.updateOne).toHaveBeenCalledOnce()
+  })
+  it('blocks writes to closed shifts and rejects a duplicate inserted after CSV preflight', async () => {
+    for (const closed of [true, false]) {
+      const h = operationHarness()
+      h.payload.find.mockImplementation(
+        async ({ collection }) =>
+          ({
+            docs:
+              collection === 'event-shifts'
+                ? closed
+                  ? [{ closing: 'snapshot' }]
+                  : []
+                : [{ email: 'ana@example.com', guests: 0 }],
+          }) as never,
+      )
+      await expect(
+        guardRegistrationOperation({
+          data: { ...h.data, email: 'ana@example.com' },
+          operation: 'create',
+          req: h.request({ eventRegistrationImport: true }),
+        } as never),
+      ).rejects.toThrow(closed ? 'Tura este închisă' : 'Te-ai înscris deja')
+    }
+  })
+  it('stores complete audit snapshots even when a bulk mutation projects only status', async () => {
+    const h = operationHarness()
+    const original = {
+      ...h.data,
+      id: 'reg',
+      operationVersion: 0,
+      donation: 15.25,
+      consumptionAmount: null,
+    }
+    h.rows.push(original)
+    const req = h.request()
+    const changed = await guardRegistrationOperation({
+      data: { status: 'cancelled' },
+      originalDoc: original,
+      operation: 'update',
+      req,
+    } as never)
+    await recordRegistrationOperation({ doc: { id: 'reg', status: 'cancelled' }, req } as never)
+    expect(changed).toMatchObject({ operationVersion: 1 })
+    expect(h.payload.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        data: expect.objectContaining({
+          event: h.event.id,
+          actorName: 'Manager',
+          version: 1,
+          before: expect.objectContaining({ donation: 15.25 }),
+          after: expect.objectContaining({
+            donation: 15.25,
+            consumptionAmount: null,
+            status: 'cancelled',
+          }),
+        }),
+      }),
+    )
+  })
+  it.each([-1, 1.5, 51])(
+    'rejects invalid companion count %s at the collection boundary',
+    async (guests) => {
+      const h = operationHarness()
+      await expect(
+        guardRegistrationOperation({
+          data: { ...h.data, guests },
+          operation: 'create',
+          req: h.request(),
+        } as never),
+      ).rejects.toThrow('însoțitori')
+    },
+  )
+  it('reuses bulk capacity and closed-shift checks only while the committed token matches', async () => {
+    const h = operationHarness()
+    h.event.days[0].slots[0].capacity = 2000
+    const batch = createRegistrationImportBatch(h.event, true)
+    for (let index = 0; index < 2000; index++) {
+      const state = createEventOperationState(),
+        req = h.request({
+          eventRegistrationImport: true,
+          eventRegistrationImportBatch: batch,
+          eventOperationState: state,
+        })
+      await guardRegistrationOperation({ data: h.data, operation: 'create', req } as never)
+      batch.capacityState.token = state.token
+      batch.capacityState.counts.set(state.capacity!.key, state.capacity!.people)
+      await releaseEventOperation(h.payload as never, state, req as never)
+    }
+    expect(h.payload.findByID).not.toHaveBeenCalled()
+    expect(h.payload.find).toHaveBeenCalledTimes(2)
+    expect(batch.capacityState.counts.get(JSON.stringify(['day', 'slot']))).toBe(2000)
+    expect(h.eventModel.findOneAndUpdate).toHaveBeenCalledTimes(2000)
+  })
+})
+
+describe('server event pages and global totals', () => {
+  function queryHarness() {
+    const h = operationHarness()
+    const aggregate = vi.fn(async (pipeline: Array<Record<string, unknown>>) =>
+      pipeline.some((stage) => stage.$facet)
+        ? [
+            {
+              docs: [
+                {
+                  _id: 'reg',
+                  name: 'Ana',
+                  day: 'day',
+                  slot: 'slot',
+                  donation: 30.15,
+                  consumptionAmount: null,
+                  operationVersion: 2,
+                },
+              ],
+              total: [{ count: 201 }],
+            },
+          ]
+        : pipeline.some((stage) => stage.$group)
+          ? [
+              {
+                _id: { day: 'day', slot: 'slot' },
+                activeCount: 201,
+                reservedPeople: 220,
+                presentCount: 100,
+                presentPeople: 110,
+                pendingPeople: 110,
+                pendingCount: 101,
+                absentCount: 0,
+                donationBani: 3015,
+                consumptionBani: 2025,
+                legacyConsumptionCount: 1,
+                missingDonations: 0,
+              },
+            ]
+          : [],
+    )
+    const model = {
+      schema: { path: () => ({ cast: (id: string) => id }) },
+      aggregate: (pipeline: Array<Record<string, unknown>>) => ({
+        collation: () => ({
+          session() {
+            return this
+          },
+          exec: () => aggregate(pipeline),
+        }),
+      }),
+    }
+    Object.assign(h.payload.db.collections, { 'event-registrations': model })
+    invalidateProjectIdentities(h.event.id)
+    return { ...h, aggregate }
+  }
+  it('paginates at 100 on the server and retains complete event totals', async () => {
+    const h = queryHarness(),
+      params = new URLSearchParams({
+        page: '2',
+        q: 'Ana[',
+        shift: 'day:slot',
+        sort: 'group',
+        direction: 'descending',
+      })
+    const result = await queryProjectPage(
+      h.payload as never,
+      h.event as never,
+      h.request().user as never,
+      params,
+    )
+    expect(result).toMatchObject({
+      page: 2,
+      totalDocs: 201,
+      totalPages: 3,
+      metrics: {
+        activeCount: 201,
+        peoplePresent: 110,
+        activePeople: 220,
+        funds: 30.15,
+        consumptionAmount: 20.25,
+        totalCollected: 50.4,
+        legacyConsumptionCount: 1,
+      },
+    })
+    const pagePipeline = h.aggregate.mock.calls.find(([stages]) =>
+      stages.some((stage) => stage.$facet),
+    )![0]
+    expect(pagePipeline).toContainEqual({ $sort: { _people: -1, _id: 1 } })
+    expect(pagePipeline.find((stage) => stage.$facet)).toMatchObject({
+      $facet: { docs: [{ $skip: 100 }, { $limit: 100 }, expect.any(Object)] },
+    })
+    expect(pagePipeline[0]).toMatchObject({
+      $match: {
+        event: h.event.id,
+        day: 'day',
+        slot: 'slot',
+        $and: [
+          {
+            $or: [
+              { name: { $regex: expect.any(String), $options: 'i' } },
+              expect.any(Object),
+              expect.any(Object),
+            ],
+          },
+        ],
+      },
+    })
+    const searchStage = pagePipeline[0] as {
+      $match: { $and: { $or: { name: { $regex: string } }[] }[] }
+    }
+    const pattern = new RegExp(searchStage.$match.$and[0]!.$or[0]!.name.$regex, 'i')
+    expect(pattern.test('Ănâ[')).toBe(true)
+    expect(pattern.test('Ana without bracket')).toBe(false)
+    const summary = h.aggregate.mock.calls.find(([stages]) =>
+      stages.some((stage) => stage.$group),
+    )![0]
+    expect(summary[0]).toEqual({ $match: { event: h.event.id, status: { $ne: 'cancelled' } } })
+    expect(result.registrations[0]).toMatchObject({ operationVersion: 2, consumptionAmount: null })
+  })
+  it('requires every name word in the database query, independent of order', async () => {
+    const h = queryHarness()
+    await queryProjectPage(
+      h.payload as never,
+      h.event as never,
+      h.request().user as never,
+      new URLSearchParams({ q: '  Țiriac   ȘTEFAN  ' }),
+    )
+    const stage = h.aggregate.mock.calls[0]![0][0] as {
+      $match: { $and: { $or: { name: { $regex: string } }[] }[] }
+    }
+    const clauses = stage.$match.$and
+    expect(clauses).toHaveLength(2)
+    for (const name of ['Ștefan Țiriac', 'Țiriac Ștefan', 'Ștefan Mihai Țiriac'])
+      expect(
+        clauses.every((clause) => new RegExp(clause.$or[0]!.name.$regex, 'i').test(name)),
+      ).toBe(true)
+    for (const name of ['Ștefan Popescu', 'Ana Țiriac'])
+      expect(
+        clauses.every((clause) => new RegExp(clause.$or[0]!.name.$regex, 'i').test(name)),
+      ).toBe(false)
+  })
+  it('queries donation warnings only for checked-in registrations and caches projected identities', async () => {
+    const h = queryHarness()
+    h.rows.push(
+      { id: 'duplicate1', name: 'Ana', email: 'ana@example.com' },
+      { id: 'duplicate2', name: 'Ana', email: 'ana@example.com' },
+    )
+    await queryProjectPage(
+      h.payload as never,
+      h.event as never,
+      h.request().user as never,
+      new URLSearchParams({ status: 'warnings' }),
+    )
+    const match = h.aggregate.mock.calls[0][0][0] as { $match: { $or: unknown[] } }
+    expect(match.$match.$or[0]).toEqual({ _id: { $in: ['duplicate1', 'duplicate2'] } })
+    expect(JSON.stringify(match.$match.$or[1])).toContain('"$eq":["$status","present"]')
+    h.payload.find.mockClear()
+    await queryProjectPage(
+      h.payload as never,
+      h.event as never,
+      h.request().user as never,
+      new URLSearchParams(),
+    )
+    expect(
+      h.payload.find.mock.calls.every(([args]) => args.collection !== 'event-registrations'),
+    ).toBe(true)
+    await queryProjectPage(
+      h.payload as never,
+      { ...h.event, registrationIdentityRevision: 1 } as never,
+      h.request().user as never,
+      new URLSearchParams(),
+    )
+    expect(h.payload.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: 'event-registrations',
+        select: { name: true, email: true, phone: true, status: true },
+      }),
+    )
+  })
+  it('selects the active shift, then next shift, and uses a signature of this shift only', () => {
+    const days = [
+      {
+        id: 'day',
+        eventDate: '2026-10-27',
+        slots: [
+          { id: 'one', startTime: '2026-10-27T10:00:00Z', endTime: '2026-10-27T12:00:00Z' },
+          { id: 'two', startTime: '2026-10-27T12:00:00Z', endTime: '2026-10-27T14:00:00Z' },
+        ],
+      },
+    ]
+    expect(defaultEventShift({ days } as never, Date.parse('2026-10-27T11:00:00Z'))).toBe('day:one')
+    expect(defaultEventShift({ days } as never, Date.parse('2026-10-27T09:00:00Z'))).toBe('day:one')
+    expect(defaultEventShift({ days } as never, Date.parse('2026-10-27T12:00:00Z'))).toBe('day:two')
+  })
+})
+
+describe('Romanian check-in search', () => {
+  it.each([
+    ['popescu ana', 'Ana Popescu'],
+    ['ANA POPESCU', 'Popescu Ana'],
+    ['tiriac stefan', 'Ștefan Mihai Țiriac'],
+    ['  Ţiriac\t ȘTEFAN  ', 'Ștefan Țiriac'],
+    ['pop ana', 'Ana Popescu'],
+    ['ana ana', 'Ana Popescu'],
+  ])('matches all words in %s against %s in any order', (query, name) => {
+    expect(matchesCheckInSearch([name], checkInSearchTerms(query))).toBe(true)
+  })
+  it('requires all terms and supports contact searches alongside names', () => {
+    const values = ['Ana Popescu', 'ana@example.com', '+40 712 345 678']
+    expect(matchesCheckInSearch(values, checkInSearchTerms('popescu missing'))).toBe(false)
+    expect(matchesCheckInSearch(values, checkInSearchTerms('ana @example.com 712'))).toBe(true)
+    expect(matchesCheckInSearch(values, checkInSearchTerms('  '))).toBe(true)
+  })
+  it.each([
+    ['stefan', 'Ștefan'],
+    ['ȘTEFAN', 'Stefan'],
+    ['Ştefan', 'Ștefan'],
+    ['tudor tiriac', 'Tudor Țiriac'],
+    ['Țiriac', 'Tiriac'],
+    ['ţiriac', 'Țiriac'],
+    ['calin', 'Călin'],
+    ['CĂLIN', 'Calin'],
+    ['parvu', 'Pârvu'],
+    ['Pârvu', 'Parvu'],
+    ['marian', 'Marîan'],
+    ['Marîan', 'Marian'],
+    ['stefan', 'S\u0326tefan'],
+    ['S\u0327tefan', 'Ștefan'],
+    ['calin', 'Ca\u0306lin'],
+  ])('matches %s against %s locally and in the database pattern', (query, name) => {
+    expect(normalizeCheckInSearch(name).includes(normalizeCheckInSearch(query))).toBe(true)
+    expect(new RegExp(checkInSearchPattern(query), 'i').test(name)).toBe(true)
+  })
+  it.each([
+    '[Ana]',
+    'Ștefan (VIP)',
+    'ana+checkin@example.com',
+    '+40 712 345 678',
+    '.*',
+    '$^',
+    'a|b',
+    '\\',
+  ])('treats punctuation in %s literally', (query) => {
+    const pattern = new RegExp(`^${checkInSearchPattern(query)}$`, 'i')
+    expect(pattern.test(query)).toBe(true)
+    expect(pattern.test('Unrelated participant')).toBe(false)
+  })
+  it('keeps partial matching and distinguishes different letters', () => {
+    expect(new RegExp(checkInSearchPattern('stefan'), 'i').test('Ștefania')).toBe(true)
+    expect(new RegExp(checkInSearchPattern('stefan'), 'i').test('Stevan')).toBe(false)
   })
 })

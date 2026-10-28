@@ -29,6 +29,9 @@ import {
 import { colorField } from '@/fields/color-picker/field'
 import { AGE_GROUP_ERROR, isAgeGroup } from '@/utilities/eventPayment'
 import { getRegistrationImportBatch } from '@/utilities/eventRegistrationImportContext'
+import { guardRegistrationOperation, recordRegistrationOperation } from './operationHooks'
+import { eventOperationAccess } from '../EventOperations'
+import { operationState, releaseEventOperation } from '@/utilities/eventOperationGuard'
 
 import {
   MetaDescriptionField,
@@ -288,8 +291,10 @@ export const Events: CollectionConfig<'events'> = {
                             {
                               name: 'capacity',
                               type: 'number',
+                              min: 0,
                               admin: {
                                 width: '50%',
+                                description: 'Număr de persoane, inclusiv însoțitorii.',
                               },
                             },
                             {
@@ -397,6 +402,26 @@ export const Events: CollectionConfig<'events'> = {
         ],
       },
     },
+    ...['registrationRevision', 'registrationIdentityRevision'].map((name) => ({
+      name,
+      type: 'number' as const,
+      defaultValue: 0,
+      hidden: true,
+      admin: { hidden: true },
+      access: { create: () => false, update: () => false },
+    })),
+    ...['registrationLockToken', 'registrationLastToken'].map((name) => ({
+      name,
+      type: 'text' as const,
+      hidden: true,
+      access: { create: () => false, update: () => false },
+    })),
+    {
+      name: 'registrationLockUntil',
+      type: 'date',
+      hidden: true,
+      access: { create: () => false, update: () => false },
+    },
     // This field is only used to populate the user data via the `populateAuthors` hook
     // This is because the `user` collection has access control locked to protect user privacy
     // GraphQL will also not return mutated user data that differs from the underlying schema
@@ -474,6 +499,7 @@ export const EventRegistrations: CollectionConfig = {
   indexes: [
     { fields: ['event', 'email', 'status'] },
     { fields: ['event', 'day', 'slot', 'status'] },
+    { fields: ['event', 'createdAt'] },
   ],
   labels: {
     plural: 'Înregistrări Evenimente',
@@ -488,12 +514,21 @@ export const EventRegistrations: CollectionConfig = {
 
   access: {
     create: () => true, // allow public signup
-    read: authenticated,
-    delete: authenticated,
-    update: authenticated,
+    read: eventOperationAccess,
+    delete: () => false, // Cancellation preserves payment and activity history.
+    update: eventOperationAccess,
   },
 
   fields: [
+    {
+      name: 'operationVersion',
+      type: 'number',
+      defaultValue: 0,
+      admin: { readOnly: true, hidden: true },
+    },
+    { name: 'lastHandledBy', type: 'relationship', relationTo: 'users', admin: { readOnly: true } },
+    { name: 'lastHandledName', type: 'text', admin: { readOnly: true } },
+    { name: 'lastHandledAt', type: 'date', admin: { readOnly: true } },
     {
       name: 'event',
       type: 'relationship',
@@ -624,6 +659,7 @@ export const EventRegistrations: CollectionConfig = {
       ({ data, originalDoc, operation, req }) => {
         const ageGroup = data?.ageGroup === undefined ? originalDoc?.ageGroup : data.ageGroup
         const requiresAge =
+          !operationState(req.context).undoOf &&
           !req.context.eventRegistrationImport &&
           (operation === 'create' || data?.status === 'present')
         if ((requiresAge || ageGroup != null) && !isAgeGroup(ageGroup)) {
@@ -689,85 +725,24 @@ export const EventRegistrations: CollectionConfig = {
           )
         }
 
-        if (data.email) {
-          const existing = await req.payload.find({
-            collection: 'event-registrations',
-            limit: 1,
-            depth: 0,
-            pagination: false,
-            select: { email: true },
-            req,
-            where: {
-              and: [
-                {
-                  email: {
-                    equals: data.email,
-                  },
-                },
-                {
-                  event: {
-                    equals: eventId,
-                  },
-                },
-                {
-                  status: {
-                    not_equals: 'cancelled',
-                  },
-                },
-              ],
-            },
-          })
-
-          if (existing.docs.length > 0) {
-            throw new APIError(
-              'Te-ai înscris deja la acest eveniment cu această adresă de email.',
-              409,
-            )
-          }
-        }
-
-        const existingForSlot =
-          !req.context.eventRegistrationWalkIn &&
-          (await req.payload.count({
-            collection: 'event-registrations',
-            req,
-            where: {
-              and: [
-                {
-                  event: {
-                    equals: eventId,
-                  },
-                },
-                {
-                  day: {
-                    equals: day.id,
-                  },
-                },
-                {
-                  slot: {
-                    equals: slot.id,
-                  },
-                },
-                {
-                  status: {
-                    not_equals: 'cancelled',
-                  },
-                },
-              ],
-            },
-          }))
-
-        if (existingForSlot && existingForSlot.totalDocs >= (slot.capacity ?? 0)) {
-          throw new APIError(
-            `${formatEventDayLabel(day.eventDate)}, ${formatEventSlotLabel(slot.startTime, slot.endTime)} este complet.`,
-            409,
-          )
-        }
-
         return data
       },
     ],
+    beforeChange: [guardRegistrationOperation],
+    afterOperation: [
+      async ({ result, req, operation }) => {
+        if (['create', 'update', 'updateByID'].includes(operation))
+          await releaseEventOperation(req.payload, req.context.eventOperationState, req)
+        return result
+      },
+    ],
+    afterError: [
+      async ({ req }) => {
+        await releaseEventOperation(req.payload, operationState(req.context))
+      },
+    ],
     afterChange: [
+      recordRegistrationOperation,
       async ({ doc, operation, req }) => {
         if (!doc.email) return doc
         if (operation !== 'create' || doc.status !== 'registered') return doc

@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import { ChevronDown, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, History, Trash2, Upload } from 'lucide-react'
 
 export function CheckInActionsMenu(props: {
   onImport: () => void
   onRemoveDuplicates: () => void
+  onHistory?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
@@ -107,6 +108,19 @@ export function CheckInActionsMenu(props: {
           >
             <Trash2 aria-hidden className="size-4" /> Elimină duplicatele…
           </button>
+          {props.onHistory && (
+            <button
+              type="button"
+              role="menuitem"
+              className={itemClass}
+              onClick={() => {
+                close()
+                props.onHistory?.()
+              }}
+            >
+              <History aria-hidden className="size-4" /> Istoric și anulare modificări
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -20,6 +20,7 @@ import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
 import { DEFAULT_CUSTOM_MAIL_SENDER } from './utilities/customCandidateMail'
 import { EventRegistrations, Events } from './collections/Events'
+import { EventActivity, EventShifts, EventClosings } from './collections/EventOperations'
 import { Partners } from './Partners/config'
 import { Causes, Sponsors } from './collections/Partners'
 import { TeamBlock } from './blocks/TeamBlock/config'
@@ -138,6 +139,9 @@ export default buildConfig({
     AbsenceMotivations,
     Events,
     EventRegistrations,
+    EventActivity,
+    EventShifts,
+    EventClosings,
     Sponsors,
     Causes,
     Payments,

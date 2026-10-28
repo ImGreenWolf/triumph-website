@@ -270,12 +270,10 @@ function capacityPayload(initial: Array<Record<string, unknown>> = [], failedNam
         ),
       ),
     )
-  const find = vi
-    .fn()
-    .mockImplementation(async ({ where }) => ({
-      docs: matches(where),
-      totalDocs: matches(where).length,
-    }))
+  const find = vi.fn().mockImplementation(async ({ where }) => ({
+    docs: matches(where),
+    totalDocs: matches(where).length,
+  }))
   const count = vi
     .fn()
     .mockImplementation(async ({ where }) => ({ totalDocs: matches(where).length }))
@@ -441,10 +439,10 @@ describe('bulk import query scaling', () => {
     const result = await importParticipantsFromCSV({ csv, event: largeEvent, payload, user: null })
     expect(result.created).toHaveLength(2000)
     expect(result.errors).toEqual([])
-    expect(payload.find).toHaveBeenCalledTimes(4)
-    expect(payload.count).toHaveBeenCalledOnce()
+    expect(payload.find).toHaveBeenCalledTimes(5)
+    expect(payload.count).not.toHaveBeenCalled()
     expect(payload.create).toHaveBeenCalledTimes(2000)
-    for (const [args] of payload.find.mock.calls) {
+    for (const [args] of payload.find.mock.calls.filter(([args]) => args.select.email)) {
       expect(args).toMatchObject({ depth: 0, pagination: false, select: { email: true } })
       expect(args.where.and[1].email.in).toHaveLength(500)
     }

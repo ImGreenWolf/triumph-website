@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { checkInSearchPattern, checkInSearchTerms } from '../../src/utilities/eventCheckInSearch'
 
 test.describe('single-result search shortcut', () => {
   test.beforeEach(async ({ page }) => {
@@ -76,7 +77,7 @@ test.describe('single-result search shortcut', () => {
     ).toBeVisible()
   })
 
-  test('requires a nonempty search and respects current filters and zero results', async ({
+  test('requires a nonempty search for confirmation and offers add participant for zero results', async ({
     page,
   }) => {
     const search = page.getByRole('searchbox')
@@ -101,7 +102,59 @@ test.describe('single-result search shortcut', () => {
     await page.clock.runFor(250)
     await search.press('Enter')
     await expect(action).toHaveCount(0)
+    await expect(
+      page.getByRole('dialog').getByRole('heading', { name: 'Adaugă participant la eveniment' }),
+    ).toBeVisible()
+  })
+
+  test('waits 250 ms for an empty result, ignores modified Enter and restores search focus', async ({
+    page,
+  }) => {
+    const search = page.getByRole('searchbox')
+    const action = page.getByRole('button', { name: 'Adaugă participant nou' })
+    await search.fill('participant inexistent')
+    await page.clock.runFor(249)
+    await expect(action).toHaveCount(0)
+    await search.press('Enter')
     await expect(page.getByRole('dialog')).toHaveCount(0)
+    await page.clock.runFor(1)
+    await expect(action).toBeVisible()
+    await expect(search).toHaveAttribute('aria-keyshortcuts', 'Enter')
+    for (const flags of [
+      { isComposing: true },
+      { keyCode: 229 },
+      { repeat: true },
+      { ctrlKey: true },
+      { shiftKey: true },
+    ]) {
+      await search.dispatchEvent('keydown', { key: 'Enter', ...flags })
+      await expect(page.getByRole('dialog')).toHaveCount(0)
+    }
+    await search.press('Enter')
+    await expect(
+      page.getByRole('dialog').getByRole('textbox', { name: 'Nume *', exact: true }),
+    ).toBeFocused()
+    await page.getByRole('button', { name: 'Închide', exact: true }).click()
+    await expect(search).toBeFocused()
+    await expect(action).toHaveCount(0)
+    await search.fill('ana')
+    await page.clock.runFor(250)
+    await expect(
+      page.getByRole('button', { name: /Deschide confirmarea pentru Ana/ }),
+    ).toBeVisible()
+    await expect(action).toHaveCount(0)
+  })
+
+  test('opens add participant when the whole list is empty without a search query', async ({
+    page,
+  }) => {
+    await page.goto('/?mode=list&empty-list=1')
+    const search = page.getByRole('searchbox')
+    await search.focus()
+    await page.clock.runFor(250)
+    await expect(page.getByRole('button', { name: 'Adaugă participant nou' })).toBeVisible()
+    await search.press('Enter')
+    await expect(page.getByRole('dialog')).toHaveAccessibleName('Adaugă participant la eveniment')
   })
 
   test('ignores composing, repeated and modified Enter keys', async ({ page }) => {
@@ -1033,4 +1086,433 @@ test('check-in attendance statistic handles no arrivals, zero capacity, and exce
   await page.goto('/?mode=list&present-guests=0')
   await expect(statistic).toContainText('1 persoană prezentă')
   await expect(statistic).toContainText('0,3% din capacitate (1 / 300)')
+})
+
+async function mockRemoteOperations(context: import('@playwright/test').BrowserContext) {
+  let revision = 1
+  const rows = Array.from({ length: 201 }, (_, i) => ({
+    id: `r${i + 1}`,
+    name: `Participant ${String(i + 1).padStart(3, '0')}`,
+    email: `p${i + 1}@example.com`,
+    phone: '',
+    day: 'day',
+    slot: 'slot',
+    guests: 0,
+    donation: i === 0 ? 30.15 : 0,
+    consumptionAmount: i === 0 ? 20.25 : null,
+    ageGroup: 'adult',
+    status: i === 0 ? 'present' : 'registered',
+    createdAt: '2026-10-27T12:00:00Z',
+    timeOfArrival: null,
+    operationVersion: 1,
+    lastHandledName: i === 0 ? 'Maria Voluntar' : '',
+    lastHandledAt: null,
+  }))
+  let shift = {
+    id: 'shift',
+    day: 'day',
+    slot: 'slot',
+    members: [{ id: 'staff', name: 'Maria Voluntar' }],
+    handoverNote: 'Registrul și restul sunt pregătite pentru următoarea echipă.',
+    updatedBy: 'Maria Voluntar',
+    updatedAt: '2026-10-27T12:00:00Z',
+    closing: null as any,
+  }
+  let logs = [
+    {
+      id: 'log',
+      action: 'check-in',
+      actorName: 'Maria Voluntar',
+      createdAt: '2026-10-27T12:00:00Z',
+      registrationId: 'r1',
+      participantName: rows[0].name,
+      reason: '',
+      version: 1,
+      canUndo: true,
+      changes: [{ field: 'status', before: 'registered', after: 'present' }],
+    },
+  ]
+  const requests: URL[] = [],
+    mutations: any[] = []
+  const summary = () => {
+    const present = rows.filter((row) => row.status === 'present')
+    const donation = Math.round(present.reduce((sum, row) => sum + row.donation * 100, 0)) / 100,
+      consumptionAmount =
+        Math.round(present.reduce((sum, row) => sum + (row.consumptionAmount || 0) * 100, 0)) / 100
+    return {
+      day: 'day',
+      slot: 'slot',
+      capacity: 500,
+      activeCount: rows.length,
+      reservedPeople: rows.length,
+      presentCount: present.length,
+      presentPeople: present.length,
+      pendingPeople: rows.length - present.length,
+      absentCount: 0,
+      donation,
+      consumptionAmount,
+      totalCollected: Math.round((donation + consumptionAmount) * 100) / 100,
+      legacyConsumptionCount: 0,
+    }
+  }
+  await context.route('**/members/projects/data?**', async (route) => {
+    const url = new URL(route.request().url())
+    requests.push(url)
+    if (route.request().headers()['if-none-match'] === `"${revision}"`)
+      return route.fulfill({ status: 304 })
+    const s = summary(),
+      q = url.searchParams.get('q') || '',
+      status = url.searchParams.get('status'),
+      selected = url.searchParams.get('shift')
+    let filtered = rows.filter(
+      (row) =>
+        (!q ||
+          checkInSearchTerms(q).every((term) =>
+            [row.name, row.email, row.phone].some((value) =>
+              new RegExp(checkInSearchPattern(term), 'i').test(value),
+            ),
+          )) &&
+        (selected === 'all' || !selected || `${row.day}:${row.slot}` === selected) &&
+        (!status || status === 'all' || row.status === status),
+    )
+    if (url.searchParams.get('sort') === 'participant')
+      filtered = [...filtered].sort(
+        (a, b) =>
+          a.name.localeCompare(b.name) *
+          (url.searchParams.get('direction') === 'descending' ? -1 : 1),
+      )
+    const pageNumber = Math.min(
+      Math.max(1, Number(url.searchParams.get('page') || 1)),
+      Math.max(1, Math.ceil(filtered.length / 100)),
+    )
+    const metrics = {
+      activeCount: 201,
+      presentCount: s.presentCount,
+      absentCount: 0,
+      activePeople: 201,
+      unprocessed: 201 - s.presentCount,
+      capacity: 1500,
+      funds: s.donation,
+      consumptionAmount: s.consumptionAmount,
+      totalCollected: s.totalCollected,
+      legacyConsumptionCount: 0,
+      companions: 0,
+      peoplePresent: s.presentPeople,
+      attendanceRate: 100,
+      averageDonation: s.donation / s.presentCount,
+      averageGroupSize: 1,
+      checkInProgress: 1,
+      donationPerPerson: s.donation / s.presentCount,
+      missingDonations: 0,
+      noShowRate: 0,
+      occupancy: 13,
+      remainingCapacity: 1299,
+      topSlotLabel: '21 iunie',
+      days: [],
+    }
+    return route.fulfill({
+      headers: { ETag: `"${revision}"` },
+      json: {
+        eventId: 'event',
+        viewerId: 'staff',
+        revision,
+        event: {},
+        page: pageNumber,
+        totalDocs: filtered.length,
+        totalPages: Math.max(1, Math.ceil(filtered.length / 100)),
+        registrations: filtered.slice((pageNumber - 1) * 100, pageNumber * 100),
+        warnings: {},
+        metrics,
+        slots: [
+          s,
+          {
+            ...s,
+            day: 'earlier',
+            slot: 'early',
+            activeCount: 0,
+            reservedPeople: 0,
+            presentCount: 0,
+            presentPeople: 0,
+            pendingPeople: 0,
+          },
+        ],
+        recentRegistrations: [],
+        shifts: [shift],
+      },
+    })
+  })
+  await context.route('**/members/projects/check-in', async (route) => {
+    const body = route.request().postDataJSON()
+    mutations.push(body)
+    const row = rows.find((row) => row.id === body.registrationId)!
+    if (body.expectedVersion !== row.operationVersion)
+      return route.fulfill({
+        status: 409,
+        json: {
+          message: 'Alt membru a modificat această înscriere. Verifică datele actualizate.',
+          registration: row,
+        },
+      })
+    Object.assign(row, {
+      ...body,
+      donation: body.totalCollected - 20 * (1 + body.guests),
+      consumptionAmount: 20 * (1 + body.guests),
+      status: 'present',
+      operationVersion: row.operationVersion + 1,
+      lastHandledName: 'Maria Voluntar',
+      lastHandledAt: '2026-10-27T13:00:00Z',
+    })
+    revision++
+    return route.fulfill({ json: { registration: row } })
+  })
+  await context.route('**/members/projects/operations**', async (route) => {
+    if (route.request().method() === 'GET')
+      return route.fulfill({ json: { items: logs, page: 1, totalPages: 1 } })
+    const body = route.request().postDataJSON()
+    mutations.push(body)
+    revision++
+    if (body.action === 'close-shift')
+      shift = {
+        ...shift,
+        closing: {
+          ...summary(),
+          id: 'closing',
+          actorName: 'Manager',
+          createdAt: '2026-10-27T13:00:00Z',
+          countedAmount: Number(body.countedAmount),
+          difference:
+            Math.round((Number(body.countedAmount) - summary().totalCollected) * 100) / 100,
+          note: body.note,
+        },
+      }
+    if (body.action === 'reopen-shift') shift = { ...shift, closing: null }
+    if (body.action === 'save-shift') shift = { ...shift, handoverNote: body.handoverNote }
+    if (body.action === 'undo')
+      logs = [{ ...logs[0], id: 'undo', action: 'undo', reason: body.reason, canUndo: false }]
+    return route.fulfill({ json: { message: 'Salvat' } })
+  })
+  return { requests, mutations, rows }
+}
+
+for (const width of [320, 1440]) {
+  test(`remote shift operations and reconciliation at ${width}px`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const state = await mockRemoteOperations(context)
+    await page.goto('/?mode=list&remote=1&manager=1&warnings=1&slot-capacity=500')
+    const shifts = page.getByRole('combobox', { name: 'Filtrează după tură' })
+    await expect(shifts).toHaveValue('earlier:early')
+    await shifts.selectOption('day:slot')
+    const panel = page.getByRole('region', { name: 'Tura selectată' })
+    await expect(panel).toContainText('Maria Voluntar')
+    await expect(panel).toContainText('Registrul și restul')
+    await expect(page.locator('tbody tr')).toHaveCount(100)
+    await expect(
+      page.getByRole('status', { name: 'Prezență la eveniment', exact: true }),
+    ).toContainText('1 persoană prezentă')
+    await panel.screenshot({ path: `/tmp/event-shift-${width}.png` })
+    await page.getByRole('button', { name: 'Închide tura', exact: true }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('spinbutton')).toBeFocused()
+    await expect(dialog).toContainText('50,40')
+    await dialog.getByRole('spinbutton').fill('50.39')
+    await expect(dialog.getByRole('button', { name: 'Confirmă închiderea' })).toBeDisabled()
+    await dialog.getByRole('textbox').fill('Diferență verificată în registru')
+    await expect(dialog.getByRole('button', { name: 'Confirmă închiderea' })).toBeEnabled()
+    await expect(dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).resolves.toBe(true)
+    await dialog.screenshot({ path: `/tmp/event-closing-${width}.png` })
+    await dialog.getByRole('button', { name: 'Confirmă închiderea' }).click()
+    await expect(panel).toContainText('Tură închisă')
+    expect(state.mutations.at(-1)).toMatchObject({
+      action: 'close-shift',
+      countedAmount: '50.39',
+      note: 'Diferență verificată în registru',
+    })
+    await page.getByRole('button', { name: 'Redeschide tura', exact: true }).click()
+    await dialog.getByRole('textbox').fill('Corectare aprobată de manager')
+    await dialog.getByRole('button', { name: 'Confirmă redeschiderea' }).click()
+    await expect(panel).not.toContainText('Tură închisă')
+    await page.getByRole('button', { name: 'Acțiuni' }).click()
+    await page.getByRole('menuitem', { name: 'Istoric și anulare modificări' }).click()
+    await expect(dialog).toContainText('Maria Voluntar')
+    await dialog.getByRole('button', { name: 'Anulează această modificare…' }).click()
+    await dialog
+      .getByRole('textbox', { name: 'Motivul anulării' })
+      .fill('Participant confirmat din greșeală')
+    await dialog.screenshot({ path: `/tmp/event-history-${width}.png` })
+    await dialog.getByRole('button', { name: 'Confirmă anularea', exact: true }).click()
+    await expect(dialog).toContainText('Modificare anulată')
+  })
+}
+
+test('remote pagination, sorting, and single-result shortcut query the full event', async ({
+  page,
+  context,
+}) => {
+  const state = await mockRemoteOperations(context)
+  await page.goto('/?mode=list&remote=1&manager=1&warnings=1&slot-capacity=500')
+  await page.getByRole('combobox', { name: 'Filtrează după tură' }).selectOption('day:slot')
+  await expect(page.locator('tbody tr')).toHaveCount(100)
+  await page.getByRole('button', { name: 'Pagina următoare' }).first().click()
+  await expect(page.locator('tbody tr').first()).toContainText('Participant 101')
+  await page.getByRole('button', { name: 'Sortează după Participant, crescător' }).click()
+  await page.getByRole('button', { name: 'Sortează după Participant, descrescător' }).click()
+  await expect(page.locator('tbody tr').first()).toContainText('Participant 201')
+  const search = page.getByRole('searchbox')
+  await search.fill('Participant 201')
+  await expect(
+    page.getByRole('button', { name: /Deschide confirmarea pentru Participant 201/ }),
+  ).toBeVisible()
+  await search.press('Enter')
+  await expect(page.getByRole('dialog')).toContainText('Participant 201')
+  expect(state.requests.some((url) => url.searchParams.get('page') === '2')).toBe(true)
+  expect(state.requests.some((url) => url.searchParams.get('direction') === 'descending')).toBe(
+    true,
+  )
+  expect(state.requests.at(-1)?.searchParams.get('q')).toBe('Participant 201')
+})
+
+test('two check-in devices reject stale confirmation and refresh live attendance', async ({
+  page,
+  context,
+}) => {
+  await mockRemoteOperations(context)
+  const second = await context.newPage()
+  for (const device of [page, second]) {
+    await device.goto('/?mode=list&remote=1&manager=1&warnings=1&slot-capacity=500')
+    await device.getByRole('combobox', { name: 'Filtrează după tură' }).selectOption('day:slot')
+    await device.getByRole('searchbox').fill('Participant 201')
+    await device
+      .getByRole('button', { name: /Deschide confirmarea pentru Participant 201/ })
+      .click()
+    await device.getByRole('dialog').getByRole('spinbutton', { name: 'Total încasat' }).fill('50')
+  }
+  await page.getByRole('button', { name: 'Confirmă check-in', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await second.getByRole('button', { name: 'Confirmă check-in', exact: true }).click()
+  await expect(second.getByRole('dialog')).toContainText('Alt membru a modificat')
+  await expect(second.getByRole('dialog')).toContainText('Maria Voluntar')
+  await second.getByRole('button', { name: 'Închide', exact: true }).click()
+  await expect(
+    second.getByRole('status', { name: 'Prezență la eveniment', exact: true }),
+  ).toContainText('2 persoane prezente')
+})
+
+for (const width of [320, 1440]) {
+  test(`Romanian check-in search ignores diacritics and word order at ${width}px`, async ({
+    page,
+    context,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/?mode=list')
+    const search = page.getByRole('searchbox', { name: 'Caută participanți' })
+    for (const query of ['stefan', 'ȘTEFAN', 'Ştefan', 'S\u0326tefan']) {
+      await search.fill(query)
+      await expect(
+        page.getByRole('button', { name: 'Deschide confirmarea pentru Ștefan' }),
+      ).toBeVisible()
+    }
+    await search.press('Enter')
+    await expect(
+      page.getByRole('dialog').getByRole('heading', { name: 'Ștefan', exact: true }),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Închide', exact: true }).click()
+    await page.goto('/?mode=list&long-name=1')
+    for (const query of ['popescu ana', 'ANA POPESCU', '  popescu    ana  ']) {
+      await search.fill(query)
+      await expect(
+        page.getByRole('button', { name: /Deschide confirmarea pentru Ana Popescu/ }),
+      ).toBeVisible()
+    }
+    await search.press('Enter')
+    await expect(page.getByRole('dialog')).toContainText('Ana Popescu')
+    await page.getByRole('button', { name: 'Închide', exact: true }).click()
+    const state = await mockRemoteOperations(context)
+    state.rows.at(-1)!.name = 'Ștefan Țiriac'
+    await page.goto('/?mode=list&remote=1&manager=1&warnings=1&slot-capacity=500')
+    await page.getByRole('combobox', { name: 'Filtrează după tură' }).selectOption('day:slot')
+    for (const query of [
+      'stefan tiriac',
+      'Ștefan Țiriac',
+      'ŞTEFAN ŢIRIAC',
+      '  tiriac   stefan  ',
+      'ŢIRIAC ȘTEFAN',
+    ]) {
+      await search.fill(query)
+      await expect(
+        page.getByRole('button', { name: 'Deschide confirmarea pentru Ștefan Țiriac' }),
+      ).toBeVisible()
+      await expect(page.locator('tbody tr')).toHaveCount(1)
+    }
+    await search.press('Enter')
+    await expect(page.getByRole('dialog')).toContainText('Ștefan Țiriac')
+    expect(state.requests.at(-1)?.searchParams.get('q')).toBe('ŢIRIAC ȘTEFAN')
+  })
+}
+
+for (const width of [320, 1440]) {
+  test(`empty-result add participant shortcut at ${width}px is visible and clickable`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const writes: string[] = []
+    page.on('request', (request) => {
+      if (request.url().includes('/members/projects/check-in') && request.method() !== 'GET')
+        writes.push(request.method())
+    })
+    await page.goto('/?mode=list')
+    const search = page.getByRole('searchbox')
+    await search.fill('Participant nou')
+    const action = page.getByRole('button', { name: 'Adaugă participant nou' })
+    await expect(action).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: `/tmp/checkin-empty-search-${width}.png`, fullPage: true })
+    await action.click()
+    await expect(page.getByRole('dialog')).toHaveAccessibleName('Adaugă participant la eveniment')
+    await expect(
+      page.getByRole('dialog').getByRole('textbox', { name: 'Nume *', exact: true }),
+    ).toBeFocused()
+    expect(writes).toEqual([])
+    await page.getByRole('button', { name: 'Închide', exact: true }).click()
+    await expect(search).toBeFocused()
+  })
+}
+
+test('empty-result shortcut waits for server results and stays disabled on refresh failures', async ({
+  page,
+  context,
+}) => {
+  await mockRemoteOperations(context)
+  let release: (() => void) | undefined
+  let fail = false
+  await page.route('**/members/projects/data?**', async (route) => {
+    if (fail)
+      return route.fulfill({ status: 503, json: { message: 'Lista este temporar indisponibilă.' } })
+    if (new URL(route.request().url()).searchParams.get('q') === 'Participant nou' && !release)
+      await new Promise<void>((resolve) => {
+        release = resolve
+      })
+    await route.fallback()
+  })
+  await page.goto('/?mode=list&remote=1&manager=1&warnings=1')
+  await page.getByRole('combobox', { name: 'Filtrează după tură' }).selectOption('day:slot')
+  await expect(page.locator('tbody tr')).toHaveCount(100)
+  const search = page.getByRole('searchbox')
+  await search.fill('Participant nou')
+  await expect.poll(() => Boolean(release)).toBe(true)
+  await search.press('Enter')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Adaugă participant nou' })).toHaveCount(0)
+  release!()
+  await expect(page.getByRole('button', { name: 'Adaugă participant nou' })).toBeVisible()
+  fail = true
+  await page.getByRole('button', { name: 'Actualizează', exact: true }).click()
+  await expect(page.getByText(/Actualizarea este întreruptă/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Adaugă participant nou' })).toHaveCount(0)
+  await search.press('Enter')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  fail = false
+  await page.getByRole('button', { name: 'Actualizează', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Adaugă participant nou' })).toBeVisible()
+  await search.press('Enter')
+  await expect(page.getByRole('dialog')).toHaveAccessibleName('Adaugă participant la eveniment')
 })

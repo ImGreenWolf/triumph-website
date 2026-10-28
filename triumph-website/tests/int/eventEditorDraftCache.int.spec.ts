@@ -107,7 +107,11 @@ describe('bulk registration cache invalidation', () => {
       event,
       user: null,
       invalidate,
-      payload: { create, find: vi.fn(), count: vi.fn().mockResolvedValue({ totalDocs: 0 }) },
+      payload: {
+        create,
+        find: vi.fn().mockResolvedValue({ docs: [] }),
+        count: vi.fn().mockResolvedValue({ totalDocs: 0 }),
+      },
     })
     expect(result.created).toHaveLength(2)
     expect(result.errors).toHaveLength(1)

@@ -50,9 +50,18 @@ interface DigitProps {
   animateChanges?: boolean
   animateOnMount?: boolean
   digitStyle?: React.CSSProperties
+  decimalSeparator?: string
 }
 
-function Digit({ animateChanges, animateOnMount, digitStyle, height, place, value }: DigitProps) {
+function Digit({
+  animateChanges,
+  animateOnMount,
+  digitStyle,
+  height,
+  place,
+  value,
+  decimalSeparator = '.',
+}: DigitProps) {
   // Decimal point digit
   if (place === '.') {
     return (
@@ -60,7 +69,7 @@ function Digit({ animateChanges, animateOnMount, digitStyle, height, place, valu
         className="relative inline-flex items-center justify-center"
         style={{ height, width: 'fit-content', ...digitStyle }}
       >
-        .
+        {decimalSeparator}
       </span>
     )
   }
@@ -109,6 +118,7 @@ function Digit({ animateChanges, animateOnMount, digitStyle, height, place, valu
 
 interface CounterProps {
   value: number
+  decimalSeparator?: string
   animateChanges?: boolean
   animateOnMount?: boolean
   fontSize?: number
@@ -138,6 +148,7 @@ interface CounterProps {
 
 export default function Counter({
   value,
+  decimalSeparator = '.',
   animateChanges = true,
   animateOnMount = false,
   fontSize = 100,
@@ -226,6 +237,7 @@ export default function Counter({
       <span style={{ ...defaultCounterStyle, ...counterStyle }}>
         {places.map((place) => (
           <Digit
+            decimalSeparator={decimalSeparator}
             animateChanges={animateChanges && !reducedMotion}
             animateOnMount={shouldAnimateMount}
             digitStyle={digitStyle}

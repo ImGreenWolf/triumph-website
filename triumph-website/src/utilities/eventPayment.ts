@@ -1,5 +1,14 @@
 export type AgeGroup = 'minor' | 'adult'
 
+export function parseCountedMoneyBani(value: unknown) {
+  if (typeof value !== 'string' && typeof value !== 'number') return null
+  const text = String(value).trim().replace(',', '.')
+  if (!/^\d{1,12}(?:\.\d{1,2})?$/.test(text)) return null
+  const [whole, fraction = ''] = text.split('.')
+  const bani = Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
+  return Number.isSafeInteger(bani) ? bani : null
+}
+
 export const AGE_GROUP_ERROR = 'Selectează Minor (sub 18 ani) sau Major (18+).'
 
 export function isAgeGroup(value: unknown): value is AgeGroup {

@@ -1,3 +1,5 @@
+import { slotPeople } from '@/utilities/eventMongo'
+import { createEventOperationState, releaseEventOperation } from '@/utilities/eventOperationGuard'
 import type { Payload, PayloadRequest, RequiredDataFromCollectionSlug } from 'payload'
 
 import type { Event, EventRegistration } from '@/payload-types'
@@ -239,6 +241,7 @@ export async function importParticipantsFromCSV(args: {
     for (const row of parsed.rows) {
       let selection = { day: row.data.day, slot: row.data.slot }
       let attemptedCreate = false
+      const operationState = createEventOperationState()
       try {
         if (row.email && existingEmails.has(row.email)) {
           result.skipped.push({
@@ -255,19 +258,7 @@ export async function importParticipantsFromCSV(args: {
             const key = slotKey(candidate.day, candidate.slot)
             let count = occupancy.get(key)
             if (count === undefined) {
-              const current = await args.payload.count({
-                collection: 'event-registrations',
-                overrideAccess: true,
-                where: {
-                  and: [
-                    { event: { equals: args.event.id } },
-                    { day: { equals: candidate.day } },
-                    { slot: { equals: candidate.slot } },
-                    { status: { not_equals: 'cancelled' } },
-                  ],
-                },
-              })
-              count = current.totalDocs
+              count = await slotPeople(args.payload, args.event.id, candidate.day, candidate.slot)
               occupancy.set(key, count)
             }
             if (count < candidate.capacity) {
@@ -284,15 +275,30 @@ export async function importParticipantsFromCSV(args: {
         attemptedCreate = true
         const created = await args.payload.create({
           collection: 'event-registrations',
-          context: { eventRegistrationImport: true, eventRegistrationImportBatch: batch },
+          context: {
+            eventRegistrationImport: true,
+            eventRegistrationImportBatch: batch,
+            eventOperationState: operationState,
+          },
           data: { ...row.data, ...selection },
           depth: 0,
           overrideAccess: true,
           user: args.user,
         })
+        if (operationState.event) {
+          if (batch.capacityState.token !== operationState.previousToken) occupancy.clear()
+          batch.capacityState.token = operationState.token
+          if (operationState.capacity) {
+            batch.capacityState.counts.set(
+              operationState.capacity.key,
+              operationState.capacity.people,
+            )
+            occupancy.set(operationState.capacity.key, operationState.capacity.people)
+          }
+        }
         if (row.email) existingEmails.add(row.email)
         const key = slotKey(selection.day, selection.slot)
-        if (occupancy.has(key)) occupancy.set(key, occupancy.get(key)! + 1)
+        if (!operationState.event && occupancy.has(key)) occupancy.set(key, occupancy.get(key)! + 1)
         result.created.push({
           email: created.email ?? row.email,
           id: created.id,
@@ -300,6 +306,7 @@ export async function importParticipantsFromCSV(args: {
           row: row.row,
         })
       } catch (error) {
+        await releaseEventOperation(args.payload as Payload, operationState)
         // A concurrent registration may have changed availability. Refresh on the next row.
         if (attemptedCreate) occupancy.delete(slotKey(selection.day, selection.slot))
         result.errors.push({

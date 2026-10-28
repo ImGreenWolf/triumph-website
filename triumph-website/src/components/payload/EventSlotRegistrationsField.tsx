@@ -37,8 +37,14 @@ export default function EventSlotRegistrationsField(props: UIFieldClientProps) {
       : typeof data?.id === 'string' || typeof data?.id === 'number'
         ? String(data.id)
         : null
-  const dayId = indices ? (getFieldValue(fields, `days.${indices.dayIndex}.id`) as string | undefined) : undefined
-  const slotId = indices ? (getFieldValue(fields, `days.${indices.dayIndex}.slots.${indices.slotIndex}.id`) as string | undefined) : undefined
+  const dayId = indices
+    ? (getFieldValue(fields, `days.${indices.dayIndex}.id`) as string | undefined)
+    : undefined
+  const slotId = indices
+    ? (getFieldValue(fields, `days.${indices.dayIndex}.slots.${indices.slotIndex}.id`) as
+        | string
+        | undefined)
+    : undefined
 
   useEffect(() => {
     if (!eventId || !dayId || !slotId) {
@@ -56,10 +62,10 @@ export default function EventSlotRegistrationsField(props: UIFieldClientProps) {
       .then(async (response) => {
         if (!response.ok) throw new Error('Failed to load slot registrations')
 
-        const json = (await response.json()) as { totalDocs?: number }
+        const json = (await response.json()) as { people?: number }
         setCountState({
           status: 'loaded',
-          count: json.totalDocs ?? 0,
+          count: json.people ?? 0,
         })
       })
       .catch((error: unknown) => {
@@ -75,10 +81,7 @@ export default function EventSlotRegistrationsField(props: UIFieldClientProps) {
   }, [dayId, eventId, slotId])
 
   return (
-    <div
-      className="field-type"
-      style={{alignSelf: 'end'}}  
-    >
+    <div className="field-type" style={{ alignSelf: 'end' }}>
       <FieldLabel label={''} />
       <Banner type={countState.status === 'error' ? 'error' : 'info'}>
         <strong>{renderCountState(countState, { dayId, eventId, slotId })}</strong>
@@ -95,20 +98,20 @@ function renderCountState(
   if (!ids.dayId || !ids.slotId) return 'Salveaza slotul pentru a vedea inscrierile.'
   if (state.status === 'error') return 'Nu am putut incarca inscrierile pentru acest slot.'
   if (state.status === 'loading' && state.count == null) return 'Se incarca...'
-  if (state.status === 'loading' && state.count != null) return `${state.count} inscrisi`
-  if (state.count != null) return `${state.count} inscrisi`
+  if (state.status === 'loading' && state.count != null)
+    return `${state.count} persoane (inclusiv însoțitori)`
+  if (state.count != null) return `${state.count} persoane (inclusiv însoțitori)`
 
-  return '0 inscrisi'
+  return '0 persoane'
 }
 
 function buildCountUrl(args: { eventId: string; dayId: string; slotId: string }) {
   const params = new URLSearchParams()
 
-  params.set('limit', '0')
-  params.set('where[and][0][event][equals]', args.eventId)
-  params.set('where[and][1][day][equals]', args.dayId)
-  params.set('where[and][2][slot][equals]', args.slotId)
-  params.set('where[and][3][status][not_equals]', 'cancelled')
+  params.set('capacity', '1')
+  params.set('eventId', args.eventId)
+  params.set('day', args.dayId)
+  params.set('slot', args.slotId)
 
-  return `/api/event-registrations?${params.toString()}`
+  return `/members/projects/data?${params.toString()}`
 }

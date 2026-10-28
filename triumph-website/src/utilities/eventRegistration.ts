@@ -1,5 +1,6 @@
 import type { Event, EventRegistration } from '@/payload-types'
 import { combineEventDateAndTime } from '@/utilities/eventDisplay'
+import { registrationPeople } from './eventPeople'
 
 type EventDay = NonNullable<Event['days']>[number]
 type EventSlot = NonNullable<NonNullable<EventDay['slots']>>[number]
@@ -64,7 +65,9 @@ export function findEventSlot(event: Pick<Event, 'days'>, dayId: string, slotId:
 
 export function getEventSlotAvailability(args: {
   event: Pick<Event, 'days'>
-  registrations: Array<Pick<EventRegistration, 'day' | 'slot' | 'status'>>
+  registrations: Array<
+    Pick<EventRegistration, 'day' | 'slot' | 'status'> & Partial<Pick<EventRegistration, 'guests'>>
+  >
   now?: Date
 }) {
   const counts = new Map<string, number>()
@@ -75,7 +78,7 @@ export function getEventSlotAvailability(args: {
     if (!registration.day || !registration.slot) continue
 
     const key = toAvailabilityKey(registration.day, registration.slot)
-    counts.set(key, (counts.get(key) ?? 0) + 1)
+    counts.set(key, (counts.get(key) ?? 0) + registrationPeople(registration))
   }
 
   return (
