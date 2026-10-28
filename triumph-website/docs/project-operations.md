@@ -6,6 +6,8 @@ Check-in search matches words in any order and ignores Romanian diacritics, incl
 
 After results are stable for 250 ms, the visible Enter shortcut opens confirmation for a single match or opens Add participant when the filtered list is empty. Pending or failed server searches cannot activate the shortcut.
 
+Opening Add participant from an empty result prefills the original search into Name, Email or Phone when it contains a name, email address or phone number. Other fields remain blank, and focus moves to the first incomplete required field. Mixed or unrecognized queries are left blank for manual entry.
+
 ## Capacity and simultaneous changes
 
 A reservation uses one place for the named participant plus one for each companion. All non-cancelled registrations reserve these places, including those marked absent. Signup, CSV import, check-in, group changes and walk-ins share the same collection hook. A manager can exceed a shift's capacity only by providing a reason, which is included in the activity history.

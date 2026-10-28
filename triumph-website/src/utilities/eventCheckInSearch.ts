@@ -31,6 +31,17 @@ export function matchesCheckInSearch(values: readonly string[], terms: readonly 
   return terms.every((term) => normalized.some((value) => value.includes(term)))
 }
 
+/** Classify the original query without changing the participant's spelling or phone format. */
+export function getParticipantSearchPrefill(query: string) {
+  const value = query.trim()
+  const fields = { name: '', email: '', phone: '' }
+  if (/^[^\s@<>:]+@[^\s@<>:]+\.[^\s@<>:]+$/.test(value)) fields.email = value
+  else if (/^\+?[\d\s().-]+$/.test(value) && /^\d{6,15}$/.test(value.replace(/\D/g, '')))
+    fields.phone = value
+  else if (/^[\p{L}\p{M}\s.'’\p{Pd}]+$/u.test(value) && /\p{L}/u.test(value)) fields.name = value
+  return fields
+}
+
 /** MongoDB regex ignores collation; expand Romanian variants without changing stored names. */
 export function checkInSearchPattern(value: string) {
   return Array.from(normalizeCheckInSearch(value))

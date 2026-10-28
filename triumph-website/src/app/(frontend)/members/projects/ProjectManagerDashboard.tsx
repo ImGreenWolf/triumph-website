@@ -73,7 +73,11 @@ import {
 } from '@/utilities/eventPayment'
 import { EventPaymentFields, usePaymentDialogFocus } from './EventPaymentFields'
 import { CheckInActionsMenu } from './CheckInActionsMenu'
-import { checkInSearchTerms, matchesCheckInSearch } from '@/utilities/eventCheckInSearch'
+import {
+  checkInSearchTerms,
+  getParticipantSearchPrefill,
+  matchesCheckInSearch,
+} from '@/utilities/eventCheckInSearch'
 import { EventActivityDialog } from './EventActivityDialog'
 import { ShiftOperationsPanel } from './ShiftOperationsPanel'
 import { DuplicateCleanupDialog } from './DuplicateCleanupDialog'
@@ -777,6 +781,7 @@ export function CheckIn(props: {
   const [resumeScannerAfterCheckIn, setResumeScannerAfterCheckIn] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [walkInOpen, setWalkInOpen] = useState(false)
+  const [walkInSearchQuery, setWalkInSearchQuery] = useState('')
   const [creatingWalkIn, setCreatingWalkIn] = useState(false)
   const [deletingID, setDeletingID] = useState<string | null>(null)
   const [savingID, setSavingID] = useState<string | null>(null)
@@ -937,6 +942,11 @@ export function CheckIn(props: {
     return () => window.clearTimeout(timer)
   }, [searchResultKey])
 
+  function openWalkInParticipant() {
+    setWalkInSearchQuery(emptySearchResult ? query : '')
+    setWalkInOpen(true)
+  }
+
   function openSearchShortcut() {
     if (!searchShortcutReady || (!singleSearchResult && !emptySearchResult)) return
     // The dialog restores focus here after closing, including when its shortcut is tapped.
@@ -944,7 +954,7 @@ export function CheckIn(props: {
     setReadySearchKey(null)
     setResumeScannerAfterCheckIn(false)
     if (singleSearchResult) setEditing(singleSearchResult)
-    else setWalkInOpen(true)
+    else openWalkInParticipant()
   }
 
   async function saveRegistration(args: {
@@ -1241,7 +1251,7 @@ export function CheckIn(props: {
         <div className="grid gap-2 sm:flex sm:flex-wrap">
           <button
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700 sm:w-auto sm:px-4"
-            onClick={() => setWalkInOpen(true)}
+            onClick={openWalkInParticipant}
             type="button"
           >
             <UserPlus className="size-3.5" />
@@ -1731,6 +1741,7 @@ export function CheckIn(props: {
           event={event.remote && remote.data ? { ...event, serverData: remote.data } : event}
           canManageEvent={canManageEvent}
           initialShift={event.remote ? shift : undefined}
+          initialSearchQuery={walkInSearchQuery}
           onClose={() => setWalkInOpen(false)}
           onSave={createWalkInParticipant}
           saving={creatingWalkIn}
@@ -1979,6 +1990,7 @@ function CheckInTeam(props: {
 export function WalkInParticipantDialog(props: {
   canManageEvent?: boolean
   initialShift?: string
+  initialSearchQuery?: string
   event: ManagedEvent
   onClose: () => void
   onSave: (values: WalkInParticipantInput) => Promise<void>
@@ -2001,9 +2013,12 @@ export function WalkInParticipantDialog(props: {
         ? defaultEventShift(event)
         : (shiftOptions[0]?.value ?? ''),
   )
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
+  const [initialFields] = useState(() =>
+    getParticipantSearchPrefill(props.initialSearchQuery || ''),
+  )
+  const [name, setName] = useState(initialFields.name)
+  const [email, setEmail] = useState(initialFields.email)
+  const [phone, setPhone] = useState(initialFields.phone)
   const [totalCollected, setTotalCollected] = useState('')
   const [ageGroup, setAgeGroup] = useState<AgeGroup | ''>('')
   const [guests, setGuests] = useState('0')

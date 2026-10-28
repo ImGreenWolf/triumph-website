@@ -133,6 +133,9 @@ test.describe('single-result search shortcut', () => {
     await search.press('Enter')
     await expect(
       page.getByRole('dialog').getByRole('textbox', { name: 'Nume *', exact: true }),
+    ).toHaveValue('participant inexistent')
+    await expect(
+      page.getByRole('dialog').getByRole('radio', { name: 'Minor — sub 18 ani' }),
     ).toBeFocused()
     await page.getByRole('button', { name: 'Închide', exact: true }).click()
     await expect(search).toBeFocused()
@@ -1470,6 +1473,9 @@ for (const width of [320, 1440]) {
     await expect(page.getByRole('dialog')).toHaveAccessibleName('Adaugă participant la eveniment')
     await expect(
       page.getByRole('dialog').getByRole('textbox', { name: 'Nume *', exact: true }),
+    ).toHaveValue('Participant nou')
+    await expect(
+      page.getByRole('dialog').getByRole('radio', { name: 'Minor — sub 18 ani' }),
     ).toBeFocused()
     expect(writes).toEqual([])
     await page.getByRole('button', { name: 'Închide', exact: true }).click()
@@ -1515,4 +1521,82 @@ test('empty-result shortcut waits for server results and stays disabled on refre
   await expect(page.getByRole('button', { name: 'Adaugă participant nou' })).toBeVisible()
   await search.press('Enter')
   await expect(page.getByRole('dialog')).toHaveAccessibleName('Adaugă participant la eveniment')
+})
+
+for (const width of [320, 1440]) {
+  test(`adding a participant from empty search prefills the correct field at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/?mode=list')
+    const search = page.getByRole('searchbox')
+    for (const input of [
+      {
+        query: '  Ștefan-Nou Popescu  ',
+        name: 'Ștefan-Nou Popescu',
+        email: '',
+        phone: '',
+        useEnter: true,
+      },
+      {
+        query: '  Nou+checkin@Example.ro  ',
+        name: '',
+        email: 'Nou+checkin@Example.ro',
+        phone: '',
+        useEnter: false,
+      },
+      {
+        query: '+40 (799) 123-456',
+        name: '',
+        email: '',
+        phone: '+40 (799) 123-456',
+        useEnter: true,
+      },
+    ]) {
+      await search.fill(input.query)
+      await expect(page.getByRole('button', { name: 'Adaugă participant nou' })).toBeVisible()
+      if (input.useEnter) await search.press('Enter')
+      else await page.getByRole('button', { name: 'Adaugă participant', exact: true }).click()
+      const dialog = page.getByRole('dialog')
+      const name = dialog.getByRole('textbox', { name: 'Nume *', exact: true })
+      await expect(name).toHaveValue(input.name)
+      await expect(dialog.getByRole('textbox', { name: /^Email/ })).toHaveValue(input.email)
+      await expect(dialog.getByRole('textbox', { name: /^Telefon/ })).toHaveValue(input.phone)
+      await expect(
+        input.name ? dialog.getByRole('radio', { name: 'Minor — sub 18 ani' }) : name,
+      ).toBeFocused()
+      await page.getByRole('button', { name: 'Închide', exact: true }).click()
+    }
+    await search.clear()
+    await page.getByRole('button', { name: 'Adaugă participant', exact: true }).click()
+    await expect(
+      page.getByRole('dialog').getByRole('textbox', { name: 'Nume *', exact: true }),
+    ).toHaveValue('')
+    await expect(page.getByRole('dialog').getByRole('textbox', { name: /^Email/ })).toHaveValue('')
+    await expect(page.getByRole('dialog').getByRole('textbox', { name: /^Telefon/ })).toHaveValue(
+      '',
+    )
+  })
+}
+
+test('server search carries the original query into the add participant form', async ({
+  page,
+  context,
+}) => {
+  await mockRemoteOperations(context)
+  await page.goto('/?mode=list&remote=1&manager=1&warnings=1')
+  await page.getByRole('combobox', { name: 'Filtrează după tură' }).selectOption('day:slot')
+  const search = page.getByRole('searchbox')
+  for (const input of [
+    { query: 'Țiriac Nou', field: 'Nume *' },
+    { query: 'nou@example.ro', field: 'Email (opțional)' },
+    { query: '0799 123 456', field: 'Telefon (opțional)' },
+  ]) {
+    await search.fill(input.query)
+    await page.getByRole('button', { name: 'Adaugă participant nou' }).click()
+    await expect(
+      page.getByRole('dialog').getByRole('textbox', { name: input.field, exact: true }),
+    ).toHaveValue(input.query)
+    await page.getByRole('button', { name: 'Închide', exact: true }).click()
+  }
 })

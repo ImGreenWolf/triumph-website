@@ -11,6 +11,7 @@ import { defaultEventShift, shiftSnapshotKey } from '@/utilities/eventOperations
 import {
   checkInSearchPattern,
   checkInSearchTerms,
+  getParticipantSearchPrefill,
   matchesCheckInSearch,
   normalizeCheckInSearch,
 } from '@/utilities/eventCheckInSearch'
@@ -874,6 +875,33 @@ describe('server event pages and global totals', () => {
 })
 
 describe('Romanian check-in search', () => {
+  it.each([
+    [' Ștefan Țiriac ', { name: 'Ștefan Țiriac', email: '', phone: '' }],
+    ['Ana-Maria O’Neill', { name: 'Ana-Maria O’Neill', email: '', phone: '' }],
+    ['S\u0326tefan Popescu', { name: 'S\u0326tefan Popescu', email: '', phone: '' }],
+    [
+      ' Ana.Popescu+event@Example.ro ',
+      { name: '', email: 'Ana.Popescu+event@Example.ro', phone: '' },
+    ],
+    ['0721 234 567', { name: '', email: '', phone: '0721 234 567' }],
+    [' +40 (721) 234-567 ', { name: '', email: '', phone: '+40 (721) 234-567' }],
+    ['0040-721-234-567', { name: '', email: '', phone: '0040-721-234-567' }],
+  ])('prefills the appropriate participant field from %s', (query, expected) => {
+    expect(getParticipantSearchPrefill(query)).toEqual(expected)
+  })
+  it.each([
+    '',
+    '   ',
+    'Ana ana@example.com',
+    'ana@',
+    '@example.ro',
+    '123',
+    '42.50',
+    '+40 Alice',
+    'https://example.com',
+  ])('leaves ambiguous search %s blank for manual entry', (query) => {
+    expect(getParticipantSearchPrefill(query)).toEqual({ name: '', email: '', phone: '' })
+  })
   it.each([
     ['popescu ana', 'Ana Popescu'],
     ['ANA POPESCU', 'Popescu Ana'],
