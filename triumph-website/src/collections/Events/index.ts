@@ -32,6 +32,7 @@ import { getRegistrationImportBatch } from '@/utilities/eventRegistrationImportC
 import { guardRegistrationOperation, recordRegistrationOperation } from './operationHooks'
 import { eventOperationAccess } from '../EventOperations'
 import { operationState, releaseEventOperation } from '@/utilities/eventOperationGuard'
+import { normalizeInstagramUsername } from '@/utilities/instagram'
 
 import {
   MetaDescriptionField,
@@ -105,11 +106,6 @@ export const Events: CollectionConfig<'events'> = {
         {
           fields: [
             {
-              name: 'heroImage',
-              type: 'upload',
-              relationTo: 'media',
-            },
-            {
               name: 'content',
               type: 'richText',
               editor: lexicalEditor({
@@ -130,49 +126,6 @@ export const Events: CollectionConfig<'events'> = {
             {
               type: 'group',
               fields: [
-                {
-                  name: 'useColors',
-                  type: 'checkbox',
-                  admin: {
-                    position: 'sidebar',
-                  },
-                },
-                {
-                  type: 'collapsible',
-                  label: 'Colors',
-                  admin: {
-                    condition: (data, siblingData) => siblingData.useColors,
-                  },
-                  fields: [
-                    {
-                      type: 'row',
-                      fields: [
-                        colorField({
-                          name: 'primaryColor',
-
-                          required: false,
-                        }),
-                        colorField({
-                          name: 'secondaryColor',
-
-                          required: false,
-                        }),
-                        colorField({
-                          name: 'cardColor',
-                          defaultValue: '#141e34',
-                          required: false,
-                        }),
-                      ],
-                    },
-                  ],
-                },
-                {
-                  name: 'inspoboard',
-                  type: 'upload',
-                  relationTo: 'media',
-                  hasMany: true,
-                },
-
                 locationField({ label: 'Location of Event' }),
                 {
                   type: 'array',
@@ -318,6 +271,83 @@ export const Events: CollectionConfig<'events'> = {
             },
           ],
           label: 'Content',
+        },
+        {
+          label: 'Aspect',
+          fields: [
+            {
+              name: 'heroImage',
+              type: 'upload',
+              relationTo: 'media',
+            },
+            {
+              name: 'useColors',
+              type: 'checkbox',
+              label: 'Folosește culori personalizate',
+            },
+            {
+              type: 'collapsible',
+              label: 'Culori',
+              admin: {
+                condition: (data, siblingData) => siblingData.useColors,
+              },
+              fields: [
+                {
+                  type: 'row',
+                  fields: [
+                    colorField({ name: 'primaryColor', required: false }),
+                    colorField({ name: 'secondaryColor', required: false }),
+                    colorField({
+                      name: 'cardColor',
+                      defaultValue: '#141e34',
+                      required: false,
+                    }),
+                  ],
+                },
+              ],
+            },
+            {
+              name: 'showParticipantsCount',
+              type: 'checkbox',
+              label: 'Afișează numărul de participanți',
+              defaultValue: true,
+              admin: {
+                description:
+                  'Afișează numărul de participanți pe pagina publică după încheierea evenimentului.',
+              },
+            },
+            {
+              name: 'inspoboard',
+              type: 'upload',
+              relationTo: 'media',
+              hasMany: true,
+            },
+            {
+              name: 'photographers',
+              type: 'array',
+              label: 'Fotografi',
+              labels: { singular: 'Fotograf', plural: 'Fotografi' },
+              admin: {
+                description: 'Creditele apar sub titlul galeriei de fotografii a evenimentului.',
+              },
+              fields: [
+                { name: 'name', type: 'text', label: 'Nume', required: true },
+                {
+                  name: 'instagram',
+                  type: 'text',
+                  label: 'Instagram',
+                  required: true,
+                  admin: {
+                    description:
+                      'Numele de utilizator, @utilizator sau linkul profilului Instagram.',
+                  },
+                  validate: (value: unknown) =>
+                    Boolean(normalizeInstagramUsername(value)) ||
+                    'Introdu un profil Instagram valid.',
+                },
+              ],
+            },
+          ],
         },
         {
           name: 'meta',

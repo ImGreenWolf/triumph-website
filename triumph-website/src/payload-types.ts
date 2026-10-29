@@ -1122,7 +1122,6 @@ export interface ArchiveBlock {
 export interface Event {
   id: string;
   name: string;
-  heroImage?: (string | null) | Media;
   content: {
     root: {
       type: string;
@@ -1138,11 +1137,6 @@ export interface Event {
     };
     [k: string]: unknown;
   };
-  useColors?: boolean | null;
-  primaryColor?: string | null;
-  secondaryColor?: string | null;
-  cardColor?: string | null;
-  inspoboard?: (string | Media)[] | null;
   location?:
     | {
         [k: string]: unknown;
@@ -1182,6 +1176,29 @@ export interface Event {
     }[];
     id?: string | null;
   }[];
+  heroImage?: (string | null) | Media;
+  useColors?: boolean | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  cardColor?: string | null;
+  /**
+   * Afișează numărul de participanți pe pagina publică după încheierea evenimentului.
+   */
+  showParticipantsCount?: boolean | null;
+  inspoboard?: (string | Media)[] | null;
+  /**
+   * Creditele apar sub titlul galeriei de fotografii a evenimentului.
+   */
+  photographers?:
+    | {
+        name: string;
+        /**
+         * Numele de utilizator, @utilizator sau linkul profilului Instagram.
+         */
+        instagram: string;
+        id?: string | null;
+      }[]
+    | null;
   meta?: {
     /**
      * This image is displayed on event cards and on search results.
@@ -3872,13 +3889,7 @@ export interface AbsenceMotivationsSelect<T extends boolean = true> {
  */
 export interface EventsSelect<T extends boolean = true> {
   name?: T;
-  heroImage?: T;
   content?: T;
-  useColors?: T;
-  primaryColor?: T;
-  secondaryColor?: T;
-  cardColor?: T;
-  inspoboard?: T;
   location?: T;
   documents?:
     | T
@@ -3903,6 +3914,20 @@ export interface EventsSelect<T extends boolean = true> {
               capacity?: T;
               id?: T;
             };
+        id?: T;
+      };
+  heroImage?: T;
+  useColors?: T;
+  primaryColor?: T;
+  secondaryColor?: T;
+  cardColor?: T;
+  showParticipantsCount?: T;
+  inspoboard?: T;
+  photographers?:
+    | T
+    | {
+        name?: T;
+        instagram?: T;
         id?: T;
       };
   meta?:

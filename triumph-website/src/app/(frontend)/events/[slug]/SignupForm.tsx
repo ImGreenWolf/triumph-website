@@ -30,6 +30,7 @@ type SignupEvent = Pick<
   | 'minimumConsumation'
   | 'name'
   | 'private'
+  | 'showParticipantsCount'
   | 'signupMessage'
 > & {
   participantsCount: number
@@ -598,24 +599,26 @@ function Participants({
       className="mt-5 rounded-xl p-4 flex flex-col gap-4"
       style={{ backgroundColor: backgroundColor, color: getContrastTextColor(backgroundColor) }}
     >
-      <div>
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <span className="flex items-center gap-2 opacity-80">
-            <Users aria-hidden className="size-4" />
-            Participanți
-          </span>
-          <span className="font-bold text-xl">
-            {participantsCount}
-            {capacity > 0 && ` / ${capacity}`}
-          </span>
+      {event.showParticipantsCount !== false && (
+        <div>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="flex items-center gap-2 opacity-80">
+              <Users aria-hidden className="size-4" />
+              Participanți
+            </span>
+            <span className="font-bold text-xl">
+              {participantsCount}
+              {capacity > 0 && ` / ${capacity}`}
+            </span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/20">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ backgroundColor: accentColor, width: `${percentage}%` }}
+            />
+          </div>
         </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/20">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ backgroundColor: accentColor, width: `${percentage}%` }}
-          />
-        </div>
-      </div>
+      )}
 
       <div className="flex flex-col justify-between text-sm">
         <span className="flex items-center gap-2 opacity-80">

@@ -65,6 +65,7 @@ export async function getEventSignupData(event: Event) {
       name: event.name,
       participantsCount,
       private: event.private,
+      showParticipantsCount: event.showParticipantsCount,
       signupMessage: event.signupMessage,
       totalDonation: getTotalDonations(docs),
     },
